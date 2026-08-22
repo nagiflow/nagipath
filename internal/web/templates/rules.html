@@ -2,6 +2,7 @@
 {{with .Data}}
 <div class="tb">
   <h1>Rule lookup</h1>
+  <span class="crumb small">every rule in effect here, in order — not followed onward, that's Trace</span>
   {{/* One form, split across the toolbar and the filter column: the checkboxes
        below use form="lookup", so the filters submit with the query and no
        script is needed to keep them together. */}}
@@ -57,14 +58,7 @@
 </div>
 
 <div class="col">
-{{if not .Asked}}
-<div class="bx col">
-  <span class="lbl">what this answers</span>
-  <p class="note">Which rules are in effect for one host and path, in the order they are
-  evaluated, and where each one is written. It does not follow the request anywhere —
-  that is <a href="/trace">Trace</a>.</p>
-</div>
-{{else}}
+{{if .Asked}}
 
 {{range .Answered}}
 <details class="bx" open>

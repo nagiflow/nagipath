@@ -2,6 +2,7 @@
 {{with .Data}}
 <div class="tb">
   <h1>Search</h1>
+  <span class="crumb small">full-text across every instance's config — not scoped to one request</span>
   <form method="get" action="/search" id="search" class="trace-form">
     <input name="q" value="{{.Query}}" placeholder="proxy_pass, X-Frame-Options, 10.90.4.*"
            size="44" autofocus>
