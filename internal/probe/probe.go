@@ -950,6 +950,29 @@ type Record struct {
 	Verified    int
 }
 
+// RateLimited enforces the per-user, per-Entry-Point guardrail (probe.md §2). An
+// Entry Point is matched the same way Recent matches history — by the stored url,
+// which is scheme+host+path with no query — so this is a query against the rows a
+// Probe already writes, not a new table.
+//
+// A limit of 0 disables the guardrail rather than blocking every Probe: an operator
+// who sets it to 0 is turning the check off, not setting it to "never".
+func RateLimited(ctx context.Context, db *store.DB, actorID int64, url string) (bool, error) {
+	limit := db.SettingInt(ctx, "probe_rate_limit_max")
+	if limit <= 0 {
+		return false, nil
+	}
+	window := db.SettingInt(ctx, "probe_rate_limit_window_seconds")
+	since := time.Now().UTC().Add(-time.Duration(window) * time.Second).Format("2006-01-02T15:04:05Z")
+	var n int
+	err := db.R.QueryRowContext(ctx, `SELECT COUNT(*) FROM probe
+		WHERE actor_user_id = ? AND url = ? AND requested_at >= ?`, actorID, url, since).Scan(&n)
+	if err != nil {
+		return false, err
+	}
+	return n >= limit, nil
+}
+
 // Recent lists probes sent at a URL, newest first.
 func Recent(ctx context.Context, db *store.DB, url string, limit int) ([]Record, error) {
 	rows, err := db.R.QueryContext(ctx, `SELECT p.id, p.method, p.url, p.status_code,

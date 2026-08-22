@@ -188,6 +188,8 @@ var settingDefaults = map[string]string{
 	"snapshot_retention_min_per_instance": "10",
 	"probe_max_redirects":                 "5",
 	"probe_log_lookback_seconds":          "120",
+	"probe_rate_limit_max":                "5",
+	"probe_rate_limit_window_seconds":     "300",
 	"ssh_command_timeout_seconds":         "30",
 	"readfile_max_bytes":                  "8388608",
 	"snapshot_max_files":                  "2000",

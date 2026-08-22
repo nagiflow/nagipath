@@ -1,8 +1,14 @@
 package probe
 
 import (
+	"context"
+	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/nagiflow/nagipath/internal/store"
 )
 
 // Response evidence is only as good as the header name it looked for, and each
@@ -98,5 +104,89 @@ func TestFindTokenMatchesTheTokenNotTheTime(t *testing.T) {
 	// A same-second neighbour must never be returned in the token's place.
 	if findToken(log, "0000000000000000000000000000dead") != "" {
 		t.Error("a token that is not in the log matched a line anyway")
+	}
+}
+
+// The rate limit guardrail (probe.md §2) is per user AND per Entry Point, reads its
+// window and its ceiling from Settings rather than a hardcoded constant, and counts
+// only rows still inside the rolling window — the same "everything configurable
+// lives in Settings" convention as probe_max_redirects and probe_log_lookback_seconds.
+func TestRateLimitedCountsWithinTheWindowPerActorAndURL(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "probe.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	ctx := context.Background()
+
+	actorID, err := db.CreateUser(ctx, "admin", "a good long password", "admin", "Admin", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherID, err := db.CreateUser(ctx, "other", "a good long password", "admin", "Other", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.SetSetting(ctx, "probe_rate_limit_max", "2", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.SetSetting(ctx, "probe_rate_limit_window_seconds", "60", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	const target = "https://shop.example.com/v2/charge"
+	seq := 0
+	insert := func(actor int64, url string, age time.Duration) {
+		t.Helper()
+		seq++
+		when := time.Now().UTC().Add(-age).Format("2006-01-02T15:04:05Z")
+		if _, err := db.W.ExecContext(ctx, `INSERT INTO probe
+			(actor_user_id, method, url, correlation_token, origin_host, requested_at, result)
+			VALUES (?,?,?,?,?,?,?)`,
+			actor, "GET", url, fmt.Sprintf("tok-%d", seq), "test", when, "completed"); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if limited, err := RateLimited(ctx, db, actorID, target); err != nil || limited {
+		t.Fatalf("RateLimited with no history = %v, %v; want false, nil", limited, err)
+	}
+
+	insert(actorID, target, 30*time.Second)
+	insert(actorID, target, 10*time.Second)
+	if limited, err := RateLimited(ctx, db, actorID, target); err != nil || !limited {
+		t.Fatalf("RateLimited at the ceiling = %v, %v; want true, nil", limited, err)
+	}
+
+	// A different Entry Point (a different hostname+path) is a different bucket.
+	if limited, err := RateLimited(ctx, db, actorID, "https://shop.example.com/other"); err != nil || limited {
+		t.Errorf("the limit leaked across Entry Points: %v, %v", limited, err)
+	}
+	// A different operator at the same Entry Point is a different bucket too — the
+	// guardrail is per user AND per Entry Point, not just per Entry Point.
+	if limited, err := RateLimited(ctx, db, otherID, target); err != nil || limited {
+		t.Errorf("the limit leaked across users: %v, %v", limited, err)
+	}
+
+	// Age the two rows past the window: they stop counting, and a fresh Probe is
+	// allowed through the guardrail again.
+	if _, err := db.W.ExecContext(ctx, `UPDATE probe SET requested_at = ? WHERE actor_user_id = ?`,
+		time.Now().UTC().Add(-90*time.Second).Format("2006-01-02T15:04:05Z"), actorID); err != nil {
+		t.Fatal(err)
+	}
+	if limited, err := RateLimited(ctx, db, actorID, target); err != nil || limited {
+		t.Errorf("RateLimited after the window passed = %v, %v; want false, nil", limited, err)
+	}
+
+	// probe_rate_limit_max = 0 disables the guardrail rather than blocking everything.
+	if err := db.SetSetting(ctx, "probe_rate_limit_max", "0", nil); err != nil {
+		t.Fatal(err)
+	}
+	insert(actorID, target, time.Second)
+	insert(actorID, target, time.Second)
+	insert(actorID, target, time.Second)
+	if limited, err := RateLimited(ctx, db, actorID, target); err != nil || limited {
+		t.Errorf("probe_rate_limit_max=0 = %v, %v; want the guardrail disabled (false, nil)", limited, err)
 	}
 }
