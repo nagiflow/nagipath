@@ -1,0 +1,22 @@
+{{template "head" .}}
+{{template "toolbar" toolbar "Collections" (printf "last %v runs · a collection reads, it never writes" (len .Data))}}
+{{template "body"}}
+{{if .Data}}
+<table>
+  {{template "cols" cols "Started" "Node" "Trigger" "Status" "Instances" "Stored" "Took" "Error"}}
+  {{range .Data}}
+  <tr><td class="mono small">{{.StartedAt}}</td><td><a href="/nodes/{{.NodeID}}">{{.NodeName}}</a></td>
+      <td>{{.Trigger}}</td><td class="s-{{.Status}}">{{.Status}}</td>
+      <td>{{.InstancesSeen}}</td><td class="mono small">{{bytes .BytesStored}}</td>
+      <td class="mono small">{{if .DurationMS.Valid}}{{.DurationMS.Int64}} ms{{else}}—{{end}}</td>
+      <td class="mono small">{{.Error}}</td></tr>
+  {{end}}
+</table>
+{{else}}
+{{template "empty" "No collections yet"}}
+  <p>Collection is what fills every other screen. <a href="/nodes">Add a node</a>, approve its
+  host key, then collect from it.</p>
+{{template "empty-end"}}
+{{end}}
+</div>
+{{template "foot" .}}

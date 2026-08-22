@@ -1,0 +1,10 @@
+# The fleet. One host per line: address[:port] [display name].
+#
+# This file is the entire discovery mechanism. nagipath does not scan networks,
+# so a host that is not listed here does not exist as far as it is concerned —
+# including 10.90.4.7, which the lab references as an upstream on purpose.
+lb01 lb01
+web02 web02
+web03 web03
+web05 web05
+app01 app01

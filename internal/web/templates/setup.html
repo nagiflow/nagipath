@@ -1,0 +1,13 @@
+{{template "head" .}}
+<section class="narrow">
+  <h1>Set up nagipath</h1>
+  <p>Create the first administrator. This page closes for good once it exists.</p>
+  <form method="post" action="/setup">
+    <label>Username <input name="username" required autofocus autocomplete="username"></label>
+    <label>Password <input name="password" type="password" required minlength="12" autocomplete="new-password"></label>
+    <label>Confirm password <input name="confirm" type="password" required minlength="12" autocomplete="new-password"></label>
+    <p class="hint">At least 12 characters. nagipath stores only an Argon2id hash.</p>
+    <button type="submit">Create administrator</button>
+  </form>
+</section>
+{{template "foot" .}}

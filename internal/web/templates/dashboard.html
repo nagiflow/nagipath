@@ -1,0 +1,105 @@
+{{template "head" .}}
+{{with .Data}}
+{{template "toolbar" toolbar "Dashboard" "the one question this tool exists to answer"}}
+  <a class="button" href="/fleet">Fleet</a>
+  <a class="button p" href="/trace">Trace a request</a>
+{{template "body"}}
+
+{{/* No trace form here: /trace is one click away in the toolbar and the nav, and it
+     already lists recent traces with their confidence. */}}
+{{template "cards" cards
+  (card .Instances "instances" "/fleet" "")
+  (card .Nodes "nodes" "/fleet" "")
+  (card .Certs30 "certs ≤ 30d" "/certificates" (warnif .Certs30))
+  (card .Drifted "drifted instances" "/drift" (warnif .Drifted))
+  (cardif (gt .Pending 0) .Pending "host keys to approve" "/onboarding" "warn")}}
+
+<div class="row center small">
+  <span class="lbl">instance state</span>
+  <span class="badge c-verified">{{.OK}} ok</span>
+  <span class="badge c-observed_effect">{{.Degraded}} degraded</span>
+  <span class="badge c-inferred">{{.PendingInstances}} pending</span>
+  <span class="spacer"></span>
+  {{range $vendor, $n := .Vendors}}<span class="badge">{{$n}} {{$vendor}}</span> {{end}}
+</div>
+
+{{if not .Nodes}}
+{{template "empty" "Nothing collected yet"}}
+  <p>Add a node, approve its SSH host key, then collect. nagipath reads; it never writes
+  to a managed host.</p>
+  <a class="button p" href="/onboarding">Connect the fleet</a>
+{{template "empty-end"}}
+{{end}}
+
+<div class="split rev" style="--r:22rem">
+
+<div class="col">
+  <div class="bx col">
+    <div class="row center">
+      <span class="lbl">collection activity</span>
+      {{/* ponytail: the window is fixed at 24h in three-hour buckets. It is a label
+           rather than a select because a select with no script cannot change it, and
+           a control that does nothing is worse than none. */}}
+      <span class="badge t">24h</span>
+      <span class="spacer"></span>
+      <a class="small" href="/collections">all collections →</a>
+    </div>
+    <div class="bars">
+      {{range .Activity}}
+      <div class="b {{if .Failed}}err{{end}}"
+           style="height:{{bar .Total $.Data.ActivityMax}}%"
+           title="{{.Label}} · {{.Total}} collection{{if ne .Total 1}}s{{end}}{{if .Failed}} · {{.Failed}} failed{{end}}"></div>
+      {{end}}
+    </div>
+    <div class="row center tiny dim">
+      {{range .Activity}}<span style="width:.9rem;text-align:center">{{.Total}}</span>{{end}}
+      <span class="spacer"></span>
+      <span class="mono">{{with index .Activity 0}}{{.Label}}{{end}} → now</span>
+    </div>
+  </div>
+
+  {{if .Collections}}
+  <div class="bx col">
+    <div class="row center"><span class="lbl">recent collections</span><span class="spacer"></span>
+      <a class="small" href="/collections">all →</a></div>
+    <table>
+  {{template "cols" cols "started:11rem" "node" "trigger:6rem" "status:6rem" "instances:5rem"}}
+      {{range .Collections}}
+      <tr><td class="mono small">{{.StartedAt}}</td>
+          <td><a href="/nodes/{{.NodeID}}">{{.NodeName}}</a></td>
+          <td class="tiny">{{.Trigger}}</td><td class="s-{{.Status}}">{{.Status}}</td>
+          <td>{{.InstancesSeen}}</td></tr>
+      {{end}}
+    </table>
+  </div>
+  {{end}}
+</div>
+
+<div class="col">
+  <div class="bx col">
+    <div class="row center">
+      <span class="lbl">needs attention</span>
+      <span class="spacer"></span>
+      <span class="small dim">{{len .Attention}}</span>
+    </div>
+    {{if .Attention}}
+    {{range .Attention}}
+    <div class="block">
+      <div class="row center">
+        <span class="badge {{if eq .Kind "CERT"}}c-observed_effect{{else if eq .Kind "HOSTKEY"}}c-disproved{{else if eq .Kind "LOGFMT"}}c-inferred{{else}}c-partial{{end}}">{{.Kind}}</span>
+        <a href="{{.Link}}">{{.Text}} ↗</a>
+      </div>
+      <p class="tiny dim">{{.Note}}</p>
+    </div>
+    {{end}}
+    {{else}}
+    <p class="note">Nothing to read. Every collected instance parsed, no certificate is
+    inside thirty days, and no host key is waiting.</p>
+    {{end}}
+    <span class="cal">nothing here is an alert — no monitoring, no thresholds</span>
+  </div>
+</div>
+</div>
+{{end}}
+</div>
+{{template "foot" .}}

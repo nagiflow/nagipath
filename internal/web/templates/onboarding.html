@@ -1,0 +1,179 @@
+{{template "head" .}}
+{{with .Data}}
+{{template "toolbar" toolbar "Connect the fleet" (printf "step %v of 4" (.Step))}}
+  <a class="button" href="/fleet">Skip</a>
+  <a class="button p" href="/fleet">Continue</a>
+{{template "body"}}
+
+{{/* The steps are derived from what the fleet actually contains, not remembered:
+     an operator who leaves and comes back lands where the fleet is. */}}
+<div class="steps">
+  <span class="st {{if gt .Step 1}}done{{else if eq .Step 1}}on{{end}}">1 · Nodes
+    <span class="mono tiny">{{len .Nodes}}</span></span>
+  <span class="arrow">→</span>
+  <span class="st {{if gt .Step 2}}done{{else if eq .Step 2}}on{{end}}">2 · Credentials
+    <span class="mono tiny">{{len .Credentials}}</span></span>
+  <span class="arrow">→</span>
+  <span class="st {{if gt .Step 3}}done{{else if eq .Step 3}}on{{end}}">3 · Host keys
+    <span class="mono tiny">{{len .Pending}} pending</span></span>
+  <span class="arrow">→</span>
+  <span class="st {{if eq .Step 4}}on{{end}}">4 · First collection</span>
+</div>
+
+<div class="split rev" style="--r:280px">
+
+<div class="col">
+  <div class="bx col">
+    <span class="lbl">source of nodes</span>
+    <form method="post" action="/onboarding/nodes">
+      {{template "csrf" $.CSRF}}
+      <div class="row center">
+        <label class="facet"><input type="radio" name="source" value="list"
+          {{if eq .Source "list"}}checked{{end}}> paste a list</label>
+        <label class="facet"><input type="radio" name="source" value="ini"
+          {{if eq .Source "ini"}}checked{{end}}> Ansible INI</label>
+        <label class="facet"><input type="radio" name="source" value="yaml"
+          {{if eq .Source "yaml"}}checked{{end}}> Ansible YAML</label>
+      </div>
+      {{/* The format is detected from the text; the radios say what nagipath will
+           accept, so a paste that is not read is a visible refusal, not a silence. */}}
+      <label>Hosts
+        <textarea name="inventory" rows="9" required
+          placeholder="edge-01.eu.example.com&#10;edge-02.eu.example.com:2222&#10;nagipath@edge-03.eu.example.com&#10;&#10;# or an Ansible inventory, INI or YAML"></textarea>
+      </label>
+      <div class="row">
+        <label>Default SSH user <input name="username" placeholder="nagipath"></label>
+        <label>Credential
+          <select name="credential_id">
+            <option value="">none yet</option>
+            {{range .Credentials}}<option value="{{.ID}}">{{.Name}}{{if .Username}} ({{.Username}}){{end}}</option>{{end}}
+          </select>
+        </label>
+        <label>Via bastion
+          <select name="bastion_id">
+            <option value="">direct</option>
+            {{range .Nodes}}<option value="{{.ID}}">{{.DisplayName}}</option>{{end}}
+          </select>
+        </label>
+      </div>
+      <button type="submit">Add these nodes</button>
+    </form>
+    <span class="cal">nagipath never scans a network or CIDR range</span>
+    <p class="tiny dim">A CIDR, a dashed address range or a <span class="mono">web[01:20]</span>
+    pattern is refused with a reason rather than expanded: expanding it is scanning with
+    extra steps.</p>
+  </div>
+
+  <div class="bx col">
+    <span class="lbl">credential</span>
+    <form method="post" action="/credentials">
+      {{template "csrf" $.CSRF}}
+      <div class="row">
+        <label>Name <input name="name" placeholder="fleet-readonly" required></label>
+        <label>SSH user <input name="username" placeholder="nagipath"></label>
+      </div>
+      <div class="drop">
+        <span class="lbl">private key — write-only</span>
+        <textarea name="private_key" rows="5" required
+          placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+        <p class="tiny dim">Sealed on submit and never rendered again by any route. There is
+        no page, export or API in nagipath that can read it back.</p>
+      </div>
+      <div class="row">
+        <label>Passphrase <input name="passphrase" type="password" autocomplete="new-password"></label>
+        <label>SSH certificate (optional) <input name="certificate" placeholder="ssh-rsa-cert-v01@..."></label>
+      </div>
+      <button type="submit">Store credential</button>
+    </form>
+    <div class="bx dash col">
+      <span class="lbl">encryption</span>
+      <p class="tiny">Stored AES-256-GCM under the Master Key file. Missing key ⇒ refuses to start.</p>
+    </div>
+  </div>
+
+  {{if .Nodes}}
+  <div class="bx col">
+    <span class="lbl">nodes · {{len .Nodes}}</span>
+    <table>
+  {{template "cols" cols "node" "host key:7rem" "last collection:11rem" ":9rem"}}
+      {{range .Nodes}}
+      <tr>
+        <td><a href="/nodes/{{.ID}}">{{.DisplayName}}</a>
+          <span class="mono tiny dim">{{.Address}}:{{.SSHPort}}</span></td>
+        <td>{{if .PendingHostKeys}}<span class="badge c-partial">pending</span>
+          {{else}}<span class="badge c-verified">approved</span>{{end}}</td>
+        <td class="mono tiny">{{if .LastCollection.Valid}}{{.LastCollection.String}}{{else}}never{{end}}</td>
+        <td>{{if $.User.IsAdmin}}<form method="post" action="/nodes/{{.ID}}/collect" class="inline">
+          {{template "csrf" $.CSRF}}
+          <button type="submit">{{if .LastCollection.Valid}}Collect{{else}}Test connection{{end}}</button>
+        </form>{{end}}</td>
+      </tr>
+      {{end}}
+    </table>
+    <p class="tiny dim">The first connection fetches the host key and stops. Nothing is read
+    from a node until that key is approved below.</p>
+  </div>
+  {{end}}
+</div>
+
+<div class="col">
+  <div class="bx col">
+    <span class="lbl">host key approval · {{len .Pending}} pending</span>
+    {{if .Pending}}
+    <form method="post" action="/hostkeys/approve">
+      {{template "csrf" $.CSRF}}
+      {{range .Pending}}
+      <div class="block">
+        <label class="facet"><input type="checkbox" name="key" value="{{.ID}}" checked>
+          <b>{{.NodeName}}</b></label>
+        <p class="mono tiny" style="overflow-wrap:anywhere">{{.Algorithm}}<br>{{.Fingerprint}}</p>
+        {{if .Previous}}
+        <p class="tiny warn">Replaces an approved key. A rekey and an interception look
+        identical here — compare against the host before approving.</p>
+        <p class="mono tiny dim" style="overflow-wrap:anywhere">was {{.Previous}}</p>
+        {{end}}
+        <p class="tiny dim">{{.NodeAddress}} · first seen {{.FirstSeenAt}}</p>
+      </div>
+      {{end}}
+      <div class="row center">
+        <button type="submit" name="decision" value="approve">Approve all shown</button>
+        <button type="submit" name="decision" value="reject" class="danger">Reject</button>
+      </div>
+    </form>
+    <p class="tiny dim">Compare each fingerprint with <span class="mono">ssh-keygen -lf</span>
+    on the host itself. There is no trust-on-first-use path in nagipath: an unapproved key
+    means no collection, not a warning.</p>
+    {{else}}
+    <p class="note">Nothing waiting. Every known host key was approved or rejected by a
+    person, which is the only way a key becomes trusted here.</p>
+    {{end}}
+  </div>
+
+  {{if .Collections}}
+  <div class="bx col">
+    <span class="lbl">first collections</span>
+    <table>
+      {{range .Collections}}
+      <tr><td class="small">{{.NodeName}}</td>
+        <td class="s-{{.Status}} tiny">{{.Status}}</td>
+        <td class="mono tiny">{{.StartedAt}}</td></tr>
+      {{end}}
+    </table>
+    <a href="/collections">All collections →</a>
+  </div>
+  {{end}}
+</div>
+</div>
+
+<div class="bx dash col">
+  <span class="lbl">sudoers snippet</span>
+  {{/* ponytail: no Copy button — the clipboard needs script, and this UI ships no
+       JavaScript. Select the block instead. Add a button when the UI gains a
+       bundle, which it is not planned to. */}}
+  <p class="tiny dim">Select and copy into <span class="mono">/etc/sudoers.d/nagipath</span>.
+  Every entry reports state or reads a file; none of them can change anything.</p>
+  <pre class="config">{{sudoers}}</pre>
+</div>
+</div>
+{{end}}
+{{template "foot" .}}

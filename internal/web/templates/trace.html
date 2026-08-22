@@ -1,0 +1,463 @@
+{{template "head" .}}
+{{with .Data}}
+<div class="tb">
+  <h1>Trace</h1>
+  <form method="post" action="/trace" class="trace-form">
+    {{template "csrf" $.CSRF}}
+    {{/* Method is here because the live request below sends it, and a trace that
+         says GET while the probe sends HEAD would be two different questions. */}}
+    <select name="method" aria-label="method">
+      <option value="GET" {{if eq .Method "GET"}}selected{{end}}>GET</option>
+      <option value="HEAD" {{if eq .Method "HEAD"}}selected{{end}}>HEAD</option>
+    </select>
+    {{/* One field: operators paste a URL out of a ticket. Scheme, port and path
+         are read off it, and a bare host defaults to https. */}}
+    <input name="url" value="{{.URL}}" placeholder="https://shop.example.com/v2/charge"
+      size="46" required autofocus spellcheck="false" autocapitalize="off" aria-label="URL to trace">
+    <button type="submit">Trace</button>
+  </form>
+  <span class="spacer"></span>
+  {{if and .Result $.User.IsAdmin}}
+  {{/* The trace above is configuration only. This sends one real request and reads
+       the access log on every hop, which is the only thing that can prove which
+       instance handled it. Operator-triggered and audited, never scheduled. */}}
+  <form method="post" action="/trace/probe" class="inline">
+    {{template "csrf" $.CSRF}}
+    <input type="hidden" name="url" value="{{.URL}}">
+    <input type="hidden" name="method" value="{{.Method}}">
+    <input type="hidden" name="trace" value="{{.Result.ID}}">
+    <button type="submit" title="sends one {{.Method}} to this URL, then reads each hop's access log">
+      Verify with a live request</button>
+  </form>
+  {{end}}
+{{template "body"}}
+
+{{if .Empty}}
+{{template "empty" "Nothing is collected yet"}}
+  <p>A trace is answered from collected configuration, and there is none.
+  <a href="/nodes">Add a node</a> first.</p>
+{{template "empty-end"}}
+{{else if not .Result}}
+{{if not .Recent}}
+{{template "empty" "Nothing traced yet"}}
+  <p>Paste a URL above and click <b>Trace</b> to see its path through the fleet.</p>
+{{template "empty-end"}}
+{{end}}
+{{with .Recent}}
+<div class="bx col">
+  <span class="lbl">recent traces</span>
+  <table>
+  {{template "cols" cols "when:11rem" "url" "hops:4rem" "confidence:6.5rem" "stopped"}}
+    {{range .}}
+    <tr><td class="mono tiny">{{.ComputedAt}}</td>
+      <td class="mono"><a href="/trace?scheme={{.Scheme}}&amp;hostname={{.Hostname | urlquery}}&amp;path={{.Path | urlquery}}&amp;port={{.Port}}">{{.Scheme}}://{{.Hostname}}{{.Path}}</a></td>
+      <td>{{.HopCount}}</td>
+      <td>{{template "confidence" .Confidence}}</td>
+      <td class="tiny">{{reason .TerminalReason}}</td></tr>
+    {{end}}
+  </table>
+</div>
+{{end}}
+{{end}}
+
+{{with .Result}}
+{{/* Hops are labelled by rank, with a letter when the rank has alternatives: 0, then
+     1-a and 1-b. 0, 1, 2 reads as three steps in sequence, and the request reaches
+     exactly one of 1-a and 1-b. */}}
+{{$lbl := hoplabels .Hops}}
+{{$q := .Query}}
+
+{{/* The request itself spans both columns: it is the question, and a question in
+     one column reads as a property of that column. */}}
+<div class="bx">
+  <div class="row center">
+    <b class="mono">{{.Query.Scheme}}://{{.Query.Hostname}}{{.Query.Path}}</b>
+    <span class="mono small dim">:{{.Query.Port}}</span>
+    {{template "confidence" .Confidence}}
+    <span class="badge t">stopped: {{reason .TerminalReason}}</span>
+  </div>
+</div>
+{{range .Notes}}<p class="flash warn">{{.}}</p>{{end}}
+
+{{/* Left: the path. Right: what a real request did about it. The hop detail is a
+     flyout rather than a second column — a column of stacked panels claimed the
+     request visits each in turn, which is what the graph exists to deny. */}}
+<div class="split" style="--l:minmax(0,1fr)">
+
+<div class="col">
+  <div class="row center">
+    <span class="lbl">path graph · {{len .Hops}} hop{{if ne (len .Hops) 1}}s{{end}}</span>
+    <span class="spacer"></span>
+    <span class="tiny dim">click a hop for its listener, route and rules</span>
+  </div>
+  {{/* By rank, not in a line. Everything on one rank is somewhere the request
+       could be after the same number of proxy steps, and it reaches exactly one
+       of them — the ↓ is between ranks only. */}}
+  <div class="gcol">
+    {{range $li, $lv := levels .Hops}}
+    {{if $li}}<div class="gdown">↓{{with (index $lv.Hops 0).InboundPath}} <span class="tiny">{{.}}</span>{{end}}</div>{{end}}
+    <div class="grank{{if gt (len $lv.Hops) 1}} fan{{end}}">
+      {{if gt (len $lv.Hops) 1}}
+      <span class="tiny dim">the request reaches <b>one</b> of these {{len $lv.Hops}} —
+        separate nodes, so each is shown</span>
+      {{end}}
+      <div class="row">
+      {{range $g := $lv.Groups}}
+      {{/* A cluster is one box holding its members stacked: they run identical
+           configuration, so the request is answered the same way whichever one the
+           balancer picks — one answer listed on two hosts. */}}
+      {{if $g.Cluster}}<div class="gclu">
+        <span class="tiny dim">cluster <b>{{$g.Cluster}}</b> · identical configuration</span>
+        <div class="row">{{end}}
+      {{range $h := $g.Hops}}
+      {{/* The probe state is a ring on the card: checking pulses, verified is green,
+           missing means the request never showed up in this hop's access log. */}}
+      {{/* A live run's own state wins while it is running; with no run, the last probe
+           at this URL still rings the hop it proved, because that proof did not expire
+           when the page reloaded. */}}
+      <a class="gc{{if $h.IsExternal}} external{{end}}{{if $h.Terminal}} terminal{{end}}{{if $.Data.Run}}{{with index $.Data.Run.State $h.Ordinal}} p-{{.}}{{end}}{{else if $.Data.Last}}{{if not $h.IsExternal}}{{if $.Data.Last.Verified $h.Ordinal $h.Inst.DisplayName}} p-verified{{end}}{{end}}{{end}}" href="#hop{{$h.Ordinal}}">
+        {{if $h.IsExternal}}
+        <span class="n">hop {{index $lbl $h.Ordinal}} · leaves the fleet</span>
+        <span class="t mono">{{$h.ExternalTarget}}</span>
+        <span class="badge t">external</span>
+        {{else}}
+        <span class="n">hop {{index $lbl $h.Ordinal}} · {{$h.Inst.Vendor}}{{if $h.Listener}}:{{$h.Listener.Port}}{{end}}</span>
+        {{/* The node first: two members of one upstream run the same vendor with
+             the same config filename, and `nginx nginx.conf` twice is unreadable. */}}
+        <span class="t">{{$h.Inst.NodeName}}</span>
+        <span class="tiny dim">{{with $h.Site}}{{sitekind .Kind}}
+          <span class="mono">{{or .PrimaryName "(unnamed)"}}</span>{{end}}{{if $h.Route}} ·
+          <span class="mono">{{routekind $h.Route.MatchType}} {{$h.Route.Pattern}}</span>{{end}}</span><br>
+        {{template "confidence" $h.Confidence}}
+        {{if ne $h.InboundPath $h.EffectivePath}}<span class="badge">path rewritten</span>{{end}}
+        {{if $h.Shadowed}}<span class="badge c-observed_effect">{{len $h.Shadowed}} discarded</span>{{end}}
+        {{end}}
+      </a>
+      {{end}}
+      {{if $g.Cluster}}</div></div>{{end}}
+      {{end}}
+      </div>
+    </div>
+    {{end}}
+  </div>
+
+  {{if gt (len .EntryCandidates) 1}}
+  <div class="bx col">
+    <span class="lbl">where the request enters</span>
+    <p class="note">More than one instance answers this hostname. nagipath enters at the one
+    nothing else fronts, and lists the rest rather than hiding them.</p>
+    <ul class="candidates">
+      {{range .EntryCandidates}}
+      <li class="{{if .Selected}}chosen{{end}}">
+        <a href="/instances/{{.Inst.ID}}">{{.Inst.DisplayName}}</a>
+        <span class="mono small dim">{{.Inst.NodeAddress}}:{{.Listener.Port}}</span>
+        — {{.Reason}}
+      </li>
+      {{end}}
+    </ul>
+  </div>
+  {{end}}
+
+  {{with $.Data.Probes}}
+  {{/* Closed: the expanded panel beside the graph is the last one, and this is the
+       history behind it. Every probe sent at this URL is here, including the failures —
+       a request that went out and is not recorded is the one thing an audit trail
+       cannot tolerate. */}}
+  <details class="rf">
+    <summary>past probes at this URL
+      <span class="tiny dim">{{len .}} · one real request each, operator-triggered, never scheduled</span></summary>
+    <table>
+    {{template "cols" cols "id:3.5rem" "sent:11rem" "status:4rem" "result:6rem" "evidence" "actor:7rem"}}
+      {{range .}}
+      <tr><td class="mono">{{.ID}}</td>
+        <td class="mono tiny">{{.RequestedAt}}</td>
+        <td class="mono">{{if .Status.Valid}}{{.Status.Int64}}{{else}}—{{end}}</td>
+        <td class="s-{{.Result}} tiny">{{.Result}}</td>
+        <td class="tiny">{{.Evidence}} row{{if ne .Evidence 1}}s{{end}}{{if .Verified}} ·
+          <b class="ok">{{.Verified}} verified</b>{{end}}</td>
+        <td class="tiny">{{or .Actor "—"}}<br><span class="dim mono">{{.OriginHost}}</span></td></tr>
+      {{end}}
+    </table>
+  </details>
+  {{end}}
+
+  {{/* The parser version and the snapshot set are gone: a footnote nobody reads twice,
+       and the probe history in its place is the thing an operator comes back for. What
+       stays is the caveat, because a Partial badge without it is a word nobody can act
+       on — the snapshot ids are on the instance pages the graph links to. */}}
+  {{if eq .Confidence "partial"}}
+  <p class="tiny warn">part of this rests on an incomplete or unparsed snapshot</p>
+  {{end}}
+</div>
+
+{{/* The right column is the probe: the graph is what configuration says, and this is
+     what one real request did about it. A probe has no screen of its own — it is
+     evidence about this request, so it reads beside it. */}}
+<div class="col">
+{{/* A probe that fails before it is stored — a URL nagipath will not send, a method
+     that would change something — has no row to read back, so its error is shown
+     from the run itself. */}}
+{{with $.Data.Run}}{{if and .Done .Err}}<p class="flash err small">{{.Err}}</p>{{end}}{{end}}
+{{if and $.Data.Run (not $.Data.Run.Done)}}
+  {{with $.Data.Run}}
+  {{/* Only while it is running. The moment it lands, the panel below reads the probe
+       back out of the database instead: one format for what a probe found, whether it
+       finished a second ago or last Tuesday. */}}
+  <div class="bx col">
+    <div class="row center">
+      <span class="lbl">live request · {{.Method}}</span>
+      <span class="badge c-partial">running</span>
+    </div>
+    {{/* Newest last, so the list reads in the order it happened: this is progress, one
+         line per thing the probe did, and a hop appears in it once per stage. What it
+         found is the per-hop list the finished panel shows. */}}
+    <ul class="alog">
+      {{range .Steps}}<li{{if .State}} class="{{.State}}"{{end}}>{{.Text}}</li>{{end}}
+      <li class="checking">working…</li>
+    </ul>
+    {{/* ponytail: a meta refresh is the whole live transport, as on the node screen.
+         Swap for SSE plus a fragment swap if a big fleet makes the reload feel slow. */}}
+    <meta http-equiv="refresh" content="1">
+    <p class="tiny dim">this page refreshes every second while the request is followed</p>
+  </div>
+  {{end}}
+
+{{else}}{{with $.Data.Last}}
+  {{/* The last probe sent at this URL, read back from its stored rows and laid out the
+       way the live run was: what it did to each hop, then the bytes behind that. The
+       second-by-second progress log is the one thing not kept — it is one operator
+       watching one request — and the evidence it was narrating is. */}}
+  {{$pr := probed $.Data.Result.Hops $.Data.Last}}
+  <div class="bx col">
+    <div class="row center">
+      <span class="lbl">last live request · {{.Method}}</span>
+      <span class="badge{{if eq .Outcome "completed"}} c-verified{{else}} c-partial{{end}}">{{.Outcome}}</span>
+      <span class="spacer"></span>
+      <span class="mono tiny dim">{{.RequestedAt}}</span>
+      {{if .Status}}<span class="mono tiny dim">· {{.StatusText}} · {{.DurationMS}}ms</span>{{end}}
+    </div>
+    {{if .Err}}<p class="flash err small">{{.Err}}</p>{{end}}
+    {{/* One line per hop, in path order, each labelled the way its graph card is. Not
+         one line per evidence row: two rules matching on one hop is two rows and one
+         fact. Not numbered either — the live list above counts what happened, and the
+         same number meaning two different things is what makes it unreadable. */}}
+    <ul class="alog">
+      <li>{{.Method}} {{.URL}} · correlation token {{slice .Token 0 8}}</li>
+      {{range $pr}}
+      <li class="{{if eq .After "verified"}}verified{{else if eq .After "inferred"}}missing{{end}}">hop {{index $lbl .Ordinal}} ·
+        {{.Label}}: {{.Evidence}}{{with .LogPath}} in {{.}}{{end}}</li>
+      {{end}}
+    </ul>
+    {{with .Evidence}}
+    <details class="rf">
+      <summary>the evidence, verbatim
+        <span class="tiny dim">{{len .}} row{{if ne (len .) 1}}s{{end}}</span></summary>
+      {{range .}}
+      <div class="col">
+        <div class="row center">
+          {{if ge .HopOrdinal 0}}<a class="badge t" href="#hop{{.HopOrdinal}}">hop {{index $lbl .HopOrdinal}}</a>
+          {{else}}<span class="badge t">hop gone</span>{{end}}
+          <b>{{or .Node .Instance}}</b>
+          <span class="tiny dim mono">{{.Kind}}{{if .LogPath}} · {{.LogPath}}{{end}}</span>
+          <span class="spacer"></span>
+          {{template "confidence" .Grants}}
+        </div>
+        <pre class="config">{{.Raw}}</pre>
+      </div>
+      {{end}}
+    </details>
+    {{else}}
+    <p class="note">This probe raised nothing: the response carried no header any hop
+    declares, and no access log read back a line with the token in it. Every hop stayed
+    Inferred, which is the honest outcome and not a failure.</p>
+    {{end}}
+  </div>
+
+  {{if $pr}}
+  <div class="bx col">
+    <span class="lbl">what this probe raised</span>
+    {{/* Before and after both: a hop that did not move is the interesting case, and it
+         is the one a table of successes would drop. */}}
+    <table>
+      {{template "cols" cols "hop:3.5rem" "host" "evidence" "before:6.5rem" "after:6.5rem"}}
+      {{range $pr}}
+      <tr><td class="mono"><a href="#hop{{.Ordinal}}">{{index $lbl .Ordinal}}</a></td>
+        <td>{{.Label}}</td>
+        <td class="small">{{.Evidence}}</td>
+        <td>{{template "confidence" .Before}}</td>
+        <td>{{template "confidence" .After}}</td></tr>
+      {{end}}
+    </table>
+    {{with stillinferred $pr}}
+    <p class="note"><b>{{join .}}</b> stayed inferred — the response carried nothing that hop
+    declares and its access log records no field that identifies the request.
+    An honest Inferred beats a confident wrong Verified.</p>
+    {{end}}
+  </div>
+  {{end}}
+
+  {{/* Why a hop could not be verified, when the reason is the hop's own log format.
+       This is a fact about the configuration rather than about the probe, so it is
+       recomputed on every render instead of stored with the run. */}}
+  {{range $.Data.Gaps}}
+  <div class="bx dash col">
+    <span class="lbl">{{.Vendor}} log-format gap · {{.Instance}}</span>
+    <p class="tiny">{{.Note}}</p>
+    <pre class="config">{{.Directive}}</pre>
+    <p class="tiny dim">nagipath will not make this change. It never edits a managed host,
+    so the gap is stated with the directive that closes it and left to the operator.</p>
+  </div>
+  {{end}}
+
+  {{if .Headers}}
+  <details class="rf">
+    <summary>the response, verbatim
+      <span class="tiny dim">{{len .Headers}} header{{if ne (len .Headers) 1}}s{{end}}{{if .Redirects}}
+        · {{len .Redirects}} redirect{{if ne (len .Redirects) 1}}s{{end}}{{end}}</span></summary>
+    {{if .Redirects}}<ul class="rules">{{range .Redirects}}<li class="mono tiny">{{.}}</li>{{end}}</ul>{{end}}
+    <table>
+    {{template "cols" cols "header:12rem" "value"}}
+      {{range .Headers}}<tr><td class="mono tiny">{{index . 0}}</td>
+        <td class="mono tiny" style="overflow-wrap:anywhere">{{index . 1}}</td></tr>{{end}}
+    </table>
+  </details>
+  {{end}}
+  <p class="mono tiny dim" style="overflow-wrap:anywhere">probe #{{.ProbeID}} ·
+    {{or .ActorLabel "actor"}} · from {{or .OriginHost "unknown host"}} ·
+    token {{.Token}} · {{.RequestedAt}}</p>
+
+{{else}}
+  <div class="bx col">
+    <span class="lbl">live request</span>
+    <p class="note">Nothing has been sent to this URL. The graph is what the configuration
+    says; a probe sends exactly one request carrying a 128-bit correlation token and reads
+    each hop's access log for it, which is the only thing that can raise a hop to
+    Verified. Admin-only, audited before the request leaves, and never scheduled.</p>
+    {{if not $.User.IsAdmin}}<p class="tiny dim">Sending one takes an admin.</p>{{end}}
+  </div>
+{{end}}{{end}}
+</div>
+</div>
+
+{{/* Hop detail as a flyout, one per hop, opened by its own graph card. `:target` is
+     the whole mechanism: no script, and the URL says which hop is open, so a link to
+     #hop1-a lands on the panel someone was reading. */}}
+{{range $i, $h := .Hops}}
+<aside class="fly" id="hop{{$i}}" aria-label="hop {{index $lbl $i}}">
+  <div class="row center">
+    <span class="badge t">hop {{index $lbl $i}}</span>
+    {{if $h.IsExternal}}<b class="mono">{{$h.ExternalTarget}}</b>
+    <span class="badge c-observed_effect">leaves the fleet</span>
+    {{else}}
+    <a href="/instances/{{$h.Inst.ID}}"><b>{{$h.Inst.NodeName}}</b></a>
+    <span class="tiny dim mono">{{$h.Inst.DisplayName}}</span>
+    {{template "confidence" $h.Confidence}}
+    {{end}}
+    <span class="spacer"></span>
+    <a class="fly-x" href="#" title="close">✕</a>
+  </div>
+
+  {{if $h.IsExternal}}
+  <p class="note">{{$h.ExternalReason}}</p>
+  {{else}}
+  <ol class="why">
+    <li><span class="k">receives</span>
+      <span class="mono">{{$.Data.Method}} {{if $h.Listener}}{{if $h.Listener.TLS}}https{{else}}http{{end}}{{else}}{{$q.Scheme}}{{end}}://{{$q.Hostname}}{{$h.InboundPath}}</span></li>
+    {{with $h.Listener}}
+    <li><span class="k">listener</span> <span class="mono">{{or .Address "*"}}:{{.Port}}</span>
+      <span class="badge t">{{if .TLS}}TLS{{else}}plaintext{{end}}</span></li>
+    {{end}}
+    {{with $h.Site}}
+    {{/* The hostname first, because that is the question. The block name is
+         second and labelled: `fe_public` is a haproxy frontend, not a host. */}}
+    <li><span class="k">serves</span> <span class="mono">{{$q.Hostname}}</span>
+      <span class="dim tiny">by {{matched $h.MatchedBy $q.Hostname}}, in {{sitekind .Kind}}</span>
+      <span class="mono tiny">{{or .PrimaryName "(unnamed)"}}</span></li>
+    {{end}}
+    {{with $h.Route}}
+    <li><span class="k">route</span> <span class="mono">{{routekind .MatchType}} {{.Pattern}}</span>
+      <span class="dim tiny">{{$h.Precedence}}</span></li>
+    {{end}}
+    {{if ne $h.InboundPath $h.EffectivePath}}
+    <li><span class="k">rewrites</span>
+      <span class="mono">{{$h.InboundPath}}</span> → <span class="mono changed">{{$h.EffectivePath}}</span>
+      {{range $h.PathChangedBy}}{{with .Rule}}{{template "rulelink" .}}{{end}}{{end}}</li>
+    {{end}}
+  </ol>
+
+  {{if $h.Next}}
+  <div class="trans">
+    <span class="lbl">calls next</span>
+    {{with $h.Upstream}}<span class="tiny dim">via <span class="mono">{{.Name}}</span>
+      {{.Kind}}{{if .BalanceMethod}} · {{.BalanceMethod}}{{end}}</span>{{end}}
+    {{if gt (len $h.Next) 1}}
+    {{/* Not a fork nagipath chose: the upstream has this many members and the
+         balancer picks one per request. Configuration cannot say which one, so
+         every member is walked rather than one being guessed at. */}}
+    <p class="note">{{len $h.Next}} members — a request goes to <b>one</b> of them, picked at
+      request time by {{with $h.Upstream}}{{or .BalanceMethod "the balancer"}}{{else}}the balancer{{end}}.
+      Configuration cannot say which, so each is followed below.</p>
+    {{end}}
+    {{range $h.Next}}
+    <div class="row center">
+      <span class="mono">{{nexturl . $h.EffectivePath}}</span>
+      <span class="tiny dim">Host: {{$q.Hostname}}</span>
+      {{/* The rest of the server line verbatim, not a badge: `check cookie w02
+           weight 100` is the vendor's words, and a badge made it read as a
+           nagipath verdict. */}}
+      {{if .Member.Flags}}<span class="tiny dim mono">{{.Member.Flags}}</span>{{end}}
+      {{if ge .HopOrdinal 0}}<a class="tiny" href="#hop{{.HopOrdinal}}">hop {{index $lbl .HopOrdinal}} →</a>{{end}}
+      {{if .ResolvedAddresses}}<span class="dim tiny">{{join .ResolvedAddresses}}</span
+        >{{else}}<span class="warn tiny">did not resolve on the node</span>{{end}}
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+
+  {{if $h.Terminal}}
+  <p class="note"><b>stops here</b> — {{reason $h.Terminal}}{{if $h.ExternalReason}}: {{$h.ExternalReason}}{{end}}</p>
+  {{end}}
+
+  {{with $h.Incomplete}}
+  {{/* Collapsed: it is a caveat about this hop, and the vendor's own words for
+       it run to four lines. */}}
+  <details class="rf">
+    <summary class="warn">this hop's snapshot could not be read in full — what nagipath says
+      about it is what these files contain</summary>
+    <p class="note">{{.}}</p>
+  </details>
+  {{end}}
+
+  {{range $h.Shadowed}}
+  <p class="flash warn small">{{template "rulelink" .Rule}} is discarded — {{.Rule.ShadowedBy}}</p>
+  {{end}}
+
+  {{range routing $h.Rules}}
+  {{/* Closed: one haproxy frontend is sixty directives, and the decision is
+       already stated above. Open the file that is in question. */}}
+  <details class="rf">
+    <summary><span class="mono">{{.Path}}</span>
+      <span class="tiny dim">{{len .Rules}} directive{{if ne (len .Rules) 1}}s{{end}}{{if .Classes}}
+        · {{.Classes}}{{end}}</span></summary>
+    <table>
+      {{range .Rules}}
+      <tr>
+        <td>{{template "rulelink" .Rule}}</td>
+        <td class="tiny mono dim" style="width:7rem">{{.Rule.ActionClass}}</td>
+        <td class="tiny dim" style="width:5rem">{{.Scope}}</td>
+      </tr>
+      {{end}}
+    </table>
+  </details>
+  {{end}}
+  {{with globals $h.Rules}}
+  <p class="tiny dim">{{len .}} inherited global directive{{if ne (len .) 1}}s{{end}} apply and none of
+    them route — <a href="/instances/{{$h.Inst.ID}}">read them on the instance</a></p>
+  {{end}}
+  {{end}}
+</aside>
+{{end}}
+{{end}}
+{{end}}
+</div>
+{{template "foot" .}}

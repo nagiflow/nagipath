@@ -1,0 +1,48 @@
+# /etc/sudoers.d/nagipath — read-only inspection only.
+#
+# The first two aliases are the grant nagipath documents for distribution
+# packages, verbatim. The third exists only because the upstream haproxy and
+# httpd images install into /usr/local, which a real Debian or RHEL host does
+# not. Keeping them separate makes it obvious which lines are the product's
+# documented grant and which are an artefact of the lab.
+Defaults:nagipath !requiretty
+
+Cmnd_Alias NAGIPATH_DUMP = \
+  /usr/sbin/nginx -T, /usr/sbin/nginx -T -c *, /usr/sbin/nginx -V, /usr/sbin/nginx -v, \
+  /usr/sbin/nginx -t, /usr/sbin/nginx -t -c *, \
+  /usr/sbin/httpd -V, /usr/sbin/httpd -t -D *, /usr/sbin/apache2 -V, /usr/sbin/apache2 -t -D *, \
+  /usr/sbin/apache2ctl -V, /usr/sbin/apache2ctl -S, \
+  /usr/sbin/haproxy -vv, /usr/sbin/haproxy -c -f *
+
+Cmnd_Alias NAGIPATH_READ = \
+  /usr/bin/head -c * -- /etc/nginx/*, /usr/bin/head -c * -- /etc/httpd/*, \
+  /usr/bin/head -c * -- /etc/apache2/*, /usr/bin/head -c * -- /etc/haproxy/*, \
+  /usr/bin/stat -c * -- /etc/nginx/*, /usr/bin/stat -c * -- /etc/httpd/*, \
+  /usr/bin/stat -c * -- /etc/apache2/*, /usr/bin/stat -c * -- /etc/haproxy/*, \
+  /usr/bin/find /etc/nginx *, /usr/bin/find /etc/httpd *, \
+  /usr/bin/find /etc/apache2 *, /usr/bin/find /etc/haproxy *, \
+  /usr/bin/openssl x509 -noout *
+
+# Access logs, tail only, and only under the log directories. This is what a Probe
+# reads to prove which instance handled a request; without it a hop can never get
+# past Inferred, which is why it is part of the documented grant and not optional.
+Cmnd_Alias NAGIPATH_LOGS = \
+  /usr/bin/tail -c * -- /var/log/nginx/*, /usr/bin/tail -c * -- /var/log/httpd/*, \
+  /usr/bin/tail -c * -- /var/log/apache2/*, /usr/bin/tail -c * -- /var/log/haproxy/*, \
+  /usr/bin/tail -c * -- /var/log/haproxy.log
+
+Cmnd_Alias NAGIPATH_LAB_LAYOUT = \
+  /usr/local/sbin/haproxy -vv, /usr/local/sbin/haproxy -c -f *, \
+  /usr/local/apache2/bin/httpd -V, /usr/local/apache2/bin/httpd -t -D *, \
+  /usr/bin/head -c * -- /usr/local/etc/haproxy/*, \
+  /usr/bin/head -c * -- /usr/local/apache2/conf/*, \
+  /usr/bin/stat -c * -- /usr/local/etc/haproxy/*, \
+  /usr/bin/stat -c * -- /usr/local/apache2/conf/*, \
+  /usr/bin/find /usr/local/etc/haproxy *, /usr/bin/find /usr/local/apache2/conf *, \
+  /usr/bin/tail -c * -- /usr/local/apache2/logs/*
+
+# Deliberately absent: any way to read /etc/ssl/lab. lb01's certificate is a
+# combined PEM, so a `head` on it would hand over the private key. Certificate
+# facts come from `openssl x509 -noout` above, which cannot print a key.
+
+nagipath ALL=(root) NOPASSWD: NAGIPATH_DUMP, NAGIPATH_READ, NAGIPATH_LOGS, NAGIPATH_LAB_LAYOUT

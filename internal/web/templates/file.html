@@ -1,0 +1,20 @@
+{{template "head" .}}
+{{with .Data}}
+<div class="tb">
+  <span class="crumb">Snapshot /</span>
+  <h1 class="mono">{{.File.Path}}</h1>
+  <span class="spacer"></span>
+  <span class="small dim mono">captured {{.Snapshot.CapturedAt}}</span>
+{{template "body"}}
+<div class="bx">
+  <span class="lbl">file</span>
+  <dl class="facts">
+    <dt>kind</dt><dd>{{.File.Kind}}</dd>
+    <dt>size</dt><dd class="mono small">{{bytes .File.BytesRaw}}{{if .File.Truncated}} · truncated at the size limit{{end}}</dd>
+    <dt>sha256</dt><dd class="mono small">{{.File.Digest}}</dd>
+  </dl>
+</div>
+<pre class="config">{{.Body}}</pre>
+{{end}}
+</div>
+{{template "foot" .}}

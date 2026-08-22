@@ -1,0 +1,14 @@
+{{/* The title bar, and the open half of the page shell.
+
+     toolbar → body is an open/close pair, like head → foot: the toolbar holds
+     each page's own actions between them, and a partial that guessed those
+     would need a hook per page. A page whose toolbar carries breadcrumb links
+     or badges beside the title writes its own <div class="tb"> and still ends
+     it with {{template "body"}}. */}}
+{{define "toolbar"}}<div class="tb">
+  <h1>{{.Title}}</h1>
+  {{if .Crumb}}<span class="crumb small">{{.Crumb}}</span>{{end}}
+  <span class="spacer"></span>{{end}}
+
+{{define "body"}}</div>
+<div class="bd">{{end}}

@@ -1,0 +1,685 @@
+/* nagipath operator UI.
+ *
+ * The direction is Elastic UI: an observability console, not a case file. Flat
+ * white panels on a cool grey page, Inter at 14px, one blue that means "acted on
+ * or link", and state carried by a soft filled badge that also spells the word.
+ * Nothing is italic, nothing is set in a serif, and nothing hangs off a hairline
+ * rule — the earlier document metaphor is what made these screens hard to read.
+ *
+ * Class names are unchanged from the templates; this file is the whole theme.
+ * Tokens follow EUI's semantic set (page/panel/subdued surfaces, one primary,
+ * four status hues, each with a text-safe shade and a 10% tint).
+ */
+:root {
+  /* Surfaces */
+  --bg-page: #f7f8fc;
+  --bg: #ffffff;
+  --bg-subtle: #f5f7fa;
+  --bg-sunken: #eef1f7;
+  --border: #d3dae6;
+  --border-light: #e9edf5;
+  --border-strong: #b6bfd0;
+
+  /* Ink. EUI keeps body text one step lighter than headings; both clear AA. */
+  --fg: #343741;
+  --fg-strong: #1a1c21;
+  --fg-muted: #646a77;
+
+  /* One primary. The status hues are the text-safe shades, each with a tint for
+     badges, callouts and buttons — never a saturated fill behind small text. */
+  --accent: #0b64dd;
+  --accent-hover: #0a51b0;
+  --accent-soft: #e6effc;
+  --ok: #067a63;      --ok-soft: #e2f4ef;
+  --warn: #7c5c00;    --warn-soft: #fcf3d6;
+  --danger: #a71627;  --danger-soft: #fbe9e9;
+  --info: #5a6673;    --info-soft: #eef1f6;
+
+  --sans: "Inter", "Inter var", -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text",
+          "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
+  --rad: 6px; --rad-s: 4px;
+
+  /* Elevation, EUI's two useful steps: a panel sitting on the page, and a thing
+     floating over it. Both are grey-blue, never black. */
+  --sh-s: 0 .8px .8px rgba(21,29,40,.04), 0 2.3px 2px rgba(21,29,40,.03);
+  --sh-m: 0 .9px 4px rgba(21,29,40,.08), 0 2.6px 8px rgba(21,29,40,.05);
+
+  /* ponytail: light only. Re-add a dark set behind an explicit toggle if
+     operators ask for it — not behind prefers-color-scheme, which is what made
+     the trace graph unreadable. */
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg-page); color: var(--fg);
+  font: 14px/1.45 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A link is blue and unadorned until pointed at. In a table of two hundred rows
+   the colour is the affordance; an underline under every cell is the noise. */
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 2px; }
+/* Components that happen to be anchors are controls, not links. */
+.nv, .brand, .button, .card, .chip, .gc, .tabs a, .crumb { text-decoration: none; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 2px; }
+
+/* ------------------------------------------------------------------- shell */
+
+.app { display: grid; grid-template-columns: 15rem 1fr; min-height: 100%; }
+
+/* The spine. White against the grey page, the way Kibana's nav is: it is chrome,
+   and chrome does not get a tint of its own. */
+.sb {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: var(--s4) var(--s3); background: var(--bg);
+  border-right: 1px solid var(--border);
+  /* The tables here are long; the nav has to stay reachable from the bottom of one. */
+  position: sticky; top: 0; align-self: start; height: 100vh;
+}
+.sb .brand {
+  display: flex; align-items: center; gap: var(--s2);
+  font: 700 18px/1.2 var(--sans); letter-spacing: -.02em;
+  color: var(--fg-strong); padding: 0 var(--s2);
+}
+/* The mark: one accent square. A product this dense earns exactly one ornament. */
+.sb .brand::before {
+  content: ""; width: 10px; height: 10px; flex: none;
+  background: var(--accent); border-radius: 2px;
+}
+.sb .sub {
+  font: 500 12px/1.5 var(--sans); color: var(--fg-muted);
+  padding: var(--s1) var(--s2) var(--s5);
+}
+.sb .spacer { flex: 1; }
+.nv {
+  display: block; padding: var(--s2) var(--s3); border-radius: var(--rad);
+  color: var(--fg); font-size: 14px;
+  transition: color 120ms ease, background 120ms ease;
+}
+.nv:hover { background: var(--bg-subtle); }
+/* Selected is a filled soft pill — EUI's one place a field of colour is allowed,
+   because "where am I" is worth a fill. */
+.nv.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.nv .count { float: right; font-variant-numeric: tabular-nums; color: var(--fg-muted); font-size: 12px; }
+.nv.warn { color: var(--warn); }
+.sb form { margin: 0; }
+.sb button.link { padding: var(--s2) var(--s3); font-size: 14px; }
+
+.mn { display: flex; flex-direction: column; min-width: 0; background: var(--bg-page); }
+
+/* Page header: what this page is, then what it can do. White and ruled off. Not
+   sticky: it wraps to two rows on the trace and search screens, and a sticky
+   header of unknown height is what a sticky table header would collide with. */
+.tb {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; flex: none;
+  padding: var(--s3) var(--s5); background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.tb h1 { font: 700 20px/1.35 var(--sans); margin: 0; letter-spacing: -.02em; color: var(--fg-strong); }
+.tb .crumb { color: var(--fg-muted); font-size: 13px; }
+.tb .crumb:hover { color: var(--accent); }
+.tb form { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; margin: 0; }
+.tb input, .tb select { width: auto; margin: 0; }
+
+.bd { flex: 1; min-width: 0; padding: var(--s5) var(--s5) var(--s7); }
+.bd > * + * { margin-top: var(--s4); }
+
+/* Unauthenticated pages: login, setup, forced password change. */
+.narrow {
+  max-width: 24rem; margin: 12vh auto; padding: var(--s5);
+  border: 1px solid var(--border); border-radius: var(--rad);
+  background: var(--bg); box-shadow: var(--sh-m);
+}
+.narrow h1 { font: 700 22px/1.25 var(--sans); letter-spacing: -.02em; margin: 0 0 var(--s3); }
+
+/* -------------------------------------------------------------- primitives */
+
+h1 { font: 700 20px/1.35 var(--sans); letter-spacing: -.02em; color: var(--fg-strong); margin: 0 0 var(--s3); }
+h2 { font: 700 17px/1.4 var(--sans); letter-spacing: -.01em; color: var(--fg-strong); margin: var(--s5) 0 var(--s2); }
+h3 { font: 700 15px/1.4 var(--sans); color: var(--fg-strong); margin: var(--s4) 0 var(--s1); }
+
+/* A section label sits above the thing it names, in the same ink as a heading but
+   small: EUI has no marginalia and no italics. Templates write these lowercase,
+   so the capital comes from CSS rather than from editing every screen. */
+h4, .lbl {
+  display: block; margin: 0;
+  font: 600 13px/1.5 var(--sans); color: var(--fg-strong); letter-spacing: -.005em;
+}
+h4::first-letter, .lbl::first-letter { text-transform: uppercase; }
+
+.mono, code, pre { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.small { font-size: 13px; }
+.tiny { font-size: 12px; }
+.dim { color: var(--fg-muted); }
+.warn { color: var(--warn); }
+.ok { color: var(--ok); }
+.err { color: var(--danger); }
+.changed { color: var(--ok); font-weight: 600; }
+.hint, .note { color: var(--fg-muted); max-width: 78ch; }
+.note { font-size: 13px; }
+/* An annotation: what the screen is claiming, and what it deliberately is not.
+   Small, subdued, no rule — it carries the quietest content on the page. */
+.cal {
+  display: block; margin-top: var(--s2);
+  font-size: 12px; line-height: 1.5; color: var(--fg-muted); max-width: 72ch;
+}
+
+/* Wrapping, not scrolling: these rows hold a URL beside the reason the walk
+   stopped, and that reason is a sentence. A row that will not wrap pushes the
+   page sideways and takes the sentence off the right edge. */
+.row { display: flex; flex-wrap: wrap; gap: var(--s3); min-width: 0; align-items: flex-start; }
+.row.center { align-items: center; }
+.col { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.spacer { flex: 1; }
+
+/* Panel: the one container. Flat white, hairline, the smaller elevation. */
+.bx {
+  border: 1px solid var(--border); border-radius: var(--rad);
+  padding: var(--s4); min-width: 0; background: var(--bg); box-shadow: var(--sh-s);
+}
+/* Subdued panel: a caveat or an aside. Recessed rather than dashed — it should
+   read as secondary without borrowing a second border style. The sunken shade,
+   not the subtle one: subtle is within a point of the page background, so on the
+   page itself it reads as no panel at all. */
+.bx.dash {
+  border: 0; border-radius: var(--rad); background: var(--bg-sunken);
+  box-shadow: none; padding: var(--s3) var(--s4);
+}
+.bx > * + * { margin-top: var(--s3); }
+/* Nested: a separated passage, not a panel inside a panel. */
+.block {
+  padding: var(--s3) 0 0; margin: var(--s3) 0 0;
+  border: 0; border-top: 1px solid var(--border-light); background: transparent;
+}
+.block:first-of-type { border-top: 0; padding-top: 0; }
+
+/* ------------------------------------------------------------------ tables */
+
+table {
+  width: 100%; border-collapse: collapse; margin: var(--s2) 0 var(--s3);
+  font-size: 13px; font-variant-numeric: tabular-nums;
+}
+th, td { text-align: left; padding: var(--s2) var(--s3) var(--s2) 0; vertical-align: top; }
+th:first-child, td:first-child { padding-left: var(--s2); }
+th {
+  font: 600 12px/1.5 var(--sans); color: var(--fg-muted);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 1;
+}
+th::first-letter { text-transform: uppercase; }
+/* A directive or a subject DN has no spaces to break at, so without this a rules
+   table pushes the page sideways and loses its right-hand columns. `break-word`
+   rather than `anywhere`: `anywhere` also feeds into min-content, which lets the
+   auto table layout squeeze a column to one character per line. */
+td { border-bottom: 1px solid var(--border-light); overflow-wrap: break-word; }
+/* Dense values — timestamps, fingerprints, addresses — at the code size, so a
+   timestamp fits its column instead of breaking across two lines at the hyphen. */
+td.mono { font-size: 12.5px; }
+/* A directive quoted inside a cell is the one thing that may be broken mid-token:
+   40 characters with no word boundary would otherwise take the columns to its right
+   off the page. Only the nested element, never a whole `td.mono` — a cell that can
+   break anywhere reports a min-content of one character, and the auto table layout
+   duly collapses it into a one-character-per-line tower. */
+td .mono { overflow-wrap: anywhere; }
+tbody tr:hover td, table tr:hover td { background: var(--bg-subtle); }
+tr.sel td { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+tr.row-warn td { background: var(--warn-soft); }
+tr.dim td { color: var(--fg-muted); }
+.indent { padding-left: var(--s5); }
+.indent2 { padding-left: var(--s6); }
+/* The cluster row: the level above a node, in the same table rather than a panel
+   of its own, because the fleet reads cluster → node → instance top to bottom. */
+tr.cg > td { background: var(--bg-subtle); border-top: 1px solid var(--border-strong); vertical-align: middle; }
+
+/* Rename in place lives with the buttons, below, because its glyph controls have
+   to outrank button[type=submit]. */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* The term column sizes to its own labels rather than a fixed 9rem: these lists
+   sit in a 22rem panel, and every rem the labels do not need is a rem that keeps
+   `/var/log/nginx/access.log` on one line. */
+dl.facts {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s2) var(--s4); margin: 0;
+}
+dl.facts dt { font: 600 12px/1.6 var(--sans); color: var(--fg-muted); }
+/* Paths and digests are long and unbreakable; wrap them rather than clip. */
+dl.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+/* --------------------------------------------------------- counts & states */
+
+.cards { display: flex; gap: var(--s3); flex-wrap: wrap; }
+.card {
+  display: flex; flex-direction: column; gap: 2px; min-width: 9rem;
+  padding: var(--s3) var(--s4); border: 1px solid var(--border); border-radius: var(--rad);
+  color: var(--fg); background: var(--bg); box-shadow: var(--sh-s);
+  transition: box-shadow 120ms ease, border-color 120ms ease;
+}
+.card:hover { border-color: var(--accent); box-shadow: var(--sh-m); }
+.card b {
+  font: 700 26px/1.15 var(--sans); letter-spacing: -.02em;
+  color: var(--fg-strong); font-variant-numeric: tabular-nums;
+}
+.card span { display: block; font-size: 12px; color: var(--fg-muted); }
+.card span::first-letter { text-transform: uppercase; }
+.card.warn { border-color: var(--warn); }
+/* A dashed card is a caveat about the other numbers, not one of them. */
+.card.dashed { border-style: dashed; }
+.card.warn span { color: var(--warn); }
+
+/* Badge: always a word, never a bare dot or colour. Soft fill plus text-safe ink,
+   which is legible at 12px in a way an outline never was. */
+.badge {
+  display: inline-block; font: 600 12px/1.6 var(--sans);
+  padding: 0 var(--s2); border: 1px solid transparent; border-radius: var(--rad-s);
+  background: var(--info-soft); color: var(--info); white-space: nowrap; vertical-align: 1px;
+}
+.badge::first-letter { text-transform: uppercase; }
+.badge.c-inferred, .badge.c-candidate { background: var(--info-soft); color: var(--info); }
+.badge.c-partial, .badge.c-observed_effect { background: var(--warn-soft); color: var(--warn); }
+.badge.c-verified { background: var(--ok-soft); color: var(--ok); }
+.badge.c-disproved { background: var(--danger-soft); color: var(--danger); }
+/* A terminal reason is a fact about where the walk stopped, not an alarm: the
+   hollow badge, EUI's neutral. */
+.badge.t { background: var(--bg); border-color: var(--border); color: var(--fg); }
+/* Two badges carry a sentence rather than a vocabulary word — the reason a walk
+   stopped, and the hostnames a certificate serves but does not identify. A pill
+   holding a sentence has to wrap, or it takes the columns beside it off the page. */
+.badge.t, .badge.c-disproved { white-space: normal; }
+
+.s-succeeded, .s-success { color: var(--ok); font-weight: 600; }
+.s-degraded, .s-running { color: var(--warn); font-weight: 600; }
+.s-failed, .s-failure { color: var(--danger); font-weight: 600; }
+
+/* Callout: tinted block, no border games. The tint says which of the four this
+   is; the text says it again. */
+.flash {
+  padding: var(--s3) var(--s4); border: 1px solid transparent; border-radius: var(--rad);
+  background: var(--accent-soft); color: var(--fg); font-size: 13px;
+}
+.flash.ok { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 18%, transparent); }
+.flash.err { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 18%, transparent); }
+.flash.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 22%, transparent); }
+/* An action's result is a bottom-right toast, not a strip above the page: a
+   banner pushes the table down at the moment the operator is reading it. Success
+   fades itself out with CSS; an error stays until the next page, because a
+   message nobody saw is worse than one still on screen. */
+.toast {
+  position: fixed; right: var(--s4); bottom: var(--s4); z-index: 20; margin: 0;
+  max-width: 26rem; box-shadow: var(--sh-m);
+}
+.toast.ok { animation: toast-out 240ms ease 5s forwards; }
+@keyframes toast-out { to { opacity: 0; visibility: hidden; } }
+
+/* Empty state: what would be here, why it is not, and what fixes it. */
+.empty {
+  padding: var(--s6) var(--s5); border: 1px solid var(--border); border-radius: var(--rad);
+  background: var(--bg); box-shadow: var(--sh-s); max-width: 62ch;
+}
+.empty h2 { margin: 0 0 var(--s2); font-size: 18px; }
+.empty p { margin: 0 0 var(--s4); color: var(--fg-muted); }
+
+/* ------------------------------------------------------------------- forms */
+
+label { display: block; margin: var(--s3) 0 0; font: 600 12px/1.6 var(--sans); color: var(--fg-strong); }
+input, select, textarea {
+  display: block; width: 100%; margin-top: var(--s1); padding: var(--s2) var(--s3);
+  background: #fbfcfe; color: var(--fg); border: 1px solid var(--border);
+  border-radius: var(--rad); font: inherit; font-size: 14px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+input:hover, select:hover, textarea:hover { border-color: var(--border-strong); }
+/* EUI's signature: the field underlines itself in the primary when focused. */
+input:focus, select:focus, textarea:focus {
+  outline: none; background: var(--bg);
+  border-color: var(--accent); box-shadow: inset 0 -2px 0 0 var(--accent);
+}
+input::placeholder, textarea::placeholder { color: #9aa1ad; }
+textarea { font-family: var(--mono); font-size: 13px; }
+
+/* Buttons. Filled is the one action a screen wants; everything else is the soft
+   tinted variant, which is a button without being a second focal point. */
+button, .button {
+  display: inline-block; padding: 6px var(--s3); border: 1px solid transparent;
+  border-radius: var(--rad); background: var(--accent-soft); color: var(--accent);
+  font: 600 14px/1.45 var(--sans); cursor: pointer; white-space: nowrap;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+button:hover, .button:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+button[type=submit], .button.p {
+  background: var(--accent); color: #fff; box-shadow: var(--sh-s);
+}
+button[type=submit]:hover, .button.p:hover { background: var(--accent-hover); box-shadow: var(--sh-m); }
+button:disabled { background: var(--bg-subtle); color: var(--fg-muted); cursor: default; }
+button:disabled:hover { background: var(--bg-subtle); box-shadow: none; }
+button.danger { background: var(--danger-soft); color: var(--danger); }
+button.danger:hover { background: color-mix(in srgb, var(--danger) 14%, transparent); }
+button.link {
+  background: none; border: 0; padding: 0; color: var(--accent);
+  font-size: inherit; font-weight: 500;
+}
+button.link:hover { background: none; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Rename in place. The checkbox is the only state: unchecked shows the name and
+   the pen, checked shows the field, the tick and the cross — no script anywhere.
+   The cross is a reset, so one click restores both the name and the toggle, whose
+   default is unchecked. It sits below the button rules because a glyph control
+   has to outrank button[type=submit]. */
+.rn { display: inline-flex; align-items: center; gap: var(--s2); }
+.rn-t, .rn-in { display: none; }
+.rn-t:checked ~ .rn-name, .rn-t:checked ~ .rn-pen { display: none; }
+.rn-t:checked ~ .rn-in { display: inline-block; }
+.rn-t:checked ~ .rn-ok, .rn-t:checked ~ .rn-x { display: inline-flex; }
+.rn-in { width: 12rem; margin: 0; }
+/* Square hit targets that centre their own glyph. margin: 0 is the alignment fix:
+   the pen is a <label>, and labels carry a 12px top margin for forms. */
+.rn-pen, button.rn-ok, button.rn-x {
+  display: none; align-items: center; justify-content: center;
+  width: 1.4rem; height: 1.4rem; margin: 0; padding: 0; border: 0; border-radius: var(--rad-s);
+  background: none; box-shadow: none; color: var(--fg-muted);
+  font: 400 14px/1 var(--sans); cursor: pointer;
+}
+.rn-pen { display: inline-flex; }
+.rn-pen:hover, button.rn-ok:hover, button.rn-x:hover {
+  background: var(--accent-soft); color: var(--accent); box-shadow: none; text-decoration: none;
+}
+
+form.inline { display: inline; }
+form.inline input, form.inline select { display: inline-block; width: auto; }
+form.grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0 var(--s4); align-items: end; max-width: 60rem;
+}
+form.grid button { margin: var(--s4) 0 var(--s2); }
+form.grid .wide { grid-column: 1 / -1; }
+.trace-form { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+.trace-form input, .trace-form select { display: inline-block; width: auto; margin: 0; }
+.trace-form label { margin: 0; display: inline-flex; gap: var(--s1); align-items: center; }
+/* A control in a row sits beside its neighbours. Fields are 100% wide by default,
+   which is right in a stacked form and puts every control on its own line here. */
+form.row input, form.row select { display: inline-block; width: auto; margin: 0; }
+/* The URL is the query: it takes the room the toolbar has spare. */
+.trace-form input[name=url] { flex: 1; min-width: 20rem; font-family: var(--mono); font-size: 13px; }
+
+/* -------------------------------------------------------- evidence & trace */
+
+/* The machine's own words, quoted. A code block: recessed surface, mono, and no
+   left rule — the surface is already the quotation mark. */
+pre.config, pre.mono {
+  margin: var(--s2) 0; padding: var(--s3) var(--s4); background: var(--bg-subtle);
+  border: 1px solid var(--border-light); border-radius: var(--rad);
+  overflow-x: auto; font-size: 12.5px; line-height: 1.6; white-space: pre;
+}
+
+/* The rail: the whole path in one line, above the hop detail. It is the graph
+   view's honest text equivalent, and it is the only one that ships — a canvas
+   would need a JS dependency to say the same thing. */
+.rail { display: flex; align-items: center; gap: var(--s1); flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: var(--s1);
+  padding: 2px var(--s2); border: 1px solid var(--border); border-radius: var(--rad-s);
+  font: 12.5px/1.5 var(--mono); color: var(--fg); background: var(--bg);
+}
+.chip:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.chip.external { border-style: dashed; background: var(--bg-subtle); }
+.arrow { color: var(--fg-muted); }
+
+/* Hops are numbered because a path genuinely is a sequence, and they hang off a
+   single rule because every claim on this page is indexed to something. */
+.hops {
+  list-style: none; padding: 0 0 0 var(--s5); margin: var(--s4) 0; counter-reset: hop;
+  border-left: 1px solid var(--border);
+}
+.hop {
+  position: relative; padding: var(--s3) var(--s4); margin: 0 0 var(--s3);
+  border: 1px solid var(--border); border-radius: var(--rad);
+  background: var(--bg); box-shadow: var(--sh-s);
+}
+.hop::before {
+  counter-increment: hop; content: counter(hop);
+  position: absolute; left: calc(-1 * var(--s5) - 13px); top: var(--s3);
+  width: 26px; height: 26px; text-align: center;
+  border: 1px solid var(--accent); border-radius: 50%;
+  font: 600 12px/24px var(--sans); font-variant-numeric: tabular-nums;
+  color: var(--accent); background: var(--accent-soft);
+}
+.hop.external { border-style: dashed; background: var(--bg-subtle); box-shadow: none; }
+.hop.external::before { border-style: dashed; }
+.hop h3 { margin-top: 0; }
+table.hop-facts { margin: 0 0 var(--s2); }
+table.hop-facts th {
+  width: 8.5rem; position: static; background: transparent;
+  font: 600 12px/1.6 var(--sans); color: var(--fg-muted);
+}
+table.hop-facts td, table.hop-facts th { border: 0; padding: 1px var(--s3) 1px 0; }
+/* Why the walk stopped, and what a nearer scope discarded. Both are conclusions
+   drawn from the evidence above them, so both are recessed under it. */
+.terminus {
+  margin: var(--s3) 0 0; padding: var(--s2) var(--s3); font-size: 13px;
+  border-radius: var(--rad); background: var(--bg-subtle);
+}
+.shadowed {
+  margin-top: var(--s3); padding: var(--s2) var(--s3);
+  border-radius: var(--rad); background: var(--warn-soft);
+}
+ul.rules, ul.members, ul.candidates { margin: var(--s1) 0; padding-left: var(--s4); font-size: 13px; }
+ul.rules li, ul.members li, ul.candidates li { margin: 3px 0; }
+ul.candidates li.chosen { font-weight: 600; }
+details summary { cursor: pointer; color: var(--accent); font-size: 13px; margin-top: var(--s2); }
+details summary:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* --------------------------------------------------- two-column screens */
+
+/* Most screens are a fixed-width column of controls or context beside a wide
+   column of findings. The width differs per screen, so it is a variable rather
+   than eight classes: --l is set on the element. */
+.split { display: grid; grid-template-columns: var(--l, 20rem) minmax(0, 1fr); gap: var(--s5); align-items: start; }
+/* A six-column table beside a 260px rail can be wider than its own track at
+   1280px, and a table that cannot shrink below min-content will otherwise paint
+   straight over the rail. Scrolling one column is honest; overlapping is not. */
+.split > * { min-width: 0; overflow-x: auto; }
+/* Reversed: the fixed column is on the right, for screens whose side panel is
+   context about the wide column rather than controls for it. */
+.split.rev { grid-template-columns: minmax(0, 1fr) var(--r, 18rem); }
+.sbs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+
+/* The graph column: the path as stacked cards, top to bottom, each one a link
+   into the hop detail beside it. Divs and borders, because a canvas would need
+   a JS dependency to say exactly this.
+
+   It is a plate holding its own half of the screen (wireframe 1a): a recessed
+   surface, so the space around a two-hop path reads as canvas and not as a gap. */
+.gcol {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: min(52vh, 30rem); padding: var(--s4) var(--s3);
+  border: 1px solid var(--border); border-radius: var(--rad);
+  background: var(--bg-sunken);
+}
+.gc {
+  display: block; padding: var(--s2) var(--s3); color: var(--fg); background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--rad); box-shadow: var(--sh-s);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+  /* Shrinkable rather than fixed: alternatives on one rank must stay side by side,
+     and a card that will not shrink wraps into the vertical chain the graph exists
+     to avoid. min-width stops a six-member upstream from crushing them all — that
+     rank scrolls instead. */
+  flex: 1 1 0; width: 100%; min-width: 9rem; max-width: 17rem;
+}
+/* The card is a link to its own flyout, but it is a card: underlining four lines of
+   it on hover reads as four separate links. The border and shadow are the affordance. */
+.gc, .gc:hover { text-decoration: none; }
+.gc:hover { border-color: var(--accent); box-shadow: var(--sh-m); }
+.gc.external { border-style: dashed; background: var(--bg-subtle); box-shadow: none; }
+/* The hop the walk stopped at is the answer; it carries the ring. */
+.gc.terminal { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.gc .n { font-size: 12px; color: var(--fg-muted); }
+.gc .t { display: block; font-weight: 600; font-size: 13.5px; color: var(--fg-strong); overflow-wrap: anywhere; }
+.gdown { padding: var(--s1) 0; color: var(--fg-muted); text-align: center; line-height: 1.2; }
+/* One rank of the trace. Alternatives sit side by side: a column would say the
+   request visits both, which is the opposite of what a load balancer does. Only the
+   inside of a cluster box is a column — see `.gclu > .row`. */
+.grank { display: flex; flex-direction: column; align-items: center; gap: var(--s1); width: 100%; }
+.grank > .row { justify-content: center; align-items: stretch; gap: var(--s2); flex-wrap: nowrap; }
+/* Alternatives are bracketed as one rank: in a narrow column two cards wrap into
+   a column, and a bare column of cards is exactly the chain this fixes. */
+.grank.fan {
+  padding: var(--s2); border: 1px dashed var(--border-strong); border-radius: var(--rad);
+}
+/* A cluster inside a rank: its members run byte-identical configuration, so they
+   sit under one name in one box. Solid, not dashed — this grouping is a fact about
+   the fleet, where the dashed bracket is a caveat about the request. */
+.gclu {
+  display: flex; flex-direction: column; gap: var(--s1); padding: var(--s2);
+  border: 1px solid var(--border-strong); border-radius: var(--rad); background: var(--bg-subtle);
+}
+/* Members stack, they do not spread: the box already says "one answer", so its hosts
+   read as the roster they are, and a wide cluster would squeeze the genuine
+   alternatives beside it — which are the cards a reader has to compare. */
+.gclu > .row { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: var(--s2); }
+
+/* What a live probe is doing to the graph, below `.terminal` so a probe's own
+   finding outranks the walk's guess about where the request ended up. Checking
+   pulses because it is the one thing on the page that is still moving; verified is
+   a green ring, and a hop whose log did not carry the token is dimmed rather than
+   marked wrong — an unprovable hop is not a failed one. */
+.gc.p-checking {
+  border-color: var(--accent); animation: gc-pulse 1.1s ease-in-out infinite;
+}
+@keyframes gc-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px var(--accent-soft); }
+  50%      { box-shadow: 0 0 0 6px var(--accent-soft); }
+}
+.gc.p-verified { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok-soft); }
+.gc.p-missing { border-color: var(--border-strong); box-shadow: none; opacity: .7; }
+
+/* The probe's commentary. Monospace, and deliberately not numbered: the live list is
+   chronological and the stored one is one line per hop, so a number would mean
+   "third thing that happened" in one and "third hop" in the other. Each stored line
+   carries its own hop label instead, which is the label on the graph card. */
+.alog {
+  display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0;
+  list-style: none; font: 400 12.5px/1.5 var(--mono); color: var(--fg-muted);
+}
+.alog li.verified { color: var(--ok); }
+.alog li.missing { color: var(--warn); }
+.alog li.checking { color: var(--accent); }
+
+/* Hop detail, as a flyout over the page. `:target` is the entire mechanism: a graph
+   card is a link to its own panel, so opening one costs no script and the URL names
+   what is open — a pasted /trace?…#hop1 lands on the hop under discussion.
+   ponytail: no backdrop and no focus trap. Add both if this ever holds a form; it
+   holds text and one close link. */
+.fly {
+  display: none; position: fixed; top: 0; right: 0; bottom: 0; z-index: 40;
+  /* The panel is a child of .bd, which spaces its children apart; a fixed panel
+     is not in that stack and the inherited margin only pushes it off the edge. */
+  margin: 0;
+  width: min(44rem, 94vw); overflow-y: auto; padding: var(--s4);
+  gap: var(--s3); background: var(--bg);
+  border-left: 1px solid var(--border-strong); box-shadow: var(--sh-m);
+}
+.fly:target { display: flex; flex-direction: column; }
+.fly-x {
+  padding: 0 var(--s2); font-size: 16px; line-height: 1.4; color: var(--fg-muted);
+  text-decoration: none; border: 1px solid var(--border); border-radius: var(--rad-s);
+}
+.fly-x:hover { color: var(--fg-strong); border-color: var(--border-strong); }
+
+/* One hop, one panel, read top to bottom: what it received, why this site and
+   this route claimed it, what it calls next. `.why` is numbered because the
+   order is the server's own order of decisions, not a list of properties. */
+.hop { border-left: 3px solid var(--border-strong); }
+.hop .why { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+.hop .why li {
+  display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline;
+  padding: var(--s2) 0; font-size: 13px; border-top: 1px solid var(--border-light);
+}
+.hop .why li:first-child { border-top: 0; }
+.hop .why .k {
+  flex: 0 0 5.5rem; font: 600 11px/1.6 var(--sans); letter-spacing: .04em;
+  text-transform: uppercase; color: var(--fg-muted);
+}
+/* The transition: the request this hop makes, which is the line an operator
+   came to read. Tinted so it separates from the rules under it. */
+.trans {
+  padding: var(--s3); border-radius: var(--rad-s);
+  background: var(--accent-soft); font-size: 13px;
+}
+.trans .row { margin-top: var(--s2); }
+/* One config file's contribution, collapsible — a hop can touch six of them. */
+.rf { border-top: 1px solid var(--border-light); padding-top: var(--s2); }
+.rf > summary { cursor: pointer; font-size: 12px; color: var(--fg-muted); }
+.rf > summary:hover { color: var(--accent); }
+.rf table { margin: var(--s2) 0 0; }
+
+/* Tab strip: sections of one object, not separate pages. Each tab is a link to
+   an anchor, so every section is still on the page and still printable. */
+.tabs { display: flex; gap: var(--s5); flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.tabs a {
+  padding: var(--s2) 0; font: 600 14px/1.5 var(--sans); color: var(--fg-muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tabs a:hover { color: var(--fg); }
+.tabs a.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Step strip for onboarding. These are facts about where the operator is, not an
+   estimate of progress. */
+.steps { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+.steps .st {
+  display: inline-flex; gap: var(--s1); align-items: center; padding: var(--s1) var(--s3);
+  border: 1px solid var(--border); border-radius: var(--rad); font-size: 13px;
+  background: var(--bg); color: var(--fg-muted);
+}
+.steps .st.on { border-color: transparent; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.steps .st.done { border-color: transparent; background: var(--ok-soft); color: var(--ok); }
+
+/* Collection activity: bars are div heights, no chart library and no axis. The
+   count is printed beside them, because the shape alone is not a number. */
+/* Width and gap match the count row below it, which is a `.row` of .9rem cells:
+   a bar that does not sit over its own number is worse than no bar. */
+.bars { display: flex; align-items: flex-end; gap: var(--s3); height: 2.6rem; }
+.bars .b {
+  width: .9rem; min-height: 2px; background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+.bars .b.warn { background: #d6bf3f; }
+.bars .b.err { background: var(--danger); }
+
+.facet { display: flex; gap: var(--s2); align-items: center; margin: 0; font: 400 13px/1.6 var(--sans); color: var(--fg); }
+.facet input { display: inline-block; width: auto; margin: 0; accent-color: var(--accent); }
+mark { background: #fdf0a8; color: var(--fg-strong); border-radius: 2px; padding: 0 1px; }
+
+.drop {
+  padding: var(--s4); border: 1px dashed var(--border-strong); border-radius: var(--rad);
+  background: var(--bg-subtle);
+}
+.pager { display: flex; gap: var(--s3); align-items: center; font-size: 13px; color: var(--fg-muted); }
+
+/* 1280×720 is the floor. Below it the nav collapses to a strip on top and the
+   fixed side columns fall under their content. */
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sb { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--s2);
+        position: static; height: auto;
+        border-right: 0; border-bottom: 1px solid var(--border); }
+  .sb .sub, .sb .spacer { display: none; }
+  .split, .split.rev, .sbs { grid-template-columns: minmax(0, 1fr); }
+  .bd, .tb { padding-left: var(--s4); padding-right: var(--s4); }
+}
+
+/* This tool gets opened in the middle of an incident, so nothing animates on
+   load and nothing moves that was not touched. */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+  /* The toast still leaves, it just does not fade: one that never leaves is litter. */
+  .toast.ok { animation: toast-out 1ms linear 5s forwards !important; }
+  /* The hop being checked keeps a ring, it just holds still — without the pulse it
+     would be indistinguishable from the terminal hop. */
+  .gc.p-checking { box-shadow: 0 0 0 3px var(--accent-soft) !important; }
+}

@@ -1,0 +1,103 @@
+{{template "head" .}}
+{{with .Data}}
+<div class="tb">
+  <a class="crumb" href="/nodes">Nodes /</a>
+  <h1>{{.Node.DisplayName}}</h1>
+  {{if .Node.ConsecutiveFailures}}<span class="badge c-partial">{{.Node.ConsecutiveFailures}} FAILURES IN A ROW</span>{{end}}
+  <span class="spacer"></span>
+  {{if $.User.IsAdmin}}
+  <form method="post" action="/nodes/{{.Node.ID}}/collect">
+    {{template "csrf" $.CSRF}}
+    <button type="submit">Collect now</button>
+  </form>
+  <form method="post" action="/nodes/{{.Node.ID}}/delete"
+        onsubmit="return confirm('Remove {{.Node.DisplayName}} and everything collected from it? This cannot be undone.')">
+    {{template "csrf" $.CSRF}}
+    <button type="submit" class="danger">Remove node</button>
+  </form>
+  {{end}}
+{{template "body"}}
+
+{{if .Running}}
+{{/* ponytail: a meta refresh is the whole progress indicator. Swap for SSE if
+     operators start watching long collections closely. */}}
+<meta http-equiv="refresh" content="3">
+<p class="flash warn">A collection is running; this page refreshes every 3 seconds.</p>
+{{end}}
+
+<div class="row">
+  <div class="bx col" style="flex:0 0 20rem">
+    <span class="lbl">identity</span>
+    <dl class="facts">
+      <dt>address</dt><dd class="mono small">{{.Node.Address}}:{{.Node.SSHPort}}</dd>
+      <dt>ssh user</dt><dd>{{if .Node.SSHUsername.Valid}}{{.Node.SSHUsername.String}}{{else}}—{{end}}</dd>
+      <dt>os family</dt><dd>{{or .Node.OSFamily "unknown"}}</dd>
+      <dt>sudo</dt><dd>{{if .Node.SudoAvailable}}available{{else}}not available{{end}}</dd>
+      <dt>source</dt><dd>{{.Node.Source}}</dd>
+    </dl>
+  </div>
+
+  <div class="bx col" style="flex:1">
+    <div class="row center"><span class="lbl">ssh host keys</span><span class="spacer"></span>
+      {{if .HostKeys}}<span class="small dim">compare against the host before approving</span>{{end}}</div>
+    {{if .HostKeys}}
+    <table>
+  {{template "cols" cols "Algorithm" "Fingerprint" "State" "First seen" ""}}
+      {{range .HostKeys}}
+      <tr class="{{if eq .State "pending"}}row-warn{{end}}">
+        <td class="mono small">{{.Algorithm}}</td>
+        <td class="mono small">{{.Fingerprint}}</td>
+        <td>{{.State}}</td>
+        <td class="mono small">{{.FirstSeenAt}}</td>
+        <td>
+          {{if and (eq .State "pending") $.User.IsAdmin}}
+          <form method="post" action="/hostkeys/{{.ID}}/decide" class="inline">
+            {{template "csrf" $.CSRF}}
+            <input type="hidden" name="back" value="/nodes/{{.NodeID}}">
+            <button name="decision" value="approve" type="submit">Approve</button>
+            <button name="decision" value="reject" type="submit" class="danger">Reject</button>
+          </form>
+          {{end}}
+        </td>
+      </tr>
+      {{end}}
+    </table>
+    {{else}}
+    <p class="note">No host key seen yet. The first collection attempt records it as pending
+    and stops; approve it here, then collect again. Until a key is approved, nagipath runs
+    no command on this node.</p>
+    {{end}}
+  </div>
+</div>
+
+<div class="bx col">
+  <span class="lbl">instances on this node</span>
+  {{if .Instances}}
+  <table>
+  {{template "cols" cols "Instance" "Vendor" "Version" "Main config" "Managed by"}}
+    {{range .Instances}}
+    <tr><td><a href="/instances/{{.ID}}">{{.DisplayName}}</a></td><td>{{.Vendor}}</td>
+        <td class="mono small">{{.Version}}</td><td class="mono small">{{.MainConfigPath}}</td>
+        <td>{{.ServiceManager}}</td></tr>
+    {{end}}
+  </table>
+  {{else}}<p class="note">Nothing discovered on this node yet.</p>{{end}}
+</div>
+
+<div class="bx col">
+  <span class="lbl">collections</span>
+  {{if .Collections}}
+  <table>
+  {{template "cols" cols "Started" "Trigger" "Status" "Instances" "Stored" "Error"}}
+    {{range .Collections}}
+    <tr><td class="mono small">{{.StartedAt}}</td><td>{{.Trigger}}</td>
+        <td class="s-{{.Status}}">{{.Status}}</td>
+        <td>{{.InstancesSeen}}</td><td>{{bytes .BytesStored}}</td>
+        <td class="mono small">{{.Error}}</td></tr>
+    {{end}}
+  </table>
+  {{else}}<p class="note">Never collected.</p>{{end}}
+</div>
+{{end}}
+</div>
+{{template "foot" .}}

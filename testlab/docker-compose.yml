@@ -1,0 +1,197 @@
+# A four-node fleet with three vendors, one deliberately unreachable upstream and
+# one node that drifted. Run testlab/gen.sh first; see testlab/README.md.
+#
+# Each node's configuration is mounted as a tree rather than a single file,
+# because that is how a real estate is laid out and because it is the harder case:
+# nagipath has to resolve the includes itself and attribute every derived Rule
+# back to the file it came from, not to the config that included it.
+name: nagipath-lab
+
+networks:
+  lab:
+    ipam:
+      config:
+        - subnet: 10.90.4.0/24
+          gateway: 10.90.4.1
+
+volumes:
+  nagipath-data:
+  # One volume per node so an approved host key survives a restart. Without this
+  # every `up` would present a new key and invalidate the approval just given.
+  ssh-lb01:
+  ssh-web02:
+  ssh-web03:
+  ssh-web05:
+  ssh-app01:
+
+services:
+  nagipath:
+    build:
+      context: ..
+      dockerfile: testlab/Dockerfile.nagipath
+    networks:
+      lab:
+        ipv4_address: 10.90.4.2
+    ports:
+      - "127.0.0.1:8080:8080"
+    # The fleet's public names, pointed at the edge — the DNS a real operator's
+    # network would already have. Without them a Probe cannot reach the URL it is
+    # tracing, so the one feature that produces `verified` is untestable here.
+    extra_hosts:
+      - "shop.example.com:10.90.4.10"
+      - "admin.example.com:10.90.4.10"
+      - "legacy.example.com:10.90.4.10"
+      - "partner-a.example.com:10.90.4.10"
+      - "partner-b.example.com:10.90.4.10"
+    # The lab's certificates are self-signed, so the trust store is widened here
+    # rather than teaching the product to skip verification — a Probe that ignores
+    # certificates is a Probe whose evidence is worth less.
+    environment:
+      SSL_CERT_DIR: /etc/ssl/lab
+    volumes:
+      - nagipath-data:/data
+      - ./keys:/lab/keys:ro
+      - ./hosts:/lab/hosts:ro
+      - ./certs:/etc/ssl/lab:ro
+    # keygen is a no-op after the first boot: it refuses to overwrite an existing
+    # key, because a second key would strand every stored credential. bootstrap is
+    # skip-if-present for the same reason, so this line is safe to re-run.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        nagipath keygen || true
+        nagipath bootstrap \
+          -admin admin -password-file /lab/keys/admin-password \
+          -credential lab -key /lab/keys/lab_key -ssh-user nagipath \
+          -hosts /lab/hosts
+        exec nagipath server
+    depends_on: [lb01, web02, web03, web05, app01]
+
+  # The edge. One long haproxy.cfg — haproxy has no `include`, so its complexity
+  # is in the number of sections rather than the number of files. The maps and
+  # error pages are separate because they are data the config reads at request
+  # time, and a route that depends on a map file is a route no amount of
+  # configuration parsing can resolve.
+  lb01:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+      args: { BASE: "haproxy:2.8" }
+    hostname: lb01
+    networks:
+      lab:
+        ipv4_address: 10.90.4.10
+    ports:
+      - "127.0.0.1:8081:80"
+      - "127.0.0.1:8443:443"
+      - "127.0.0.1:8404:8404"
+    volumes:
+      - ssh-lb01:/etc/ssh
+      - ./lb01/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./lb01/errors:/etc/haproxy/errors:ro
+      - ./lb01/maps:/etc/haproxy/maps:ro
+      - ./certs:/etc/ssl/lab:ro
+    # ponytail: haproxy has no file-logging directive, only syslog targets
+    # (stdout/stderr/UDP/socket). `log stdout` in haproxy.cfg stays for `docker
+    # logs`; tee duplicates that stream into a real file so nagipath has
+    # something to tail, matching the nginx nodes (see Dockerfile.node). The
+    # symlink covers collect.go's other guessed path (no vendor package here
+    # actually writes to it) so a probe never trips over a dead candidate.
+    command: ["sh", "-c", "mkdir -p /var/log/haproxy && ln -sf /var/log/haproxy/haproxy.log /var/log/haproxy.log && exec haproxy -db -f /usr/local/etc/haproxy/haproxy.cfg 2>&1 | tee -a /var/log/haproxy/haproxy.log"]
+
+  # The reference application tier: nginx.conf plus conf.d/, snippets/ and
+  # sites-enabled/. The snippets are the interesting part for provenance — one
+  # file included from six locations is six Rules from one byte range.
+  web02:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+      args: { BASE: "nginx:1.24" }
+    hostname: web02
+    networks:
+      lab:
+        ipv4_address: 10.90.4.20
+    volumes:
+      - ssh-web02:/etc/ssh
+      - ./web02/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./web02/conf.d:/etc/nginx/conf.d:ro
+      - ./web02/snippets:/etc/nginx/snippets:ro
+      - ./web02/sites-enabled:/etc/nginx/sites-enabled:ro
+      - ./web02/htpasswd:/etc/nginx/htpasswd:ro
+      - ./web02/htdocs:/usr/share/nginx/html:ro
+    command: ["nginx", "-g", "daemon off;"]
+
+  # web02's twin: the same configuration files, mounted byte-identically. Two hosts
+  # nobody declared to be related, which is how a cluster is meant to be found —
+  # nagipath discovers it from the configuration and names it.
+  web03:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+      args: { BASE: "nginx:1.24" }
+    hostname: web03
+    networks:
+      lab:
+        ipv4_address: 10.90.4.21
+    volumes:
+      - ssh-web03:/etc/ssh
+      - ./web02/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./web02/conf.d:/etc/nginx/conf.d:ro
+      - ./web02/snippets:/etc/nginx/snippets:ro
+      - ./web02/sites-enabled:/etc/nginx/sites-enabled:ro
+      - ./web02/htpasswd:/etc/nginx/htpasswd:ro
+      - ./web02/htdocs:/usr/share/nginx/html:ro
+    command: ["nginx", "-g", "daemon off;"]
+
+  # The drifted node: same file layout as web02, different contents in almost
+  # every file. It also has no sudoers grant, so its collection falls back to
+  # reading files unprivileged, and one root-only include it therefore cannot read.
+  web05:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+      args: { BASE: "nginx:1.24" }
+    hostname: web05
+    networks:
+      lab:
+        ipv4_address: 10.90.4.25
+    environment:
+      LAB_SUDO: "no"
+      LAB_ROOT_ONLY: /etc/nginx/lab-tuning.conf
+    volumes:
+      - ssh-web05:/etc/ssh
+      - ./web05/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./web05/conf.d:/etc/nginx/conf.d:ro
+      - ./web05/snippets:/etc/nginx/snippets:ro
+      - ./web05/sites-enabled:/etc/nginx/sites-enabled:ro
+      - ./web05/htdocs:/usr/share/nginx/html:ro
+      - ./certs:/etc/ssl/lab:ro
+    command: ["nginx", "-g", "daemon off;"]
+
+  # The origin. httpd.conf plus conf.d/ and sites-enabled/, and the only node
+  # whose configuration text and running configuration disagree about how many
+  # Sites it has — sites-enabled/30-partners.conf builds three vhosts from a
+  # mod_macro definition.
+  app01:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+      args: { BASE: "httpd:2.4" }
+    hostname: app01
+    networks:
+      lab:
+        ipv4_address: 10.90.4.30
+    volumes:
+      - ssh-app01:/etc/ssh
+      - ./app01/httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
+      - ./app01/conf.d:/usr/local/apache2/conf/conf.d:ro
+      - ./app01/sites-enabled:/usr/local/apache2/conf/sites-enabled:ro
+      - ./app01/htpasswd:/usr/local/apache2/conf/htpasswd:ro
+      - ./app01/htdocs:/usr/local/apache2/htdocs:ro
+      - ./certs:/etc/ssl/lab:ro
+    command: ["httpd-foreground"]
+
+# 10.90.4.7 is intentionally absent. web05 proxies to it, lb01's TCP passthrough
+# and standby balancer members point at it, and app01's queue_pool keeps it as a
+# hot spare. So the lab has one genuinely unresolvable address reached from three
+# vendors, rather than a mocked failure in one.

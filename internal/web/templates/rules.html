@@ -1,0 +1,142 @@
+{{template "head" .}}
+{{with .Data}}
+<div class="tb">
+  <h1>Rule lookup</h1>
+  {{/* One form, split across the toolbar and the filter column: the checkboxes
+       below use form="lookup", so the filters submit with the query and no
+       script is needed to keep them together. */}}
+  <form id="lookup" method="get" action="/rules" class="trace-form">
+    <select name="scheme" aria-label="scheme">
+      <option value="https" {{if eq .Query.Scheme "https"}}selected{{end}}>https</option>
+      <option value="http" {{if eq .Query.Scheme "http"}}selected{{end}}>http</option>
+    </select>
+    <span class="dim">://</span>
+    <input name="hostname" value="{{.Query.Hostname}}" placeholder="shop.example.com" size="24" required autofocus>
+    <input name="path" value="{{or .Query.Path "/"}}" placeholder="/api/v2/charge" size="20">
+    <label class="tiny">port <input name="port" type="number" value="{{if .Query.Port}}{{.Query.Port}}{{end}}"
+      min="1" max="65535" size="6"></label>
+    <button type="submit">Look up</button>
+  </form>
+  <span class="spacer"></span>
+  {{if .Asked}}<span class="small dim">{{.Rules}} rule{{if ne .Rules 1}}s{{end}} across
+    {{len .Answered}} instance{{if ne (len .Answered) 1}}s{{end}}</span>{{end}}
+{{template "body"}}
+{{if .Empty}}
+{{template "empty" "Nothing is collected yet"}}
+  <p>Rule lookup reads collected configuration, and there is none.
+  <a href="/onboarding">Connect the fleet</a> first.</p>
+{{template "empty-end"}}
+{{else}}
+
+<div class="split" style="--l:150px">
+
+<div class="col">
+  <div class="bx col">
+    <span class="lbl">action class</span>
+    {{range $.Data.Classes}}
+    <label class="facet"><input type="checkbox" form="lookup" name="class" value="{{.}}"
+      {{if has $.Data.Query.Classes .}}checked{{end}}> <span class="mono tiny">{{.}}</span></label>
+    {{end}}
+  </div>
+
+  <div class="bx col">
+    <span class="lbl">vendor</span>
+    {{range $.Data.Vendors}}
+    <label class="facet"><input type="checkbox" form="lookup" name="vendor" value="{{.}}"
+      {{if has $.Data.Query.Vendors .}}checked{{end}}> <span class="mono tiny">{{.}}</span></label>
+    {{end}}
+    <p class="tiny dim">Nothing ticked means everything. A filter that defaults to
+    something is a filter that hides things.</p>
+  </div>
+
+  <div class="bx dash col">
+    <span class="lbl">scope</span>
+    <p class="tiny">Current configuration only. History is browsable, not indexed.</p>
+  </div>
+</div>
+
+<div class="col">
+{{if not .Asked}}
+<div class="bx col">
+  <span class="lbl">what this answers</span>
+  <p class="note">Which rules are in effect for one host and path, in the order they are
+  evaluated, and where each one is written. It does not follow the request anywhere —
+  that is <a href="/trace">Trace</a>.</p>
+</div>
+{{else}}
+
+{{range .Answered}}
+<details class="bx" open>
+  <summary class="row center">
+    <b>{{.Inst.DisplayName}}</b>
+    <span class="mono small dim">{{.Inst.NodeAddress}}{{if .Listener}}:{{.Listener.Port}}{{end}}
+      · {{.Inst.Vendor}}</span>
+    {{template "confidence" .Confidence}}
+    <span class="spacer"></span>
+    <span class="small dim">{{len .Rules}} rule{{if ne (len .Rules) 1}}s{{end}}</span>
+  </summary>
+
+  <table class="hop-facts">
+    {{if .Site}}<tr><th>Site</th><td>{{or .Site.PrimaryName "(unnamed)"}}
+      <span class="dim small">{{.MatchedBy}}</span></td></tr>{{end}}
+    {{if .Route}}<tr><th>Route</th><td class="mono">{{.Route.MatchType}} {{.Route.Pattern}}
+      <span class="dim small">{{.Precedence}}</span></td></tr>{{end}}
+  </table>
+
+  <table>
+  {{template "cols" cols "ord:2.5rem" "scope:8rem" "rule" "class:7rem" "src:14rem"}}
+    {{range .Rules}}
+    <tr class="{{if .Shadowed}}row-warn{{end}}">
+      <td class="mono">{{if .Shadowed}}—{{else}}{{.Ordinal}}{{end}}</td>
+      <td class="tiny {{if .Shadowed}}warn{{else}}dim{{end}}">{{if .Shadowed}}discarded{{else}}{{.Scope}}{{if .Inherited}} · inherited{{end}}{{end}}</td>
+      <td><code class="mono">{{.Rule.Directive}} {{.Rule.Args}}</code>
+        {{if .Shadowed}}<span class="tiny warn">— {{.ShadowedBy}}</span>{{end}}
+        {{if not .Rule.Shadowed}}{{if eq .Rule.ActionClass "other"}}
+        <span class="tiny dim">kept verbatim; nagipath does not model this directive</span>{{end}}{{end}}</td>
+      <td class="tiny mono">{{.Rule.ActionClass}}</td>
+      <td>{{template "prov" .Rule}}</td>
+    </tr>
+    {{end}}
+  </table>
+
+  {{if .Undetermined}}
+  <div class="bx dash col">
+    <span class="lbl">branches nagipath will not guess at</span>
+    <ul class="rules">
+      {{range .Undetermined}}<li><code class="mono">{{.Raw}}</code> — {{.Reason}}</li>{{end}}
+    </ul>
+  </div>
+  {{end}}
+</details>
+{{end}}
+
+{{if not .Answered}}
+<div class="bx col">
+  <span class="lbl">no instance claims that context path</span>
+  <p class="note">Every collected instance was checked. The reasons are listed below, so it
+  is clear this was answered rather than skipped.</p>
+</div>
+{{end}}
+
+{{if .Silent}}
+{{/* Collapsed, not hidden: an operator has to be able to see that an instance was
+     considered, or they will wonder whether it was. */}}
+<details class="bx dash">
+  <summary>{{len .Silent}} instance{{if ne (len .Silent) 1}}s{{end}} with no candidates</summary>
+  <table>
+  {{template "cols" cols "instance:12rem" "vendor:6rem" "reason"}}
+    {{range .Silent}}
+    <tr><td><a href="/instances/{{.Inst.ID}}">{{.Inst.DisplayName}}</a></td>
+      <td class="mono tiny">{{.Inst.Vendor}}</td>
+      <td class="small">{{or .Reason "no rules matched"}}</td></tr>
+    {{end}}
+  </table>
+</details>
+{{end}}
+{{end}}
+</div>
+</div>
+{{end}}
+</div>
+{{end}}
+{{template "foot" .}}

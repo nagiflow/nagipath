@@ -1,0 +1,131 @@
+{{template "head" .}}
+{{with .Data}}
+<div class="tb">
+  <h1>Search</h1>
+  <form method="get" action="/search" id="search" class="trace-form">
+    <input name="q" value="{{.Query}}" placeholder="proxy_pass, X-Frame-Options, 10.90.4.*"
+           size="44" autofocus>
+    <button type="submit">Search</button>
+  </form>
+</div>
+
+<div class="row center" style="padding:.4rem .9rem;border-bottom:1px dashed var(--border)">
+  {{if .Query}}
+  <span class="small"><b>{{.Matches}}</b> match{{if ne .Matches 1}}es{{end}} ·
+    {{len .Rules}} modelled directive{{if ne (len .Rules) 1}}s{{end}} ·
+    {{len .Configs}} file{{if ne (len .Configs) 1}}s{{end}} ·
+    {{.Instances}} instance{{if ne .Instances 1}}s{{end}}</span>
+  {{end}}
+  <span class="spacer"></span>
+  <span class="cal">scope: the current configuration of every instance — retired snapshots are
+  browsable, not indexed</span>
+</div>
+
+<div class="bd">
+{{if .Err}}<p class="flash err">{{.Err}}</p>{{end}}
+
+{{if not .Query}}
+<div class="bx dash">
+  <span class="lbl">two indexes</span>
+  <p class="note">Modelled directives — what nagipath parsed and understood — and the verbatim
+  text of every current configuration file. Both are scoped to current snapshots: a hit in a
+  retired one is history, not a finding.</p>
+</div>
+{{else}}
+
+<div class="split" style="--l:160px">
+
+<div class="col">
+  {{/* The checkboxes sit outside the toolbar form and submit with it through the
+       HTML form= attribute: no script, and the query survives every narrowing. */}}
+  <div class="bx col">
+    <span class="lbl">narrow by</span>
+    <span class="lbl">vendor</span>
+    {{range .Vendors}}
+    <label class="facet"><input type="checkbox" form="search" name="vendor" value="{{.Value}}"
+      {{if has $.Data.SelVend .Value}}checked{{end}}>
+      {{.Value}} <span class="spacer"></span><span class="mono tiny dim">{{.Count}}</span></label>
+    {{end}}
+
+    <span class="lbl">cluster</span>
+    {{range .Clusters}}
+    <label class="facet"><input type="checkbox" form="search" name="cluster" value="{{.Value}}"
+      {{if has $.Data.SelClust .Value}}checked{{end}}>
+      {{.Value}} <span class="spacer"></span><span class="mono tiny dim">{{.Count}}</span></label>
+    {{end}}
+
+    <span class="lbl">file</span>
+    {{range .Files}}
+    <label class="facet"><input type="checkbox" form="search" name="file" value="{{.Value}}"
+      {{if has $.Data.SelFile .Value}}checked{{end}}>
+      <span class="mono tiny" style="overflow-wrap:anywhere">{{.Value}}</span>
+      <span class="spacer"></span><span class="mono tiny dim">{{.Count}}</span></label>
+    {{end}}
+
+    <button type="submit" form="search">Narrow</button>
+    <p class="tiny dim">Nothing ticked means everything, which is not the same as every box
+    being ticked. Counts are over the whole result set, so narrowing is always reversible.</p>
+  </div>
+</div>
+
+<div class="col">
+  {{if not .Groups}}
+  <div class="bx col">
+    <span class="lbl">no hits</span>
+    <p class="note">Nothing in the current configuration of any instance matched
+    <span class="mono">{{.Query}}</span>{{if or .SelVend .SelFile .SelClust}} under the
+    filters on the left — untick them to widen{{end}}. A directive nagipath does not model
+    is still in the text index, so a miss here means the words are genuinely absent.</p>
+  </div>
+  {{end}}
+
+  {{range .Groups}}
+  <div class="bx col">
+    <div class="row center">
+      <b>{{.Instance}}</b>
+      <span class="badge">{{.Vendor}}</span>
+      <span class="spacer"></span>
+      <a class="small" href="/instances/{{.InstanceID}}">Open in instance ↗</a>
+    </div>
+    <a class="mono tiny" href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}"
+      style="overflow-wrap:anywhere">{{.Path}} ↗</a>
+
+    {{if .Rules}}
+    <table>
+  {{template "cols" cols "directive:11rem" "arguments" "class:7rem" "at:5rem"}}
+      {{range .Rules}}
+      <tr class="{{if .Shadowed}}row-warn{{end}}">
+        <td class="mono">{{.Directive}}
+          {{if .Shadowed}}<br><span class="badge c-disproved">shadowed</span>{{end}}</td>
+        <td class="mono small" style="overflow-wrap:anywhere">{{hl .Args $.Data.Query}}</td>
+        <td class="tiny">{{.ActionClass}}</td>
+        <td><a class="mono tiny"
+          href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}">@{{.ByteStart}}</a></td>
+      </tr>
+      {{end}}
+    </table>
+    {{end}}
+
+    {{range .Texts}}
+    <pre class="config">{{hl .Snippet $.Data.Query}}</pre>
+    {{end}}
+  </div>
+  {{end}}
+
+  {{if .Instances}}
+  <div class="pager">
+    <button type="submit" form="search" name="page" value="{{sub .Page 1}}"
+      {{if le .Page 1}}disabled{{end}}>‹</button>
+    <span>{{.From}}–{{.To}} of {{.Instances}} instance{{if ne .Instances 1}}s{{end}}</span>
+    <button type="submit" form="search" name="page" value="{{add .Page 1}}"
+      {{if ge .Page .Pages}}disabled{{end}}>›</button>
+    <span class="spacer"></span>
+    <span class="tiny">grouped by file — twenty hits in one file is one finding</span>
+  </div>
+  {{end}}
+</div>
+</div>
+{{end}}
+{{end}}
+</div>
+{{template "foot" .}}

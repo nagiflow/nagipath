@@ -1,0 +1,9 @@
+# hostname -> backend, read at request time by fe_partner.
+#
+# This file is the routing table. Nothing in haproxy.cfg says where
+# partner-a.example.com goes, and a reader of the configuration alone cannot
+# know — which is exactly why nagipath reports the route as undetermined instead
+# of resolving it. The map is captured as text; it is not interpreted.
+partner-a.example.com   be_app
+partner-b.example.com   be_partner_dynamic
+legacy.example.com      be_maintenance

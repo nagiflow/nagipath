@@ -1,0 +1,116 @@
+{{template "head" .}}
+{{with .Data}}
+{{template "toolbar" toolbar "Fleet" "clusters, nodes and the instances found on them"}}
+  {{if $.User.IsAdmin}}
+  <a class="button" href="/onboarding">Import inventory</a>
+  <a class="button p" href="/nodes">Add node</a>
+  {{end}}
+{{template "body"}}
+
+{{/* Clusters have no href: they are discovered, so there is nowhere to click to
+     make one. Degraded is dashed because it is a caveat about the answers on
+     every other screen, not a count of broken hosts. */}}
+{{template "cards" cards
+  (card .Total "nodes" "/nodes" "")
+  (card .Instances "instances" "/instances" "")
+  (card (len .Clusters) "clusters" "" "")
+  (card .Degraded "degraded" "" "dashed")
+  (card .Pending "host keys to approve" "/onboarding" (warnif .Pending))}}
+
+{{if not .Nodes}}
+{{template "empty" "No nodes yet"}}
+  <p>nagipath collects from hosts you name. It never scans a network to find them.
+  <a href="/onboarding">Connect the fleet</a> or <a href="/nodes">add one host</a>.</p>
+{{template "empty-end"}}
+{{else}}
+
+<table>
+  {{template "cols" cols ":1.4rem" "node" "vendor:6rem" "instances:5rem" "version:8rem" "collected:11rem" "state:6rem"}}
+  {{/* Cluster, node, instance: three levels in one table. The cluster row carries
+       membership so the instance rows do not repeat it. */}}
+  {{range .Groups}}
+  <tr class="cg">
+    <td></td>
+    <td colspan="4">
+      {{if .ID}}
+        {{if $.User.IsAdmin}}
+        {{/* The name is the only part of a cluster an operator decides, so it is
+             edited in place: the pen swaps the name for a field, the tick saves
+             it, the cross puts it back. The toggle is a hidden checkbox because a
+             table row cannot be a <details> and this needs no script; the cross is
+             a reset, which restores the field and the toggle together.
+             ponytail: no autofocus — CSS cannot move the caret. */}}
+        <form method="post" action="/clusters/rename" class="rn">
+          <input type="checkbox" id="rn{{.ID}}" class="rn-t" aria-hidden="true" tabindex="-1">
+          {{template "csrf" $.CSRF}}
+          <input type="hidden" name="cluster" value="{{.ID}}">
+          <b class="rn-name">{{.Cluster.Name}}</b>
+          <input class="rn-in" name="name" value="{{.Cluster.Name}}" aria-label="cluster name"
+            required maxlength="120" spellcheck="false">
+          <label class="rn-pen" for="rn{{.ID}}" title="rename cluster">✎<span class="sr">rename cluster</span></label>
+          <button class="rn-ok" type="submit" title="save name">✓<span class="sr">save name</span></button>
+          <button class="rn-x" type="reset" title="cancel">✕<span class="sr">cancel rename</span></button>
+        </form>
+        {{else}}<b>{{.Cluster.Name}}</b>{{end}}
+        <span class="tiny dim">{{len (index $.Data.Members .ID)}} instances with identical configuration{{if .Cluster.GoldenPeerName}} · golden peer <span class="mono">{{.Cluster.GoldenPeerName}}</span>{{end}}</span>
+      {{else}}<span class="dim">in no cluster</span>{{end}}
+    </td>
+    <td colspan="2" class="tiny">{{if .ID}}<a href="/drift?cluster={{.ID}}">drift ↗</a>{{end}}</td>
+  </tr>
+  {{range .Nodes}}
+  {{$kids := index $.Data.ByNode .ID}}
+  {{/* ponytail: both rows always render. The caret shows the relationship rather
+       than toggling it — collapsing needs script or a details element, and a
+       table row cannot be either. Add it when a node has dozens of instances. */}}
+  <tr>
+    <td class="mono dim">{{if $kids}}▾{{else}}▸{{end}}</td>
+    <td class="indent"><a href="/nodes/{{.ID}}"><b>{{.DisplayName}}</b></a>
+      <span class="mono tiny dim">{{.Address}}:{{.SSHPort}}{{if .OSFamily}} · {{.OSFamily}}{{end}}</span></td>
+    <td class="tiny dim">—</td>
+    <td>{{len $kids}}</td>
+    <td class="mono tiny dim">—</td>
+    <td class="mono tiny">{{if .LastCollection.Valid}}{{.LastCollection.String}}{{else}}never{{end}}</td>
+    <td>
+      {{if .PendingHostKeys}}<span class="badge c-partial">host key</span>
+      {{else if .ConsecutiveFailures}}<span class="badge c-disproved">failing</span>
+      {{else if not .LastCollection.Valid}}<span class="badge c-inferred">pending</span>
+      {{else if .LastStatus.Valid}}<span class="badge c-{{if eq .LastStatus.String "succeeded"}}verified{{else}}partial{{end}}">{{.LastStatus.String}}</span>
+      {{else}}<span class="badge c-inferred">pending</span>{{end}}
+    </td>
+  </tr>
+  {{range $kids}}
+  <tr>
+    <td></td>
+    <td class="indent2"><span class="mono dim">└</span>
+      <a href="/instances/{{.ID}}">{{.DisplayName}}</a>
+      <span class="mono tiny dim">{{range $i, $p := csv .Ports}}{{if $i}} {{end}}:{{$p}}{{end}}
+        {{if .SiteCount}}· {{.SiteCount}} site{{if ne .SiteCount 1}}s{{end}}{{end}}</span></td>
+    <td class="mono tiny">{{.Vendor}}</td>
+    <td class="tiny dim">—</td>
+    <td class="mono tiny">{{or .Version "unknown"}}</td>
+    <td class="mono tiny">{{if .LastCaptured.Valid}}{{.LastCaptured.String}}{{else}}never{{end}}</td>
+    <td>
+      {{if eq .State "ok"}}<span class="badge c-verified">ok</span>
+      {{else if eq .State "degraded"}}<span class="badge c-partial">degraded</span>
+      {{else if eq .State "unparsed"}}<span class="badge c-disproved">unparsed</span>
+      {{else}}<span class="badge c-inferred">pending</span>{{end}}
+    </td>
+  </tr>
+  {{end}}
+  {{end}}
+  {{end}}
+</table>
+
+<div class="row center">
+  <span class="spacer"></span>
+  <span class="pager">
+    {{if gt .Page 1}}<a href="/fleet?page={{sub .Page 1}}">‹</a>{{else}}<span>‹</span>{{end}}
+    {{.From}}–{{.To}} of {{.Total}} nodes
+    {{if lt .Page .Pages}}<a href="/fleet?page={{add .Page 1}}">›</a>{{else}}<span>›</span>{{end}}
+  </span>
+</div>
+{{end}}
+
+</div>
+{{end}}
+{{template "foot" .}}

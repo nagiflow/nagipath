@@ -1,0 +1,61 @@
+{{/* head and foot are partials rather than a base template with overridable
+     blocks: Go's template inheritance needs one parse set per page to do that,
+     and two partials cost nothing to read.
+
+     head opens the app shell and the main column; each page then opens its own
+     toolbar and body — see parts/toolbar.html. The shared pieces every page
+     reaches for live one per file under templates/parts. */}}
+{{define "head"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} — nagipath</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+{{if .User.ID}}
+<div class="app">
+<nav class="sb">
+  <a class="brand" href="/">nagipath</a>
+  <div class="sub">{{if eq .Path "/onboarding"}}setup{{else}}read-only{{end}} ·
+    {{if .User.IsAdmin}}admin{{else}}viewer{{end}}</div>
+  <a class="nv {{on .Path "/"}}" href="/">Dashboard</a>
+  <a class="nv {{on .Path "/trace"}}" href="/trace">Trace</a>
+  <a class="nv {{on .Path "/rules"}}" href="/rules">Rule lookup</a>
+  <a class="nv {{on .Path "/fleet" "/nodes" "/instances"}}" href="/fleet">Fleet</a>
+  <a class="nv {{on .Path "/drift"}}" href="/drift">Drift</a>
+  <a class="nv {{on .Path "/certificates"}}" href="/certificates">Certificates</a>
+  <a class="nv {{on .Path "/search"}}" href="/search">Search</a>
+  <span class="spacer"></span>
+  {{if .Pending}}
+  <a class="nv warn" href="/onboarding">{{.Pending}} host key{{if ne .Pending 1}}s{{end}} to approve</a>
+  {{end}}
+  <a class="nv {{on .Path "/collections"}}" href="/collections">Collections</a>
+  {{if .User.IsAdmin}}
+  <a class="nv {{on .Path "/onboarding"}}" href="/onboarding">Setup</a>
+  <a class="nv {{on .Path "/credentials"}}" href="/credentials">Credentials</a>
+  <a class="nv {{on .Path "/audit"}}" href="/audit">Audit</a>
+  {{end}}
+  <a class="nv {{on .Path "/password"}}" href="/password">{{.User.Username}}</a>
+  <form method="post" action="/logout">
+    {{template "csrf" .CSRF}}
+    <button type="submit" class="link">Sign out</button>
+  </form>
+</nav>
+<main class="mn">
+{{if .Flash}}<p class="flash ok toast" role="status">{{.Flash}}</p>{{end}}
+{{if .Error}}<p class="flash err toast" role="alert">{{.Error}}</p>{{end}}
+{{else}}
+<main>
+{{if .Flash}}<p class="flash ok toast" role="status">{{.Flash}}</p>{{end}}
+{{if .Error}}<p class="flash err toast" role="alert">{{.Error}}</p>{{end}}
+{{end}}
+{{end}}
+
+{{define "foot"}}
+</main>
+{{if .User.ID}}</div>{{end}}
+</body>
+</html>
+{{end}}

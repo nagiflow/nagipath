@@ -1,0 +1,21 @@
+{{template "head" .}}
+{{template "toolbar" toolbar "Audit log" (printf "last %v events · actor, target and outcome for every action" (len .Data))}}
+{{template "body"}}
+{{if .Data}}
+<table>
+  {{template "cols" cols "When" "Actor" "Action" "Target" "Outcome" "Detail"}}
+  {{range .Data}}
+  <tr><td class="mono small">{{.At}}</td><td>{{or .ActorLabel "system"}}</td>
+      <td class="mono small">{{.Action}}</td>
+      <td class="small">{{.TargetKind}} <span class="mono">{{.TargetLabel}}</span></td>
+      <td class="s-{{.Outcome}}">{{.Outcome}}</td>
+      <td class="mono small">{{.Detail}}</td></tr>
+  {{end}}
+</table>
+{{else}}
+{{template "empty" "Nothing recorded yet"}}
+  <p>Sign-ins, host key decisions, collections and probes are written here as they happen.</p>
+{{template "empty-end"}}
+{{end}}
+</div>
+{{template "foot" .}}

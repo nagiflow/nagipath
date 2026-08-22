@@ -1,0 +1,23 @@
+{{template "head" .}}
+{{template "toolbar" toolbar "Instances" (printf "%v discovered" (len .Data))}}
+{{template "body"}}
+{{if .Data}}
+<table>
+  {{template "cols" cols "Instance" "Node" "Vendor" "Version" "Main config" "Cluster" "Managed by" "Last seen"}}
+  {{range .Data}}
+  <tr><td><a href="/instances/{{.ID}}">{{.DisplayName}}</a></td>
+      <td><a href="/nodes/{{.NodeID}}">{{.NodeDisplayName}}</a></td>
+      <td>{{.Vendor}}</td><td class="mono small">{{.Version}}</td>
+      <td class="mono small">{{.MainConfigPath}}</td>
+      <td class="tiny">{{if .ClusterName}}<a href="/fleet">{{.ClusterName}}</a>{{else}}<span class="dim">unassigned</span>{{end}}</td>
+      <td>{{.ServiceManager}}</td><td class="mono small">{{.LastSeenAt}}</td></tr>
+  {{end}}
+</table>
+{{else}}
+{{template "empty" "No instances discovered yet"}}
+  <p>Instances are found by collecting from a node — nothing is declared by hand.
+  <a href="/nodes">Add a node</a> and collect.</p>
+{{template "empty-end"}}
+{{end}}
+</div>
+{{template "foot" .}}

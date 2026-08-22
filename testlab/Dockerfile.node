@@ -1,0 +1,41 @@
+# A lab node: one of the three vendors, plus sshd and the narrow sudoers grant,
+# so it looks to nagipath exactly like a managed host does in production.
+#
+# The vendor is the only difference between the four nodes, hence one image and a
+# BASE argument rather than four near-identical Dockerfiles.
+ARG BASE=nginx:1.24
+FROM ${BASE}
+
+# The haproxy image drops to an unprivileged user; apt and sshd both need root.
+USER root
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        openssh-server sudo openssl procps iproute2 ca-certificates; \
+    rm -rf /var/lib/apt/lists/*; \
+    mkdir -p /run/sshd /etc/ssl/lab; \
+    # openssh-server generates host keys at install time, which would give every
+    # container built from the same base an identical key. The entrypoint
+    # generates them per container instead, so four nodes look like four hosts.
+    rm -f /etc/ssh/ssh_host_*; \
+    # The nginx image symlinks its access log to /dev/stdout. nagipath proves which
+    # instance handled a request by tailing that log over SSH, and a symlink to a
+    # pipe has nothing to tail — so the lab keeps real files, like a managed host.
+    rm -f /var/log/nginx/access.log /var/log/nginx/error.log; \
+    useradd --create-home --shell /bin/bash nagipath; \
+    mkdir -p /home/nagipath/.ssh
+
+COPY keys/lab_key.pub /home/nagipath/.ssh/authorized_keys
+COPY sudoers-nagipath /etc/sudoers.d/nagipath
+COPY entrypoint.sh /usr/local/bin/lab-entrypoint
+
+RUN set -eux; \
+    chown -R nagipath:nagipath /home/nagipath/.ssh; \
+    chmod 700 /home/nagipath/.ssh; \
+    chmod 600 /home/nagipath/.ssh/authorized_keys; \
+    chmod 440 /etc/sudoers.d/nagipath; \
+    chmod 755 /usr/local/bin/lab-entrypoint; \
+    visudo -cf /etc/sudoers.d/nagipath
+
+ENTRYPOINT ["/usr/local/bin/lab-entrypoint"]

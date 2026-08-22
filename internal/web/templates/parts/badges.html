@@ -1,0 +1,5 @@
+{{/* The two badges that carry a verdict rather than a label: how sure a hop is,
+     and why a trace stopped. */}}
+{{define "confidence"}}<span class="badge c-{{.}}">{{.}}</span>{{end}}
+
+{{define "terminal"}}<span class="badge t">{{reason .}}</span>{{end}}

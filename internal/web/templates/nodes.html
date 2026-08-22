@@ -1,0 +1,55 @@
+{{template "head" .}}
+{{with .Data}}
+{{template "toolbar" toolbar "Nodes" "every node is added here or imported — nagipath never scans a network"}}
+  {{if and $.User.IsAdmin .Nodes}}<a class="button p" href="#add">Add node</a>{{end}}
+{{template "body"}}
+
+{{if .Nodes}}
+<table>
+  {{template "cols" cols "Node" "Address" "OS" "sudo" "Instances" "Host keys" "Last collection"}}
+  {{range .Nodes}}
+  <tr class="{{if .PendingHostKeys}}row-warn{{end}}">
+    <td><a href="/nodes/{{.ID}}">{{.DisplayName}}</a></td>
+    <td class="mono small">{{.Address}}:{{.SSHPort}}</td>
+    <td>{{or .OSFamily "—"}}</td>
+    <td>{{if .SudoAvailable}}yes{{else}}no{{end}}</td>
+    <td>{{.InstanceCount}}</td>
+    <td>{{if .PendingHostKeys}}<a class="warn" href="/nodes/{{.ID}}">{{.PendingHostKeys}} to approve</a>{{else}}approved{{end}}</td>
+    <td class="small">{{if .LastCollection.Valid}}<span class="mono">{{.LastCollection.String}}</span>
+        <span class="s-{{.LastStatus.String}}">{{.LastStatus.String}}</span>{{else}}never{{end}}</td>
+  </tr>
+  {{end}}
+</table>
+{{else}}
+{{template "empty" "No nodes yet"}}
+  <p>nagipath never scans for hosts — every node is added here or imported from an
+  inventory file. Add one below, approve its host key, then collect.</p>
+{{template "empty-end"}}
+{{end}}
+
+{{if $.User.IsAdmin}}
+<div class="bx" id="add">
+  <span class="lbl">add a node</span>
+  <form method="post" action="/nodes" class="grid">
+    {{template "csrf" $.CSRF}}
+    <label>Address <input name="address" placeholder="10.90.4.2" required></label>
+    <label>SSH port <input name="port" type="number" value="22" min="1" max="65535"></label>
+    <label>Name <input name="display_name" placeholder="lb01"></label>
+    <label>SSH user <input name="username" placeholder="nagipath"></label>
+    <label>Credential
+      <select name="credential_id">
+        <option value="">— none —</option>
+        {{range .Credentials}}<option value="{{.ID}}">{{.Name}} ({{.Username}})</option>{{end}}
+      </select>
+    </label>
+    <button type="submit">Add node</button>
+  </form>
+  {{if not .Credentials}}
+  <p class="hint">No credentials yet. <a href="/credentials">Add an SSH key</a> first —
+  nagipath supports key and certificate authentication only, never passwords.</p>
+  {{end}}
+</div>
+{{end}}
+{{end}}
+</div>
+{{template "foot" .}}

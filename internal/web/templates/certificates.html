@@ -1,0 +1,101 @@
+{{template "head" .}}
+{{with .Data}}
+{{template "toolbar" toolbar "Certificates" "one row per fingerprint, soonest expiry first"}}
+  <a class="button" href="/search?q=ssl_certificate">Find bindings in config</a>
+{{template "body"}}
+{{if .List}}
+{{template "cards" (windows .List)}}
+
+<div class="split rev" style="--r:260px">
+
+<div class="col">
+  <table>
+  {{template "cols" cols "subject" "expires:9rem" "issuer" "key:7rem" "serving" "bindings:5rem"}}
+    {{range .List}}
+    <tr class="{{if and $.Data.Sel (eq .ID $.Data.Sel.ID)}}sel{{end}}{{with uncovered .SubjectCN .SANs .Serves}} row-warn{{end}}">
+      <td><a href="/certificates?cert={{.ID}}">{{or .SubjectCN .SubjectDN}}</a>
+        {{if .SelfSigned}}<span class="badge">self-signed</span>{{end}}</td>
+      <td class="mono small">{{.NotAfter}}<br><span class="warn">{{expiry .NotAfter}}</span></td>
+      <td class="small">{{.IssuerDN}}</td>
+      <td class="mono small">{{.KeyAlgorithm}}{{if .KeyBits.Valid}} {{.KeyBits.Int64}}{{end}}</td>
+      <td class="small">{{join .Serves}}
+        {{with uncovered .SubjectCN .SANs .Serves}}
+        <br><span class="badge c-disproved">does not cover {{join .}}</span>{{end}}</td>
+      <td>{{.Bindings}}<br><span class="tiny dim">{{.Hosts}}</span></td>
+    </tr>
+    {{end}}
+  </table>
+
+  <div class="bx dash">
+    <span class="lbl">collection note</span>
+    <p class="note">Metadata only, extracted on the target node with
+    <code>openssl x509 -noout</code>. nagipath never reads a private key and never copies a
+    certificate file into its database.</p>
+  </div>
+</div>
+
+<div class="col">
+  {{if .Sel}}
+  {{with .Sel}}
+  <div class="bx col">
+    <span class="lbl">selected certificate</span>
+    <b>{{or .SubjectCN .SubjectDN}}</b>
+    <div class="row center">
+      <span class="badge c-observed_effect">{{expiry .NotAfter}}</span>
+      {{if .SelfSigned}}<span class="badge c-inferred">self-signed</span>{{end}}
+    </div>
+    <dl class="facts">
+      <dt>fingerprint</dt><dd class="mono tiny">{{.Fingerprint}}</dd>
+      <dt>issuer</dt><dd class="small">{{.IssuerDN}}</dd>
+      <dt>valid from</dt><dd class="mono tiny">{{.NotBefore}}</dd>
+      <dt>valid to</dt><dd class="mono tiny">{{.NotAfter}}</dd>
+      <dt>key</dt><dd class="mono tiny">{{.KeyAlgorithm}}{{if .KeyBits.Valid}} {{.KeyBits.Int64}}{{end}}</dd>
+      <dt>SANs</dt><dd class="mono tiny">{{range .SANs}}{{.}}<br>{{else}}—{{end}}</dd>
+    </dl>
+    {{with uncovered .SubjectCN .SANs .Serves}}
+    <p class="tiny err">Serving {{join .}}, which this certificate does not cover. That
+    configuration works and fails in every browser.</p>
+    {{end}}
+  </div>
+  {{end}}
+
+  <div class="bx col">
+    <span class="lbl">bindings · {{len .Bindings}}</span>
+    {{if .Bindings}}
+    {{range .Bindings}}
+    <div class="block">
+      <div class="row center">
+        <a href="/instances/{{.InstanceID}}">{{.Instance}}</a>
+        <span class="spacer"></span>
+        {{if .Port}}<span class="mono tiny">:{{.Port}}</span>{{end}}
+      </div>
+      <p class="tiny dim">{{.Node}}{{if .SiteNames}} · {{.SiteNames}}{{end}}</p>
+      {{if .FileID}}<a class="mono tiny" href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}"
+        >{{.FilePath}} ↗</a>{{else}}<span class="mono tiny dim">{{.FilePath}}</span>{{end}}
+    </div>
+    {{end}}
+    {{else}}
+    <p class="tiny dim">No current snapshot binds this certificate. It was seen once and the
+    binding is gone, which is history rather than a finding.</p>
+    {{end}}
+    {{if .Trace}}<a class="button" href="{{.Trace}}">Trace affected entry points →</a>{{end}}
+  </div>
+  {{else}}
+  <div class="bx dash col">
+    <span class="lbl">pick a certificate</span>
+    <p class="tiny">Select a subject on the left to see its fingerprint, the names it covers
+    and every listener and site currently binding it.</p>
+    <span class="cal">expiry is arithmetic on collected metadata, not a check</span>
+  </div>
+  {{end}}
+</div>
+</div>
+{{else}}
+{{template "empty" "No certificates seen yet"}}
+  <p>Certificates appear here once an instance that binds one has been collected.
+  <a href="/onboarding">Connect the fleet</a> and collect.</p>
+{{template "empty-end"}}
+{{end}}
+</div>
+{{end}}
+{{template "foot" .}}

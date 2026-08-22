@@ -1,0 +1,308 @@
+{{template "head" .}}
+{{with .Data}}
+<div class="tb">
+  <a class="crumb" href="/fleet">Fleet</a><span class="crumb">/</span>
+  <a class="crumb" href="/nodes/{{.Instance.NodeID}}">{{.Instance.NodeDisplayName}}</a><span class="crumb">/</span>
+  <h1>{{.Instance.DisplayName}}</h1>
+  <span class="badge">{{.Instance.Vendor}} {{.Instance.Version}}</span>
+  {{if .Snapshot.Degraded}}<span class="badge c-partial">DEG</span>{{end}}
+  {{if and .Snapshot.ID (ne .Snapshot.ParseState "parsed")}}
+  <span class="badge c-disproved">PARSE {{.Snapshot.ParseState}}</span>{{end}}
+  <span class="spacer"></span>
+  {{if .Cluster}}<a class="button" href="/drift">Drift · {{.Cluster}}</a>{{end}}
+  {{/* index on an empty slice is a template error, so the guard is the length. */}}
+  <a class="button p" href="/rules?path=/&amp;hostname={{if .Inst}}{{if .Inst.Sites}}{{(index .Inst.Sites 0).PrimaryName}}{{end}}{{end}}">Rule lookup</a>
+</div>
+
+{{/* Anchors rather than script: every section is on the page, so the tab strip is a
+     jump list and Ctrl-F still finds everything. "on" marks the top of the page. */}}
+<div class="tabs" style="padding:0 .9rem">
+  <a class="on" href="#overview">Overview</a>
+  <a href="#sites">Sites</a>
+  <a href="#routes">Routes</a>
+  <a href="#upstreams">Upstreams</a>
+  <a href="#certificates">Certificates</a>
+  <a href="#config">Config text</a>
+  <a href="#drift">Drift</a>
+{{template "body"}}
+
+{{if and .Snapshot.ID (ne .Snapshot.ParseState "parsed")}}
+<p class="flash err">Parse state: {{.Snapshot.ParseState}} — {{.Snapshot.ParseError}}.
+Traces refuse to continue through this instance rather than guess.</p>
+{{end}}
+
+<div class="split" style="--l:22rem" id="overview">
+
+<div class="col">
+  <div class="bx col">
+    <span class="lbl">identity</span>
+    <dl class="facts">
+      <dt>node</dt><dd><a href="/nodes/{{.Instance.NodeID}}">{{.Instance.NodeDisplayName}}</a>
+        <span class="mono small dim">{{.Instance.NodeAddress}}</span></dd>
+      <dt>vendor</dt><dd>{{.Instance.Vendor}} <span class="mono small">{{.Instance.Version}}</span></dd>
+      <dt>binary</dt><dd class="mono small">{{or .Instance.BinaryPath "—"}}</dd>
+      <dt>main config</dt><dd class="mono small">{{.Instance.MainConfigPath}}</dd>
+      <dt>managed by</dt><dd>{{.Instance.ServiceManager}}
+        {{if .Instance.UnitName}}<span class="mono small">{{.Instance.UnitName}}</span>{{end}}
+        {{if .Instance.DetectedPID.Valid}}<span class="dim small">pid {{.Instance.DetectedPID.Int64}}</span>{{end}}</dd>
+      <dt>cluster</dt><dd>{{if .Cluster}}<a href="/drift">{{.Cluster}}</a>{{else}}<span class="dim">unassigned</span>{{end}}</dd>
+      <dt>access logs</dt><dd class="mono small">{{range .Instance.AccessLogPaths}}{{.}}<br>{{else}}—{{end}}</dd>
+    </dl>
+  </div>
+
+  <div class="bx col">
+    <div class="row center">
+      <span class="lbl">collection health</span>
+      <span class="spacer"></span>
+      {{if .Snapshot.Degraded}}<span class="badge c-partial">DEG</span>
+      {{else if .Snapshot.ID}}<span class="badge c-verified">complete</span>
+      {{else}}<span class="badge c-inferred">pending</span>{{end}}
+    </div>
+    {{if .Snapshot.ID}}
+    <dl class="facts">
+      <dt>captured</dt><dd class="mono small">{{.Snapshot.CapturedAt}}</dd>
+      <dt>how</dt><dd class="small">{{if eq .Snapshot.ConfigSource "vendor_dump"}}the vendor's own
+        dump — authoritative{{else}}a filesystem walk — completeness cannot be proven{{end}}</dd>
+      <dt>files</dt><dd>{{.Snapshot.FileCount}} · {{bytes .Snapshot.BytesRaw}}</dd>
+      <dt>parser</dt><dd class="mono small">{{if .Snapshot.ParserVersion.Valid}}v{{.Snapshot.ParserVersion.Int64}}{{else}}—{{end}}</dd>
+    </dl>
+    {{if .Snapshot.Degraded}}
+    <div class="bx dash col">
+      <span class="lbl">what to fix</span>
+      <p class="tiny">{{.Snapshot.DegradedReason}}</p>
+      <p class="tiny dim">Anything derived from this snapshot is an answer about part of the
+      configuration, not all of it. Grant the read in
+      <a href="/onboarding">the sudoers snippet</a> and collect again.</p>
+    </div>
+    {{end}}
+    {{else}}
+    <p class="tiny dim">Discovered on its node, never captured.</p>
+    {{end}}
+    <form method="post" action="/nodes/{{.Instance.NodeID}}/collect">
+      {{template "csrf" $.CSRF}}
+      <button type="submit">Collect now</button>
+    </form>
+  </div>
+
+  <div class="bx dash col">
+    <span class="lbl">build flags &amp; modules</span>
+    {{if .Instance.BuildFlags}}
+    <pre class="config">{{.Instance.BuildFlags}}</pre>
+    <p class="tiny dim">A directive a build does not include is a directive that was never in
+    effect, whatever the file says.</p>
+    {{else}}
+    <p class="tiny dim">Not captured. nagipath reads these from the vendor's own
+    <span class="mono">-V</span> output; without it a module-dependent directive cannot be
+    confirmed as active.</p>
+    {{end}}
+  </div>
+</div>
+
+<div class="col">
+{{if .Snapshot.ID}}
+{{with .Inst}}
+{{template "cards" cards
+  (card (len .Listeners) "listeners" "" "")
+  (card (len .Sites) "sites" "" "")
+  (card (len .Upstreams) "upstreams" "" "")
+  (card $.Data.Rules "rules" "" "")
+  (card (len $.Data.Files) "files" "" "")}}
+
+<div class="bx col">
+  <span class="lbl">listeners</span>
+  <table>
+  {{template "cols" cols "address" "port:5rem" "tls:4rem" "protocol:7rem" "default:9rem"}}
+    {{range .Listeners}}
+    <tr><td class="mono">{{or .Address "*"}}</td><td class="mono">{{.Port}}</td>
+        <td>{{if .TLS}}yes{{else}}no{{end}}</td><td>{{.Protocol}}</td>
+        <td class="mono small">{{if .IsDefault}}default_server{{end}}</td></tr>
+    {{end}}
+  </table>
+</div>
+
+<div class="bx col" id="sites">
+  <div class="row center"><span class="lbl">sites</span><span class="spacer"></span>
+    <span class="small dim">{{len .Sites}}</span></div>
+  <table>
+  {{template "cols" cols "site" "kind:6rem" "routes:5rem" "document root" "state:9rem"}}
+    {{range .Sites}}
+    <tr>
+      <td><a href="#site-{{.ID}}">{{or .PrimaryName "(unnamed)"}}</a>
+        {{if gt (len .Names) 1}}<span class="tiny dim">+{{sub (len .Names) 1}} more</span>{{end}}</td>
+      <td class="tiny">{{.Kind}}</td>
+      <td class="mono">{{len .Routes}}</td>
+      <td class="mono tiny" style="overflow-wrap:anywhere">{{or .DocumentRoot "—"}}</td>
+      <td>{{$cert := index $.Data.Certs .PrimaryName}}{{if $cert.ID}}
+        <span class="badge c-observed_effect">EXPIRES</span>
+        <span class="tiny">{{expiry $cert.NotAfter}}</span>
+        {{else}}<span class="tiny dim">no certificate bound</span>{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+</div>
+
+<div class="col" id="routes">
+  {{range .Sites}}
+  <div class="bx col" id="site-{{.ID}}">
+    <div class="row center"><b>{{or .PrimaryName "(unnamed)"}}</b>
+      <span class="badge">{{.Kind}}</span><span class="spacer"></span>
+      {{if .DocumentRoot}}<span class="mono small dim">root {{.DocumentRoot}}</span>{{end}}</div>
+    <p class="small">Names: {{range .Names}}<code>{{.Name}}</code>
+      <span class="dim tiny">{{.MatchKind}}</span> {{else}}none{{end}}</p>
+    {{if .Routes}}
+    <table>
+  {{template "cols" cols "match:7rem" "pattern" "rank:4rem" "target" "rules:5rem"}}
+      {{range .Routes}}
+      <tr><td class="mono small">{{.MatchType}}</td><td class="mono">{{.Pattern}}</td>
+          <td class="mono">{{.PrecedenceRank}}</td>
+          <td class="mono small" style="overflow-wrap:anywhere">{{or .TargetRaw "—"}}</td>
+          <td class="mono">{{len .Rules}}</td></tr>
+      {{range .Children}}
+      <tr><td class="indent mono small">↳ {{.MatchType}}</td><td class="mono">{{.Pattern}}</td>
+          <td class="mono">{{.PrecedenceRank}}</td>
+          <td class="mono small" style="overflow-wrap:anywhere">{{or .TargetRaw "—"}}</td>
+          <td class="mono">{{len .Rules}}</td></tr>
+      {{end}}
+      {{end}}
+    </table>
+    <span class="cal">rank is this vendor's own precedence, not nagipath's opinion</span>
+    {{else}}<p class="tiny dim">No routes: every request this site claims is served from
+    its document root.</p>{{end}}
+  </div>
+  {{else}}<div class="bx"><p class="note">No sites in this snapshot.</p></div>{{end}}
+</div>
+
+<div class="bx col" id="upstreams">
+  <span class="lbl">upstreams</span>
+  {{range .Upstreams}}
+  <div class="block">
+    <div class="row center"><b>{{.Name}}</b><span class="badge">{{.Kind}}</span>
+      {{if .BalanceMethod}}<span class="mono small dim">{{.BalanceMethod}}</span>{{end}}</div>
+    <table>
+  {{template "cols" cols "host" "port:5rem" "scheme:6rem" "flags"}}
+      {{range .Members}}
+      <tr><td class="mono">{{.Host}}</td><td class="mono">{{if .Port}}{{.Port}}{{else}}—{{end}}</td>
+          <td>{{.Scheme}}</td><td class="mono small">{{.Flags}}</td></tr>
+      {{end}}
+    </table>
+  </div>
+  {{else}}<p class="note">No upstreams declared.</p>{{end}}
+</div>
+{{end}}
+
+<div class="bx col" id="certificates">
+  <span class="lbl">certificates in use</span>
+  <table>
+  {{template "cols" cols "name" "expires:9rem" "subject" "bindings:5rem"}}
+    {{with .Inst}}{{range .Sites}}
+    {{$cert := index $.Data.Certs .PrimaryName}}{{if $cert.ID}}
+    <tr><td class="mono small">{{.PrimaryName}}</td>
+      <td class="mono small">{{$cert.NotAfter}}<br><span class="warn">{{expiry $cert.NotAfter}}</span></td>
+      <td class="small"><a href="/certificates?cert={{$cert.ID}}">{{or $cert.SubjectCN $cert.SubjectDN}}</a></td>
+      <td>{{$cert.Bindings}}</td></tr>
+    {{end}}
+    {{end}}{{end}}
+  </table>
+  <p class="tiny dim">Matched by the names a certificate covers against the names this
+  instance's sites claim. Metadata only — nagipath never reads a private key.
+  <a href="/certificates">The whole fleet's certificates →</a></p>
+</div>
+
+<div class="bx col" id="config">
+  <div class="row center">
+    <span class="lbl">effective configuration</span>
+    <span class="spacer"></span>
+    {{if .Dump}}<a class="small" href="/snapshots/{{.Snapshot.ID}}/file/{{.Dump.ID}}"
+      >open the vendor dump ↗</a>{{end}}
+  </div>
+  {{if .Dump}}
+  <p class="tiny">This snapshot came from the vendor's own dump
+  (<span class="mono">{{.Dump.Path}}</span>), so it is what the running process actually
+  reads — includes resolved, defaults applied.</p>
+  {{else}}
+  <p class="tiny warn">No vendor dump in this snapshot: these files are a filesystem walk,
+  and an include nagipath could not resolve would be silently missing.</p>
+  {{end}}
+  {{/* ponytail: a <details> list rather than the wireframe's "jump to file ▾" select —
+       a select cannot navigate without script, and this UI ships none. */}}
+  <details>
+    <summary>jump to file · {{len .Files}}</summary>
+    <table>
+  {{template "cols" cols "path" "kind:8rem" "size:7rem"}}
+      {{range .Files}}
+      <tr><td><a class="mono small" href="/snapshots/{{$.Data.Snapshot.ID}}/file/{{.ID}}"
+          style="overflow-wrap:anywhere">{{.Path}}</a></td>
+        <td class="tiny">{{.Kind}}</td>
+        <td class="mono small">{{bytes .BytesRaw}}{{if .Truncated}} <span class="warn">(truncated)</span>{{end}}</td></tr>
+      {{end}}
+    </table>
+  </details>
+  <span class="cal">every answer on this page is one click from the text it came from</span>
+</div>
+{{else}}
+{{template "empty" "Nothing collected for this instance yet"}}
+  <p>It was discovered on its node, but no snapshot has been captured.
+  <a href="/nodes/{{.Instance.NodeID}}">Collect from the node</a>.</p>
+{{template "empty-end"}}
+{{end}}
+
+<div class="bx col" id="drift">
+  <div class="row center">
+    <span class="lbl">drift</span>
+    <span class="spacer"></span>
+    <a class="small" href="/drift">the cluster view →</a>
+  </div>
+  {{if .Drift}}
+  <table>
+  {{template "cols" cols "baseline:11rem" "divergences:6rem" "ignored:6rem" "computed:11rem"}}
+    {{range .Drift}}
+    <tr><td class="tiny">{{.BaselineLabel}}{{if .IsGoldenPeer}} <span title="golden peer">★</span>{{end}}</td>
+      <td class="{{if .FindingCount}}warn{{end}}">{{.FindingCount}}</td>
+      <td class="dim">{{.IgnoredCount}}</td>
+      <td class="mono tiny">{{.ComputedAt}}</td></tr>
+    {{end}}
+  </table>
+  {{if .Findings}}
+  <table>
+  {{template "cols" cols "object" "change:7rem" "baseline" "here"}}
+    {{range .Findings}}
+    <tr class="{{if .IgnoredBy.Valid}}dim{{end}}">
+      <td><span class="mono tiny">{{.ObjectKind}} {{.NaturalKey}}</span>
+        {{if .IgnoredBy.Valid}}<br><span class="tiny">ignored: {{.IgnoreReason}}</span>{{end}}</td>
+      <td><span class="badge">{{.Change}}</span></td>
+      <td class="mono tiny" style="overflow-wrap:anywhere">{{or .BaselineText "(absent)"}}</td>
+      <td class="mono tiny" style="overflow-wrap:anywhere">{{or .SubjectText "(absent)"}}</td>
+    </tr>
+    {{end}}
+  </table>
+  <span class="cal">a divergence, not a violation — nagipath has no opinion which side is correct</span>
+  {{end}}
+  {{else}}
+  <p class="tiny dim">{{if .Cluster}}Nothing compared yet. Re-diff from
+    <a href="/drift">the cluster view</a>.{{else}}This instance is in no cluster, so there is
+    nothing it is supposed to agree with. nagipath does not guess which hosts belong
+    together — comparing hosts nobody grouped would invent drift.{{end}}</p>
+  {{end}}
+</div>
+
+{{if .Snapshots}}
+<div class="bx col">
+  <div class="row center"><span class="lbl">snapshot history</span><span class="spacer"></span>
+    <span class="small dim">browsable, not indexed</span></div>
+  <table>
+  {{template "cols" cols "captured:11rem" "source:8rem" "files:4rem" "parse:6rem" "degraded:6rem" ":5rem"}}
+    {{range .Snapshots}}
+    <tr class="{{if .IsCurrent}}sel{{end}}"><td class="mono small">{{.CapturedAt}}</td>
+        <td class="tiny">{{.ConfigSource}}</td><td>{{.FileCount}}</td>
+        <td class="tiny">{{.ParseState}}</td>
+        <td>{{if .Degraded}}<span class="warn">yes</span>{{else}}no{{end}}</td>
+        <td>{{if .IsCurrent}}<span class="badge">current</span>{{end}}</td></tr>
+    {{end}}
+  </table>
+</div>
+{{end}}
+</div>
+</div>
+{{end}}
+</div>
+{{template "foot" .}}

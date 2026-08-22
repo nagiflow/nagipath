@@ -1,0 +1,5 @@
+{{/* prov takes a *trace.Rule and renders the one thing every claim owes the
+     reader: the file and byte offset it came from, as a link. */}}
+{{define "prov"}}{{if .FileID}}<a class="mono tiny" href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}"
+  >{{.Path}}{{if .ByteStart}}&nbsp;@{{.ByteStart}}{{end}}&nbsp;↗</a>{{else}}<span
+  class="mono tiny dim">{{.Path}}</span>{{end}}{{end}}

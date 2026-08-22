@@ -1,0 +1,2 @@
+/* served by web02 from /assets/, which is why the ^~ short-circuit matters */
+body { font-family: system-ui; }
