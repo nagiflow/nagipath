@@ -318,11 +318,11 @@
     <table>
     {{template "cols" cols "header:12rem" "value"}}
       {{range .Headers}}<tr><td class="mono tiny">{{index . 0}}</td>
-        <td class="mono tiny" style="overflow-wrap:anywhere">{{index . 1}}</td></tr>{{end}}
+        <td><span class="mono tiny">{{index . 1}}</span></td></tr>{{end}}
     </table>
   </details>
   {{end}}
-  <p class="mono tiny dim" style="overflow-wrap:anywhere">probe #{{.ProbeID}} ·
+  <p class="mono tiny dim" style="overflow-wrap:break-word">probe #{{.ProbeID}} ·
     {{or .ActorLabel "actor"}} · from {{or .OriginHost "unknown host"}} ·
     token {{.Token}} · {{.RequestedAt}}</p>
 

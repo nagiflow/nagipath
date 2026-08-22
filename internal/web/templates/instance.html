@@ -131,7 +131,7 @@ Traces refuse to continue through this instance rather than guess.</p>
         {{if gt (len .Names) 1}}<span class="tiny dim">+{{sub (len .Names) 1}} more</span>{{end}}</td>
       <td class="tiny">{{.Kind}}</td>
       <td class="mono">{{len .Routes}}</td>
-      <td class="mono tiny" style="overflow-wrap:anywhere">{{or .DocumentRoot "—"}}</td>
+      <td><span class="mono tiny">{{or .DocumentRoot "—"}}</span></td>
       <td>{{$cert := index $.Data.Certs .PrimaryName}}{{if $cert.ID}}
         <span class="badge c-observed_effect">EXPIRES</span>
         <span class="tiny">{{expiry $cert.NotAfter}}</span>
@@ -155,12 +155,12 @@ Traces refuse to continue through this instance rather than guess.</p>
       {{range .Routes}}
       <tr><td class="mono small">{{.MatchType}}</td><td class="mono">{{.Pattern}}</td>
           <td class="mono">{{.PrecedenceRank}}</td>
-          <td class="mono small" style="overflow-wrap:anywhere">{{or .TargetRaw "—"}}</td>
+          <td><span class="mono small">{{or .TargetRaw "—"}}</span></td>
           <td class="mono">{{len .Rules}}</td></tr>
       {{range .Children}}
       <tr><td class="indent mono small">↳ {{.MatchType}}</td><td class="mono">{{.Pattern}}</td>
           <td class="mono">{{.PrecedenceRank}}</td>
-          <td class="mono small" style="overflow-wrap:anywhere">{{or .TargetRaw "—"}}</td>
+          <td><span class="mono small">{{or .TargetRaw "—"}}</span></td>
           <td class="mono">{{len .Rules}}</td></tr>
       {{end}}
       {{end}}
@@ -231,7 +231,7 @@ Traces refuse to continue through this instance rather than guess.</p>
   {{template "cols" cols "path" "kind:8rem" "size:7rem"}}
       {{range .Files}}
       <tr><td><a class="mono small" href="/snapshots/{{$.Data.Snapshot.ID}}/file/{{.ID}}"
-          style="overflow-wrap:anywhere">{{.Path}}</a></td>
+          style="overflow-wrap:break-word">{{.Path}}</a></td>
         <td class="tiny">{{.Kind}}</td>
         <td class="mono small">{{bytes .BytesRaw}}{{if .Truncated}} <span class="warn">(truncated)</span>{{end}}</td></tr>
       {{end}}
@@ -270,8 +270,8 @@ Traces refuse to continue through this instance rather than guess.</p>
       <td><span class="mono tiny">{{.ObjectKind}} {{.NaturalKey}}</span>
         {{if .IgnoredBy.Valid}}<br><span class="tiny">ignored: {{.IgnoreReason}}</span>{{end}}</td>
       <td><span class="badge">{{.Change}}</span></td>
-      <td class="mono tiny" style="overflow-wrap:anywhere">{{or .BaselineText "(absent)"}}</td>
-      <td class="mono tiny" style="overflow-wrap:anywhere">{{or .SubjectText "(absent)"}}</td>
+      <td><span class="mono tiny">{{or .BaselineText "(absent)"}}</span></td>
+      <td><span class="mono tiny">{{or .SubjectText "(absent)"}}</span></td>
     </tr>
     {{end}}
   </table>

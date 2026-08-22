@@ -58,7 +58,7 @@
     {{range .Files}}
     <label class="facet"><input type="checkbox" form="search" name="file" value="{{.Value}}"
       {{if has $.Data.SelFile .Value}}checked{{end}}>
-      <span class="mono tiny" style="overflow-wrap:anywhere">{{.Value}}</span>
+      <span class="mono tiny" style="overflow-wrap:break-word">{{.Value}}</span>
       <span class="spacer"></span><span class="mono tiny dim">{{.Count}}</span></label>
     {{end}}
 
@@ -88,7 +88,7 @@
       <a class="small" href="/instances/{{.InstanceID}}">Open in instance ↗</a>
     </div>
     <a class="mono tiny" href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}"
-      style="overflow-wrap:anywhere">{{.Path}} ↗</a>
+      style="overflow-wrap:break-word">{{.Path}} ↗</a>
 
     {{if .Rules}}
     <table>
@@ -97,7 +97,7 @@
       <tr class="{{if .Shadowed}}row-warn{{end}}">
         <td class="mono">{{.Directive}}
           {{if .Shadowed}}<br><span class="badge c-disproved">shadowed</span>{{end}}</td>
-        <td class="mono small" style="overflow-wrap:anywhere">{{hl .Args $.Data.Query}}</td>
+        <td><span class="mono small">{{hl .Args $.Data.Query}}</span></td>
         <td class="tiny">{{.ActionClass}}</td>
         <td><a class="mono tiny"
           href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}">@{{.ByteStart}}</a></td>

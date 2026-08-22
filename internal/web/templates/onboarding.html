@@ -126,11 +126,11 @@
       <div class="block">
         <label class="facet"><input type="checkbox" name="key" value="{{.ID}}" checked>
           <b>{{.NodeName}}</b></label>
-        <p class="mono tiny" style="overflow-wrap:anywhere">{{.Algorithm}}<br>{{.Fingerprint}}</p>
+        <p class="mono tiny" style="overflow-wrap:break-word">{{.Algorithm}}<br>{{.Fingerprint}}</p>
         {{if .Previous}}
         <p class="tiny warn">Replaces an approved key. A rekey and an interception look
         identical here — compare against the host before approving.</p>
-        <p class="mono tiny dim" style="overflow-wrap:anywhere">was {{.Previous}}</p>
+        <p class="mono tiny dim" style="overflow-wrap:break-word">was {{.Previous}}</p>
         {{end}}
         <p class="tiny dim">{{.NodeAddress}} · first seen {{.FirstSeenAt}}</p>
       </div>

@@ -223,12 +223,15 @@ td { border-bottom: 1px solid var(--border-light); overflow-wrap: break-word; }
 td.mono { font-size: 12.5px; }
 /* A directive quoted inside a cell is the one thing that may be broken mid-token:
    40 characters with no word boundary would otherwise take the columns to its right
-   off the page. Only the nested element, never a whole `td.mono` — a cell that can
-   break anywhere reports a min-content of one character, and the auto table layout
-   duly collapses it into a one-character-per-line tower. */
-td .mono { overflow-wrap: anywhere; }
+   off the page. This has to be break-word, not anywhere, and that holds regardless
+   of which element carries it — anywhere counts toward the auto table layout's
+   min-content calculation even on a nested span, collapsing the column into a
+   one-character-per-line tower; break-word breaks the same way at render time but
+   is explicitly excluded from that calculation (CSS Text 3 §overflow-wrap). */
+td .mono { overflow-wrap: break-word; }
 tbody tr:hover td, table tr:hover td { background: var(--bg-subtle); }
-tr.sel td { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+tr.sel td { background: var(--accent-soft); }
+tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 tr.row-warn td { background: var(--warn-soft); }
 tr.dim td { color: var(--fg-muted); }
 .indent { padding-left: var(--s5); }
@@ -482,8 +485,17 @@ details summary:hover { text-decoration: underline; text-underline-offset: 2px; 
 .split { display: grid; grid-template-columns: var(--l, 20rem) minmax(0, 1fr); gap: var(--s5); align-items: start; }
 /* A six-column table beside a 260px rail can be wider than its own track at
    1280px, and a table that cannot shrink below min-content will otherwise paint
-   straight over the rail. Scrolling one column is honest; overlapping is not. */
-.split > * { min-width: 0; overflow-x: auto; }
+   straight over the rail. Scrolling one column is honest; overlapping is not —
+   but a scrollbar an operator cannot see reads as the content being cut off
+   rather than as something to scroll, so it is kept visible rather than left to
+   the platform's overlay default. */
+.split > * {
+  min-width: 0; overflow-x: auto;
+  scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
+}
+.split > *::-webkit-scrollbar { height: 8px; }
+.split > *::-webkit-scrollbar-track { background: transparent; }
+.split > *::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
 /* Reversed: the fixed column is on the right, for screens whose side panel is
    context about the wide column rather than controls for it. */
 .split.rev { grid-template-columns: minmax(0, 1fr) var(--r, 18rem); }
