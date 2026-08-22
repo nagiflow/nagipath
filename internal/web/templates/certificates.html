@@ -30,7 +30,7 @@
     <span class="lbl">collection note</span>
     <p class="note">Metadata only, extracted on the target node with
     <code>openssl x509 -noout</code>. nagipath never reads a private key and never copies a
-    certificate file into its database.</p>
+    certificate file into its database. Expiry is arithmetic on that metadata, not a check.</p>
   </div>
 </div>
 
@@ -81,12 +81,7 @@
     {{if .Trace}}<a class="button" href="{{.Trace}}">Trace affected entry points →</a>{{end}}
   </div>
   {{else}}
-  <div class="bx dash col">
-    <span class="lbl">pick a certificate</span>
-    <p class="tiny">Select a subject on the left to see its fingerprint, the names it covers
-    and every listener and site currently binding it.</p>
-    <span class="cal">expiry is arithmetic on collected metadata, not a check</span>
-  </div>
+  <div class="bx dash col"><span class="lbl">pick a certificate</span></div>
   {{end}}
 </div>
 </div>

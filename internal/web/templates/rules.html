@@ -37,6 +37,7 @@
     <label class="facet"><input type="checkbox" form="lookup" name="class" value="{{.}}"
       {{if has $.Data.Query.Classes .}}checked{{end}}> <span class="mono tiny">{{.}}</span></label>
     {{end}}
+    <p class="tiny dim">other is kept verbatim; nagipath does not model it.</p>
   </div>
 
   <div class="bx col">
@@ -90,9 +91,7 @@
       <td class="mono">{{if .Shadowed}}—{{else}}{{.Ordinal}}{{end}}</td>
       <td class="tiny {{if .Shadowed}}warn{{else}}dim{{end}}">{{if .Shadowed}}discarded{{else}}{{.Scope}}{{if .Inherited}} · inherited{{end}}{{end}}</td>
       <td><code class="mono">{{.Rule.Directive}} {{.Rule.Args}}</code>
-        {{if .Shadowed}}<span class="tiny warn">— {{.ShadowedBy}}</span>{{end}}
-        {{if not .Rule.Shadowed}}{{if eq .Rule.ActionClass "other"}}
-        <span class="tiny dim">kept verbatim; nagipath does not model this directive</span>{{end}}{{end}}</td>
+        {{if .Shadowed}}<span class="tiny warn">— {{.ShadowedBy}}</span>{{end}}</td>
       <td class="tiny mono">{{.Rule.ActionClass}}</td>
       <td>{{template "prov" .Rule}}</td>
     </tr>
