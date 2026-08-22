@@ -44,6 +44,9 @@ Common flags:
 The master key is read from $NAGIPATH_MASTER_KEY, or from <data>/master.key.
 The server refuses to start without it rather than generating a new one: a new key
 would silently make every stored credential undecryptable.
+
+Setting $NAGIPATH_DEMO_MODE to any non-empty value refuses every Probe outright — for
+a public-facing trial instance that must never send a real outbound request.
 `
 
 func main() {
@@ -150,9 +153,13 @@ func cmdServer(args []string) error {
 	// reach the probe rather than staying in main.
 	web.Version = Version
 
-	srv, err := web.New(db, master, log, *secure)
+	demoMode := os.Getenv("NAGIPATH_DEMO_MODE") != ""
+	srv, err := web.New(db, master, log, *secure, demoMode)
 	if err != nil {
 		return err
+	}
+	if demoMode {
+		log.Info("demo mode: probes are disabled (NAGIPATH_DEMO_MODE is set)")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

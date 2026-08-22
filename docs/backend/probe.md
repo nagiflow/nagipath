@@ -34,9 +34,9 @@ v1 writes nothing to any managed host (ADR-0002). A Probe sends network traffic 
 | Audited | An `audit_event` per Probe with actor, URL and target. |
 | Origin disclosed | `probe.origin_host` records where the request came from, so a security team reviewing their own logs can identify it. |
 | Identified | A `User-Agent` of `nagipath-probe/<version> (+correlation:<token>)`. The request announces itself rather than looking like an attack. |
-| Rate-limited | Per user and per Entry Point. |
-| Admin-only | `viewer` cannot Probe. |
-| Disabled in demo | `NAGIPATH_DEMO_MODE` refuses Probes outright. |
+| Rate-limited | Per user and per Entry Point: `probe.RateLimited` (§6), `probe_rate_limit_max` per `probe_rate_limit_window_seconds`, both Settings. |
+| Admin-only | `viewer` cannot Probe: `s.admin(s.startTraceProbe)`. |
+| Disabled in demo | `NAGIPATH_DEMO_MODE` refuses Probes outright: `Server.DemoMode`, checked first in `startTraceProbe` (§6). |
 
 ---
 
@@ -120,115 +120,75 @@ Each matching line is parsed with that Instance's own log format into `parsed_fi
 
 ---
 
-## 6. API
+## 6. Interface
 
-### `POST /api/v1/probes`
+There is no `/api/v1/probes` JSON API in v1. Probe is one of the server-rendered
+screens like every other page in the product — a classic form-POST-then-redirect,
+not a REST surface. The real, live route:
 
-Admin only. Rate-limited.
+### `POST /trace/probe`
 
-```json
-{ "entry_point_id": 11, "trace_id": 7712, "method": "GET",
-  "include_query_token": false, "follow_redirects": true }
+Admin only — `s.admin(s.startTraceProbe)` in `internal/web/web.go`, the same
+middleware every mutating route uses; a viewer gets `403`. Form-encoded, not JSON:
+
+```
+url=https://payments.corp.example/api/v2/charge&method=GET&trace=7712
 ```
 
-Or ad hoc: `{ "url": "https://payments.corp.example/api/v2/charge", "method": "HEAD" }`
+`trace` is the id of an already-saved Trace. When it is `0` — a Probe launched
+straight from a pasted URL rather than from an existing Trace page — the handler
+saves one first: a Probe's evidence attaches to hop rows, and there has to be a
+Trace for it to attach to.
 
-`202 { "probe_id": 4410 }`. Errors: `403 demo_mode`, `429 probe_rate_limited`, `422 non_probeable_scheme`.
+On success: `303` to `/trace?...&run=<id>`, and the Trace page polls that run
+(`GET /trace?...&run=<id>`, served from the in-memory registry in
+`internal/web/probelive.go`) until it completes. On refusal — demo mode, the rate
+limit, an unreachable target, a URL nagipath will not send — `303` to
+`/trace?...&err=<message>`, the same `fail()`/redirect pattern every other admin
+action in this product uses for reporting a problem back to the operator. Both
+guardrails below run inside this handler, before `probe.Prober.Run` is ever called,
+so neither can let a request reach past them to the fleet:
 
-### `GET /api/v1/probes/{id}`
+- **Demo mode.** Refused outright when `$NAGIPATH_DEMO_MODE` is set to any
+  non-empty value at server startup (`Server.DemoMode`, read once in
+  `cmd/nagipath/main.go`). `err=this is a demo instance; NAGIPATH_DEMO_MODE refuses
+  every probe`.
+- **Rate limit.** `probe.RateLimited` counts this operator's Probes at this Entry
+  Point — matched by the exact `url`, the same key `probe.Recent` and `probe.Last`
+  already use for history, so no `entry_point_id` lookup is needed — within the last
+  `probe_rate_limit_window_seconds` (Settings, default `300`) and refuses once
+  `probe_rate_limit_max` (Settings, default `5`) is reached. `err=rate limit
+  reached: N probe(s) already sent to this entry point in the last Ws by this
+  operator`. Setting `probe_rate_limit_max` to `0` disables the guardrail rather
+  than blocking everything.
 
-```json
-{
-  "id": 4410,
-  "trace_id": 7712,
-  "entry_point": { "id": 11, "hostname": "payments.corp.example", "path_prefix": "/" },
-  "actor": { "id": 1, "username": "aallen" },
-  "method": "GET",
-  "url": "https://payments.corp.example/api/v2/charge",
-  "origin_host": "nagipath01.corp.example",
-  "requested_at": "2026-08-21T09:31:02Z",
-  "completed_at": "2026-08-21T09:31:09Z",
-  "duration_ms": 214,
-  "result": "completed",
-  "status_code": 200,
-  "redirect_chain": [],
-  "response_headers": { "server": "nginx", "strict-transport-security": null,
-                        "x-request-id": "abc123" },
+Both refusals still write an `audit_event` with `outcome='denied'` — a Probe
+nagipath declined to send is still something an operator asked it to do, and the
+"Audited" guardrail in §2 covers the refusal, not just the request.
 
-  "hop_verification": [
-    { "hop_ordinal": 0, "instance_id": 302, "vendor": "haproxy",
-      "before": "inferred", "after": "verified",
-      "evidence": [
-        { "kind": "access_log_line", "log_path": "/var/log/haproxy.log",
-          "raw_evidence": "Aug 21 09:31:02 lb01 haproxy[9912]: 10.1.2.3:52134 [21/Aug/2026:09:31:02.114] fe_https~ be_payments/web02 0/0/1/12/13 200 512 - - ---- 4/4/0/0/0 0/0 \"GET /api/v2/charge HTTP/1.1\"",
-          "parsed_fields": { "frontend": "fe_https", "backend": "be_payments",
-                             "server": "web02", "status": 200,
-                             "matched_by": "user_agent_token" },
-          "grants": "verified" }
-      ] },
-    { "hop_ordinal": 1, "instance_id": 301, "vendor": "nginx",
-      "before": "inferred", "after": "verified",
-      "partial": true,
-      "partial_reason": "log_format 'main' lacks $server_name and $upstream_addr; arrival at this Instance is proven, Site selection and Upstream choice remain inferred",
-      "evidence": [
-        { "kind": "access_log_line", "log_path": "/var/log/nginx/access.log",
-          "raw_evidence": "10.20.1.12 - - [21/Aug/2026:09:31:02 +0000] \"GET /api/v2/charge HTTP/1.1\" 200 512 \"-\" \"nagipath-probe/1.0 (+correlation:9f2c…)\"",
-          "parsed_fields": { "request_uri": "/api/v2/charge", "status": 200,
-                             "matched_by": "user_agent_token" },
-          "grants": "verified" }
-      ] },
-    { "hop_ordinal": 2, "instance_id": 402, "vendor": "apache",
-      "before": "inferred", "after": "inferred",
-      "blocked_reason": "access log format lacks %v; a request cannot be attributed to a specific vhost",
-      "suggested_directive": "LogFormat \"%v %h %l %u %t \\\"%r\\\" %>s %b %f\" nagipath" }
-  ],
+### Reading a Probe back
 
-  "rule_verification": [
-    { "rule_id": 55900, "directive": "http-request set-header",
-      "args": "X-Forwarded-Proto https", "action_class": "header",
-      "before": "candidate", "after": "observed_effect",
-      "evidence": [ { "kind": "response_header", "raw_evidence": "x-forwarded-proto: https",
-                      "grants": "observed_effect" } ] },
-    { "rule_id": 55004, "directive": "add_header",
-      "args": "Strict-Transport-Security max-age=31536000", "action_class": "header",
-      "before": "candidate", "after": "disproved",
-      "finding": {
-        "severity": "high",
-        "summary": "Strict-Transport-Security is configured but not served.",
-        "cause": "location /api declares its own add_header, which discards all add_header directives inherited from the server block.",
-        "provenance": { "path": "/etc/nginx/conf.d/api.conf", "line": 21 }
-      },
-      "evidence": [ { "kind": "response_header",
-                      "raw_evidence": "(header absent from response)",
-                      "grants": "observed_effect" } ] }
-  ],
+There is no `GET /api/v1/probes/{id}`. A completed Probe is read back through two
+functions in `internal/probe`, both queried by `url` and rendered inline on the
+Trace page rather than returned as JSON:
 
-  "summary": { "hops_total": 4, "hops_verified": 2, "hops_blocked": 1, "hops_external": 1,
-               "rules_observed": 1, "rules_disproved": 1,
-               "trace_confidence_after": "partial" }
-}
-```
+- `Last(ctx, db, url)` — the most recent Probe at that URL (`probe.Past`: the
+  response fields, plus its `probe_evidence` rows as `EvidenceRow`, each carrying
+  the Hop it applies to, `grants` (`observed_effect` / `verified` / `disproved`),
+  and the verbatim `raw_evidence` a Verified claim has to be auditable against).
+- `Recent(ctx, db, url, limit)` — history for that Entry Point, newest first
+  (`probe.Record`): repeated Probes over time are the cheapest possible change
+  detector — "this path was verified through three Hops last week and now stops at
+  two."
 
-`disproved` is a `rule_verification` outcome, not a stored `hop_rule.confidence` value — the Rule exists and is configured; what is disproved is its *effect*. That distinction keeps the confidence enum honest: it describes evidence about behaviour, not the presence of configuration.
+`disproved` is an evidence `grants` outcome, not a stored `hop_rule.confidence`
+value — the Rule exists and is configured; what is disproved is its *effect*. That
+distinction keeps the confidence enum honest: it describes evidence about
+behaviour, not the presence of configuration.
 
-### `GET /api/v1/probes?trace_id=…&entry_point_id=…`
-
-History. Repeated Probes over time are the cheapest possible change detector for an Entry Point: "this path was verified through three Hops last week and now stops at two."
-
-### `GET /api/v1/entry-points/{id}/verification-readiness`
-
-Answers "can this be verified" **before** anyone runs a Probe, so the operator is not surprised.
-
-```json
-{ "entry_point_id": 11, "traceable": true, "hop_count": 4,
-  "verifiable_hops": 3, "blocked_hops": 1,
-  "blockers": [ { "instance_id": 402, "vendor": "apache", "node": "app01.corp.example",
-                  "reason": "LogFormat lacks %v",
-                  "suggested_directive": "LogFormat \"%v %h %l %u %t \\\"%r\\\" %>s %b %f\" nagipath",
-                  "note": "nagipath will not make this change. Apply it yourself and re-run the Probe." } ] }
-```
-
-That `note` is deliberate. The moment the product offers to fix a log format for you, it is no longer read-only, and read-only is what gets it installed.
+There is no `verification-readiness` endpoint either; the Instance's
+`verification_capability` and the Trace's own blockers (§4) already answer "can
+this be verified" wherever they are shown, without a Probe having to run first.
 
 ---
 

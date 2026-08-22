@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	neturl "net/url"
 	"strconv"
@@ -125,6 +126,28 @@ func (s *Server) startTraceProbe(w http.ResponseWriter, r *http.Request) {
 	fail := func(msg string) {
 		http.Redirect(w, r, link+"&err="+neturl.QueryEscape(msg), http.StatusSeeOther)
 	}
+
+	// Both guardrails below refuse before anything is stored or sent: a demo
+	// instance or a rate-limited operator gets nothing on the wire, not a request
+	// that races a check (probe.md §2). Denied here still gets an audit_event,
+	// because a refused Probe is still something an operator asked nagipath to do.
+	if s.DemoMode {
+		s.DB.AuditDetail(ctx, &u.ID, "probe.run", "probe", nil, target,
+			map[string]any{"method": method, "reason": "demo_mode"}, "denied", remoteAddr(r))
+		fail("this is a demo instance; NAGIPATH_DEMO_MODE refuses every probe")
+		return
+	}
+	if limited, err := probe.RateLimited(ctx, s.DB, u.ID, target); err != nil {
+		fail(err.Error())
+		return
+	} else if limited {
+		s.DB.AuditDetail(ctx, &u.ID, "probe.run", "probe", nil, target,
+			map[string]any{"method": method, "reason": "rate_limited"}, "denied", remoteAddr(r))
+		fail(fmt.Sprintf("rate limit reached: %d probe(s) already sent to this entry point in the last %ds by this operator",
+			s.DB.SettingInt(ctx, "probe_rate_limit_max"), s.DB.SettingInt(ctx, "probe_rate_limit_window_seconds")))
+		return
+	}
+
 	if traceID == 0 {
 		top, err := trace.Load(ctx, s.DB)
 		if err != nil {

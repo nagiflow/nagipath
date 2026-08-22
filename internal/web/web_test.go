@@ -36,7 +36,7 @@ func newTestServer(t *testing.T) (*Server, *store.DB) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := New(db, master, slog.New(slog.NewTextHandler(io.Discard, nil)), false)
+	s, err := New(db, master, slog.New(slog.NewTextHandler(io.Discard, nil)), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}

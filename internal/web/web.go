@@ -37,6 +37,9 @@ type Server struct {
 	// Secure marks the session cookie Secure. It is off for the local lab, which
 	// runs over plain HTTP, and on everywhere else.
 	Secure bool
+	// DemoMode refuses every Probe outright (probe.md §2, PRD-V1.md §8): a
+	// public-facing trial instance must never send a real outbound request.
+	DemoMode bool
 
 	tpl       *template.Template
 	collector *collect.Collector
@@ -48,8 +51,8 @@ type Server struct {
 	probeSeq  int64
 }
 
-func New(db *store.DB, master *keys.Master, log *slog.Logger, secure bool) (*Server, error) {
-	s := &Server{DB: db, Master: master, Log: log, Secure: secure}
+func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode bool) (*Server, error) {
+	s := &Server{DB: db, Master: master, Log: log, Secure: secure, DemoMode: demoMode}
 	tpl, err := template.New("").Funcs(funcs).ParseFS(assets, "templates/*.html", "templates/parts/*.html")
 	if err != nil {
 		return nil, err
