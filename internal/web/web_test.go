@@ -183,6 +183,50 @@ func TestPostWithoutCSRFTokenIsRejected(t *testing.T) {
 	}
 }
 
+// /logout is registered outside auth() (a signed-out request must still reach
+// it harmlessly), so it has to check CSRF itself rather than inherit it — this
+// pins down that it actually does, and that a forced-password-change user can
+// still reach it (auth() would have redirected them to /password instead).
+func TestLogoutRequiresCSRFAndWorksMidForcedPasswordChange(t *testing.T) {
+	s, db := newTestServer(t)
+	if _, err := db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", true); err != nil {
+		t.Fatal(err)
+	}
+	c := &client{t: t, s: s}
+	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	if c.cookie == "" {
+		t.Fatal("login did not set a session cookie")
+	}
+
+	saved := c.csrf
+	c.csrf = ""
+	if got := c.post("/logout", url.Values{}).Code; got != http.StatusForbidden {
+		t.Errorf("POST /logout without a CSRF token = %d, want 403", got)
+	}
+	c.csrf = "forged-token"
+	if got := c.post("/logout", url.Values{}).Code; got != http.StatusForbidden {
+		t.Errorf("POST /logout with a forged CSRF token = %d, want 403", got)
+	}
+	sessionBeforeLogout := c.cookie
+	c.csrf = saved
+	w := c.post("/logout", url.Values{})
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("POST /logout with the right CSRF token = %d, want 303", w.Code)
+	}
+	cleared := false
+	for _, ck := range w.Result().Cookies() {
+		if ck.Name == cookieName && ck.MaxAge < 0 {
+			cleared = true
+		}
+	}
+	if !cleared {
+		t.Error("logout did not send a cookie-clearing Set-Cookie")
+	}
+	if _, err := db.SessionUser(t.Context(), sessionBeforeLogout); err == nil {
+		t.Error("session should be invalidated server-side after logout")
+	}
+}
+
 // nagipath never scans. A CIDR in the address field is a scan request and must be
 // refused, not helpfully expanded.
 func TestAddNodeRejectsNetworkRanges(t *testing.T) {

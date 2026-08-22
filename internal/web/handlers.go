@@ -95,6 +95,14 @@ func (s *Server) postLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) postLogout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(cookieName); err == nil {
+		// The same CSRF check every other mutating route gets via auth(). Checked
+		// inline rather than wrapping in auth() itself, because auth() also
+		// redirects a must-change-password user to /password before they ever
+		// reach here — exactly the user who most needs a working sign-out button.
+		if !s.checkCSRF(r, c.Value) {
+			http.Error(w, "invalid or missing CSRF token", http.StatusForbidden)
+			return
+		}
 		s.DB.EndSession(r.Context(), c.Value)
 	}
 	s.clearCookie(w)
