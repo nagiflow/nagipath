@@ -646,9 +646,11 @@ func (s *Server) instance(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		// Reusing the trace loader gives the detail page the same view of the
-		// topology the trace engine uses, so the two can never disagree.
-		if top, err := trace.Load(ctx, s.DB); err == nil {
-			d.Inst = top.Instance(id)
+		// topology the trace engine uses, so the two can never disagree. This page
+		// only ever shows one Instance, so it loads just that one rather than
+		// paying for the whole fleet the way /trace and rule lookup have to.
+		if inst, err := trace.LoadInstance(ctx, s.DB, id); err == nil {
+			d.Inst = inst
 			if d.Inst != nil {
 				d.Rules = len(d.Inst.GlobalRules)
 				for _, site := range d.Inst.Sites {
