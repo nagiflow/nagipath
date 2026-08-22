@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nagiflow/nagipath/internal/keys"
 	"github.com/nagiflow/nagipath/internal/parse"
@@ -124,7 +125,7 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 	}
 
 	for _, path := range []string{"/", "/nodes", "/instances", "/fleet", "/collections",
-		"/certificates", "/certificates?cert=1", "/credentials", "/audit", "/search",
+		"/certificates", "/certificates?cert=1", "/credentials", "/users", "/audit", "/search",
 		"/search?q=proxy_pass", "/search?q=proxy_pass&vendor=nginx&page=2", "/trace",
 		"/rules", "/rules?hostname=shop.example.com&path=/api", "/drift", "/onboarding",
 		"/password"} {
@@ -255,6 +256,179 @@ func TestAddNodeRejectsNetworkRanges(t *testing.T) {
 	}
 	if nodes, _ := db.Nodes(t.Context()); len(nodes) != 0 {
 		t.Errorf("nodes = %d, want 0", len(nodes))
+	}
+}
+
+// A second user is the whole point of /users: an admin creates one, and it can
+// sign in with the role it was given.
+func TestAdminCreatesASecondUserWhoCanSignIn(t *testing.T) {
+	s, db := newTestServer(t)
+	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
+	c := &client{t: t, s: s}
+	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+
+	w := c.post("/users", url.Values{"username": {"newviewer"}, "password": {"a good long password"},
+		"confirm": {"a good long password"}, "role": {"viewer"}})
+	if loc := w.Header().Get("Location"); strings.Contains(loc, "err=") {
+		t.Fatalf("creating a user failed: %s", loc)
+	}
+	users, err := db.Users(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(users) != 2 {
+		t.Fatalf("users = %d, want 2", len(users))
+	}
+	body := c.get("/users").Body.String()
+	if !strings.Contains(body, "newviewer") || !strings.Contains(body, "viewer") {
+		t.Error("the new user is not listed")
+	}
+
+	// The new account signs in with the role it was created with.
+	c2 := &client{t: t, s: s}
+	w = c2.post("/login", url.Values{"username": {"newviewer"}, "password": {"a good long password"}})
+	if w.Code != http.StatusSeeOther || c2.cookie == "" {
+		t.Fatalf("the new user could not sign in: %d", w.Code)
+	}
+	if got := c2.get("/users").Code; got != http.StatusForbidden {
+		t.Errorf("a viewer reading /users = %d, want 403", got)
+	}
+	if got := c2.post("/users", url.Values{"username": {"x"}, "password": {"a good long password"},
+		"confirm": {"a good long password"}, "role": {"viewer"}}).Code; got != http.StatusForbidden {
+		t.Errorf("a viewer creating a user = %d, want 403", got)
+	}
+
+	// A short password is refused rather than accepted quietly, the same as /setup.
+	w = c.post("/users", url.Values{"username": {"short"}, "password": {"tooshort"},
+		"confirm": {"tooshort"}, "role": {"viewer"}})
+	if loc := w.Header().Get("Location"); !strings.Contains(loc, "err=") {
+		t.Error("a short password was accepted for a new user")
+	}
+}
+
+// Disabling a user must actually stop them from signing in, not just hide the
+// account from the list — the guardrail that matters is on Authenticate.
+func TestDisablingAUserPreventsLogin(t *testing.T) {
+	s, db := newTestServer(t)
+	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
+	viewerID, err := db.CreateUser(t.Context(), "viewer", "a good long password", "viewer", "Viewer", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &client{t: t, s: s}
+	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+
+	w := c.post("/users/"+strconv.FormatInt(viewerID, 10)+"/disable", url.Values{})
+	if loc := w.Header().Get("Location"); strings.Contains(loc, "err=") {
+		t.Fatalf("disabling the viewer failed: %s", loc)
+	}
+
+	c2 := &client{t: t, s: s}
+	w = c2.post("/login", url.Values{"username": {"viewer"}, "password": {"a good long password"}})
+	if c2.cookie != "" || !strings.Contains(w.Header().Get("Location"), "err=") {
+		t.Fatal("a disabled user was able to sign in")
+	}
+
+	// Re-enabling restores it.
+	c.post("/users/"+strconv.FormatInt(viewerID, 10)+"/enable", url.Values{})
+	c3 := &client{t: t, s: s}
+	c3.post("/login", url.Values{"username": {"viewer"}, "password": {"a good long password"}})
+	if c3.cookie == "" {
+		t.Fatal("the re-enabled user could not sign in")
+	}
+}
+
+// The structural guardrail: disabling the sole admin must be refused, not
+// merely discouraged, because there would be nobody left to undo it.
+func TestLastAdminCannotBeDisabled(t *testing.T) {
+	s, db := newTestServer(t)
+	adminID, err := db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &client{t: t, s: s}
+	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+
+	w := c.post("/users/"+strconv.FormatInt(adminID, 10)+"/disable", url.Values{})
+	if loc := w.Header().Get("Location"); !strings.Contains(loc, "err=") {
+		t.Error("disabling the last admin was allowed")
+	}
+	u, err := db.User(t.Context(), adminID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Disabled {
+		t.Error("the last admin was disabled despite the guardrail")
+	}
+
+	// With a second enabled admin, disabling the first is allowed.
+	db.CreateUser(t.Context(), "admin2", "a good long password", "admin", "Admin2", false)
+	w = c.post("/users/"+strconv.FormatInt(adminID, 10)+"/disable", url.Values{})
+	if loc := w.Header().Get("Location"); strings.Contains(loc, "err=") {
+		t.Errorf("disabling one of two admins was refused: %s", loc)
+	}
+}
+
+// Failed logins are throttled per username, checked before the (deliberately
+// slow) password hash runs, and a limit of 0 turns the guardrail off.
+func TestLoginRateLimitBlocksThenClearsAfterTheWindow(t *testing.T) {
+	s, db := newTestServer(t)
+	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
+	if err := db.SetSetting(t.Context(), "login_rate_limit_max", "3", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.SetSetting(t.Context(), "login_rate_limit_window_seconds", "300", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	c := &client{t: t, s: s}
+	for i := 0; i < 3; i++ {
+		w := c.post("/login", url.Values{"username": {"admin"}, "password": {"wrong password"}})
+		if !strings.Contains(w.Header().Get("Location"), "err=") {
+			t.Fatalf("attempt %d: wrong password was not refused", i)
+		}
+	}
+	// The ceiling is reached: even the correct password is refused now, without
+	// ever reaching Authenticate.
+	w := c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	if c.cookie != "" {
+		t.Fatal("login succeeded despite the rate limit")
+	}
+	if !strings.Contains(w.Header().Get("Location"), "err=") {
+		t.Fatal("a rate-limited login was not refused")
+	}
+
+	// A different username is not caught by the same limit.
+	db.CreateUser(t.Context(), "someoneelse", "a good long password", "viewer", "Someone", false)
+	c2 := &client{t: t, s: s}
+	c2.post("/login", url.Values{"username": {"someoneelse"}, "password": {"a good long password"}})
+	if c2.cookie == "" {
+		t.Error("a different username was blocked by another account's rate limit")
+	}
+
+	// Once the window has passed, the correct password works again.
+	if _, err := db.W.ExecContext(t.Context(),
+		`UPDATE audit_event SET at = ? WHERE action = 'auth.login' AND target_label = 'admin'`,
+		time.Now().UTC().Add(-10*time.Minute).Format("2006-01-02T15:04:05Z")); err != nil {
+		t.Fatal(err)
+	}
+	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	if c.cookie == "" {
+		t.Error("login after the rate-limit window passed should have succeeded")
+	}
+
+	// A limit of 0 disables the guardrail rather than blocking everything.
+	if err := db.SetSetting(t.Context(), "login_rate_limit_max", "0", nil); err != nil {
+		t.Fatal(err)
+	}
+	c3 := &client{t: t, s: s}
+	for i := 0; i < 5; i++ {
+		c3.post("/login", url.Values{"username": {"admin"}, "password": {"wrong password"}})
+	}
+	w = c3.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	if c3.cookie == "" {
+		t.Errorf("login_rate_limit_max=0 should disable the guardrail, got %d -> %q",
+			w.Code, w.Header().Get("Location"))
 	}
 }
 

@@ -71,6 +71,17 @@ func (s *Server) getLogin(w http.ResponseWriter, r *http.Request) {
 func (s *Server) postLogin(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	username := strings.TrimSpace(r.FormValue("username"))
+	// Checked before Authenticate does any argon2id work: the point of a rate
+	// limit is refusing a guess before paying for it, not after — the same
+	// ordering probe's rate limit uses before a Probe's request goes out.
+	if limited, err := s.DB.LoginRateLimited(ctx, username); err != nil {
+		redirect(w, r, "/login", "", err.Error())
+		return
+	} else if limited {
+		s.DB.AuditDetail(ctx, nil, "auth.login", "user", nil, username, nil, "denied", remoteAddr(r))
+		redirect(w, r, "/login", "", "too many failed attempts for this account; try again later")
+		return
+	}
 	u, err := s.DB.Authenticate(ctx, username, r.FormValue("password"))
 	if err != nil {
 		// The message is deliberately identical for a bad password and a missing
@@ -498,6 +509,91 @@ func (s *Server) addCredential(w http.ResponseWriter, r *http.Request) {
 	}
 	// The key is now encrypted at rest and is never rendered again, by any route.
 	redirect(w, r, "/credentials", "credential stored", "")
+}
+
+// ---------------------------------------------------------------- users
+
+func (s *Server) users(w http.ResponseWriter, r *http.Request) {
+	list, err := s.DB.Users(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	s.render(w, r, "users.html", "Users", list)
+}
+
+func (s *Server) addUser(w http.ResponseWriter, r *http.Request) {
+	ctx, actor := r.Context(), userOf(r)
+	username := strings.TrimSpace(r.FormValue("username"))
+	password := r.FormValue("password")
+	if username == "" || len(password) < 12 {
+		redirect(w, r, "/users", "", "a username and a password of at least 12 characters are required")
+		return
+	}
+	if password != r.FormValue("confirm") {
+		redirect(w, r, "/users", "", "the two passwords do not match")
+		return
+	}
+	role := r.FormValue("role")
+	if role != "admin" && role != "viewer" {
+		redirect(w, r, "/users", "", "role must be admin or viewer")
+		return
+	}
+	mustChange := r.FormValue("must_change") != ""
+	id, err := s.DB.CreateUser(ctx, username, password, role, username, mustChange)
+	if err != nil {
+		redirect(w, r, "/users", "", err.Error())
+		return
+	}
+	s.DB.Audit(ctx, &actor.ID, "user.create", "user", &id, username)
+	redirect(w, r, "/users", "user created", "")
+}
+
+// disableUser refuses to leave the product with zero enabled admins — the same
+// class of structural guardrail as Probe's GET/HEAD-only, enforced here rather
+// than only by hiding the button, because a button that is not rendered is not
+// a guarantee.
+func (s *Server) disableUser(w http.ResponseWriter, r *http.Request) {
+	ctx, actor := r.Context(), userOf(r)
+	id := idOf(r, "id")
+	target, err := s.DB.User(ctx, id)
+	if err != nil {
+		redirect(w, r, "/users", "", "user not found")
+		return
+	}
+	if target.IsAdmin() && !target.Disabled {
+		n, err := s.DB.EnabledAdminCount(ctx, id)
+		if err != nil {
+			redirect(w, r, "/users", "", err.Error())
+			return
+		}
+		if n == 0 {
+			redirect(w, r, "/users", "", "cannot disable the last enabled admin account")
+			return
+		}
+	}
+	if err := s.DB.SetUserDisabled(ctx, id, true); err != nil {
+		redirect(w, r, "/users", "", err.Error())
+		return
+	}
+	s.DB.Audit(ctx, &actor.ID, "user.disable", "user", &id, target.Username)
+	redirect(w, r, "/users", "user disabled", "")
+}
+
+func (s *Server) enableUser(w http.ResponseWriter, r *http.Request) {
+	ctx, actor := r.Context(), userOf(r)
+	id := idOf(r, "id")
+	target, err := s.DB.User(ctx, id)
+	if err != nil {
+		redirect(w, r, "/users", "", "user not found")
+		return
+	}
+	if err := s.DB.SetUserDisabled(ctx, id, false); err != nil {
+		redirect(w, r, "/users", "", err.Error())
+		return
+	}
+	s.DB.Audit(ctx, &actor.ID, "user.enable", "user", &id, target.Username)
+	redirect(w, r, "/users", "user enabled", "")
 }
 
 // ---------------------------------------------------------------- inventory

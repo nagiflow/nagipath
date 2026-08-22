@@ -100,6 +100,11 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /credentials", s.admin(s.credentials))
 	m.HandleFunc("POST /credentials", s.admin(s.addCredential))
 
+	m.HandleFunc("GET /users", s.admin(s.users))
+	m.HandleFunc("POST /users", s.admin(s.addUser))
+	m.HandleFunc("POST /users/{id}/disable", s.admin(s.disableUser))
+	m.HandleFunc("POST /users/{id}/enable", s.admin(s.enableUser))
+
 	m.HandleFunc("GET /instances", s.auth(s.instances))
 	// A cluster is discovered from the configuration and is the level above a node,
 	// so it has no screen of its own and no membership form — only a name.

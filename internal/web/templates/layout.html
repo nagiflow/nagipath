@@ -35,6 +35,7 @@
   {{if .User.IsAdmin}}
   <a class="nv {{on .Path "/onboarding"}}" href="/onboarding">Setup</a>
   <a class="nv {{on .Path "/credentials"}}" href="/credentials">Credentials</a>
+  <a class="nv {{on .Path "/users"}}" href="/users">Users</a>
   <a class="nv {{on .Path "/audit"}}" href="/audit">Audit</a>
   {{end}}
   <a class="nv {{on .Path "/password"}}" href="/password">{{.User.Username}}</a>

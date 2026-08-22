@@ -1,0 +1,58 @@
+{{template "head" .}}
+{{template "toolbar" toolbar "Users" "admin and viewer accounts — local only, no LDAP or SSO in v1"}}
+{{template "body"}}
+{{if .Data}}
+<table>
+  {{template "cols" cols "Username" "Role" "Created" "Last login" "State" ""}}
+  {{range .Data}}
+  <tr class="{{if .Disabled}}row-warn{{end}}">
+    <td>{{.Username}}</td>
+    <td>{{.Role}}</td>
+    <td class="mono small">{{.CreatedAt}}</td>
+    <td class="mono small">{{if .LastLoginAt.Valid}}{{.LastLoginAt.String}}{{else}}never{{end}}</td>
+    <td>{{if .Disabled}}disabled{{else}}active{{end}}</td>
+    <td>
+      {{if .Disabled}}
+      <form method="post" action="/users/{{.ID}}/enable" class="inline">
+        {{template "csrf" $.CSRF}}
+        <button type="submit">Enable</button>
+      </form>
+      {{else}}
+      <form method="post" action="/users/{{.ID}}/disable" class="inline"
+            onsubmit="return confirm('Disable {{.Username}}? They will not be able to sign in until re-enabled.')">
+        {{template "csrf" $.CSRF}}
+        <button type="submit" class="danger">Disable</button>
+      </form>
+      {{end}}
+    </td>
+  </tr>
+  {{end}}
+</table>
+{{else}}
+{{template "empty" "No users yet"}}
+  <p>This should not happen — the signed-in account is itself a user.</p>
+{{template "empty-end"}}
+{{end}}
+
+<div class="bx col">
+  <span class="lbl">add a user</span>
+  <form method="post" action="/users" class="grid">
+    {{template "csrf" .CSRF}}
+    <label>Username <input name="username" required autocomplete="username"></label>
+    <label>Role
+      <select name="role">
+        <option value="viewer">viewer</option>
+        <option value="admin">admin</option>
+      </select>
+    </label>
+    <label>Password <input name="password" type="password" required minlength="12" autocomplete="new-password"></label>
+    <label>Confirm password <input name="confirm" type="password" required minlength="12" autocomplete="new-password"></label>
+    <label class="wide"><input type="checkbox" name="must_change" value="1" checked>
+      require a password change at first sign-in</label>
+    <button type="submit">Create user</button>
+  </form>
+  <p class="hint">At least 12 characters. nagipath stores only an Argon2id hash — v1 is
+  local accounts only, admin and viewer, no LDAP or SSO.</p>
+</div>
+</div>
+{{template "foot" .}}

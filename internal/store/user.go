@@ -177,6 +177,44 @@ func (db *DB) SetUserDisabled(ctx context.Context, id int64, disabled bool) erro
 	return err
 }
 
+// EnabledAdminCount counts admins who are not disabled, excluding excludeID (0
+// excludes nothing, since ids start at 1). It is the last-admin guardrail: a
+// caller about to disable an admin passes that admin's own id and refuses the
+// action if the result is zero, so the product can never be left with no
+// account able to sign a new admin in.
+func (db *DB) EnabledAdminCount(ctx context.Context, excludeID int64) (int, error) {
+	var n int
+	err := db.R.QueryRowContext(ctx, `SELECT COUNT(*) FROM app_user
+		WHERE role = 'admin' AND disabled_at IS NULL AND id != ?`, excludeID).Scan(&n)
+	return n, err
+}
+
+// LoginRateLimited enforces a per-username guardrail against sustained online
+// password guessing. It counts failed attempts already written to audit_event
+// by postLogin — the same "query the rows a mutation already writes" approach
+// probe.RateLimited uses against the probe table — rather than adding a new
+// table just to count logins.
+//
+// A limit of 0 disables the guardrail, the same convention as the Probe rate
+// limit (probe.RateLimited): an operator who sets it to 0 is turning the check
+// off, not setting it to "never".
+func (db *DB) LoginRateLimited(ctx context.Context, username string) (bool, error) {
+	limit := db.SettingInt(ctx, "login_rate_limit_max")
+	if limit <= 0 {
+		return false, nil
+	}
+	window := db.SettingInt(ctx, "login_rate_limit_window_seconds")
+	since := time.Now().UTC().Add(-time.Duration(window) * time.Second).Format("2006-01-02T15:04:05Z")
+	var n int
+	err := db.R.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_event
+		WHERE action = 'auth.login' AND outcome = 'failure' AND target_label = ? AND at >= ?`,
+		username, since).Scan(&n)
+	if err != nil {
+		return false, err
+	}
+	return n >= limit, nil
+}
+
 // ---------------------------------------------------------------- sessions
 
 const sessionTTL = 12 * time.Hour
