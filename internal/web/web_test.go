@@ -227,6 +227,20 @@ func TestLogoutRequiresCSRFAndWorksMidForcedPasswordChange(t *testing.T) {
 	}
 }
 
+// Direct TLS (docs/infra/customer_deployment.md §5) is opted into with both
+// NAGIPATH_TLS_CERT and NAGIPATH_TLS_KEY. One without the other is almost always
+// a typo'd env var, not an intentional choice, and must refuse rather than
+// silently falling back to plain HTTP with a customer's session cookies on it.
+func TestListenRequiresBothTLSFilesOrNeither(t *testing.T) {
+	s, _ := newTestServer(t)
+	if err := s.Listen(t.Context(), "127.0.0.1:0", "/tmp/only-cert.pem", ""); err == nil {
+		t.Error("Listen with a cert but no key should refuse, not drop to plain HTTP")
+	}
+	if err := s.Listen(t.Context(), "127.0.0.1:0", "", "/tmp/only-key.pem"); err == nil {
+		t.Error("Listen with a key but no cert should refuse, not drop to plain HTTP")
+	}
+}
+
 // nagipath never scans. A CIDR in the address field is a scan request and must be
 // refused, not helpfully expanded.
 func TestAddNodeRejectsNetworkRanges(t *testing.T) {

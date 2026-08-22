@@ -47,6 +47,11 @@ would silently make every stored credential undecryptable.
 
 Setting $NAGIPATH_DEMO_MODE to any non-empty value refuses every Probe outright — for
 a public-facing trial instance that must never send a real outbound request.
+
+TLS: set both $NAGIPATH_TLS_CERT and $NAGIPATH_TLS_KEY (or -tls-cert/-tls-key) for
+direct TLS. Without them the server speaks plain HTTP — fine behind a customer's own
+TLS-terminating reverse proxy, otherwise pass -secure-cookies only once that proxy
+is actually terminating TLS in front of it.
 `
 
 func main() {
@@ -131,6 +136,8 @@ func cmdServer(args []string) error {
 	addr := fs.String("listen", envOr("NAGIPATH_LISTEN", "127.0.0.1:8080"), "listen address")
 	logFormat := fs.String("log", "text", "log format: text or json")
 	secure := fs.Bool("secure-cookies", false, "mark session cookies Secure (requires HTTPS)")
+	tlsCert := fs.String("tls-cert", os.Getenv("NAGIPATH_TLS_CERT"), "TLS certificate file (enables direct TLS)")
+	tlsKey := fs.String("tls-key", os.Getenv("NAGIPATH_TLS_KEY"), "TLS private key file (enables direct TLS)")
 	interval := fs.Duration("collect-every", 0, "collect every node on this interval (0 disables)")
 	fs.Parse(args)
 
@@ -170,11 +177,15 @@ func cmdServer(args []string) error {
 		go scheduledCollection(ctx, db, master, log, *interval)
 	}
 
+	scheme := "http"
+	if *tlsCert != "" || *tlsKey != "" {
+		scheme = "https"
+	}
 	if n, _ := db.UserCount(ctx); n == 0 {
 		log.Info("no users yet — open the address below to create the first administrator",
-			"url", "http://"+*addr+"/setup")
+			"url", scheme+"://"+*addr+"/setup")
 	}
-	return srv.Listen(ctx, *addr)
+	return srv.Listen(ctx, *addr, *tlsCert, *tlsKey)
 }
 
 // housekeeping expires sessions and reclaims orphaned blobs. Hourly is often

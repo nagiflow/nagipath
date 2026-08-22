@@ -259,7 +259,12 @@ func idOf(r *http.Request, name string) int64 {
 // Listen starts the server. It refuses to run without a Master Key, which is
 // checked before this point: without it every stored credential is unreadable and
 // a silent start would look healthy while collecting nothing.
-func (s *Server) Listen(ctx context.Context, addr string) error {
+//
+// certFile and keyFile are docs/infra/customer_deployment.md's "Direct TLS"
+// option; both empty is "Plain HTTP" — permitted, but session cookies cannot be
+// marked Secure over it, so that gets its own startup line rather than a silent
+// downgrade.
+func (s *Server) Listen(ctx context.Context, addr, certFile, keyFile string) error {
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           s,
@@ -271,7 +276,21 @@ func (s *Server) Listen(ctx context.Context, addr string) error {
 		defer cancel()
 		srv.Shutdown(shutdown)
 	}()
-	s.Log.Info("listening", "addr", addr)
+	if certFile != "" || keyFile != "" {
+		if certFile == "" || keyFile == "" {
+			return errors.New("both NAGIPATH_TLS_CERT and NAGIPATH_TLS_KEY are required to enable direct TLS")
+		}
+		s.Log.Info("listening", "addr", addr, "tls", true)
+		if err := srv.ListenAndServeTLS(certFile, keyFile); !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
+	}
+	if !s.Secure {
+		s.Log.Info("listening on plain HTTP: session cookies cannot be marked Secure " +
+			"(behind a TLS-terminating reverse proxy, set -secure-cookies)")
+	}
+	s.Log.Info("listening", "addr", addr, "tls", false)
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
