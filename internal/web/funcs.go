@@ -44,6 +44,8 @@ var funcs = template.FuncMap{
 	"cols":          cols,
 	"add":           func(a, b int) int { return a + b },
 	"sub":           func(a, b int) int { return a - b },
+	"notglobal":     notGlobal,
+	"globalonly":    globalOnly,
 }
 
 // hopLevel is one rank of the trace: every instance the request could be at
@@ -338,6 +340,34 @@ func globalRules(rules []trace.HopRule) []trace.HopRule {
 	for _, hr := range rules {
 		if hr.Scope == "global" {
 			out = append(out, hr)
+		}
+	}
+	return out
+}
+
+// notGlobal and globalOnly are routingRules/globalRules for Rule Lookup's flat,
+// ordinal-ordered table: the same "global settings decide nothing about routing,
+// and it is the same hundred directives on every result" reasoning, but keeping
+// LookupRule's flat order rather than grouping by file, because the ordinal here
+// is the evaluation order the operator is reading the table for. A real haproxy
+// or nginx global section runs to dozens of tuning directives that apply to
+// every request identically; burying the handful of rules that actually decide
+// this one under all of them is the opposite of what a lookup is for.
+func notGlobal(rules []trace.LookupRule) []trace.LookupRule {
+	var out []trace.LookupRule
+	for _, r := range rules {
+		if r.Scope != "global" {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func globalOnly(rules []trace.LookupRule) []trace.LookupRule {
+	var out []trace.LookupRule
+	for _, r := range rules {
+		if r.Scope == "global" {
+			out = append(out, r)
 		}
 	}
 	return out

@@ -56,6 +56,7 @@
 {{if .Asked}}
 
 {{range .Answered}}
+{{$res := .}}
 <details class="bx" open>
   <summary class="row center">
     <b>{{.Inst.DisplayName}}</b>
@@ -75,7 +76,7 @@
 
   <table>
   {{template "cols" cols "ord:2.5rem" "scope:8rem" "rule" "class:7rem" "src:14rem"}}
-    {{range .Rules}}
+    {{range notglobal .Rules}}
     <tr class="{{if .Shadowed}}row-warn{{end}}">
       <td class="mono">{{if .Shadowed}}—{{else}}{{.Ordinal}}{{end}}</td>
       <td class="tiny {{if .Shadowed}}warn{{else}}dim{{end}}">{{if .Shadowed}}discarded{{else}}{{.Scope}}{{if .Inherited}} · inherited{{end}}{{end}}</td>
@@ -86,6 +87,15 @@
     </tr>
     {{end}}
   </table>
+
+  {{/* Collapsed, not hidden: same reasoning as the Trace page's per-hop rule
+       list (funcs.go's routingRules/globalRules) — a global section is the same
+       few dozen tuning directives on every result and decides nothing about
+       this one, so it is a count and a link rather than fifty more rows. */}}
+  {{with globalonly .Rules}}
+  <p class="tiny dim">{{len .}} inherited global directive{{if ne (len .) 1}}s{{end}} apply and are
+    not specific to this request — <a href="/instances/{{$res.Inst.ID}}">read them on the instance</a>.</p>
+  {{end}}
 
   {{if .Undetermined}}
   <div class="bx dash col">

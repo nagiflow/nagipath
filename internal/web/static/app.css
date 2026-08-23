@@ -699,8 +699,17 @@ details summary:hover { text-decoration: underline; text-underline-offset: 2px; 
 .bars .b.warn { background: #d6bf3f; }
 .bars .b.err { background: var(--danger); }
 
-.facet { display: flex; gap: var(--s2); align-items: center; margin: 0; font: 400 13px/1.6 var(--sans); color: var(--fg); }
-.facet input { display: inline-block; width: auto; margin: 0; accent-color: var(--accent); }
+.facet {
+  display: flex; gap: var(--s2); align-items: center; margin: 0;
+  padding: 4px 6px; border-radius: var(--rad); cursor: pointer;
+  font: 400 13px/1.6 var(--sans); color: var(--fg);
+}
+.facet:hover { background: var(--bg-subtle); }
+.facet input {
+  display: inline-block; width: 15px; height: 15px; margin: 0; flex: none;
+  accent-color: var(--accent); cursor: pointer;
+}
+.facet .tiny { font-size: 13px; }
 mark { background: #fdf0a8; color: var(--fg-strong); border-radius: 2px; padding: 0 1px; }
 
 .drop {
