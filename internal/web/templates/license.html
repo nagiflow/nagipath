@@ -1,5 +1,5 @@
 {{template "head" .}}
-{{template "toolbar" toolbar "License" "offline, ed25519-signed — nagipath never phones home to check it"}}
+{{template "toolbar" toolbar "License" ""}}
 {{template "body"}}
 
 <div class="bx col">
@@ -22,9 +22,7 @@
   </table>
   {{else}}
   {{template "empty" "No license loaded"}}
-    <p>nagipath is running unlicensed. This is never a hard stop — Collection, Trace and Drift keep
-    working exactly as before — but the fleet has {{.Data.NodeCount}} node{{if ne .Data.NodeCount 1}}s{{end}} with
-    nothing to check them against.</p>
+    <p>Install a license to cover this fleet ({{.Data.NodeCount}} node{{if ne .Data.NodeCount 1}}s{{end}}).</p>
   {{template "empty-end"}}
   {{end}}
 </div>

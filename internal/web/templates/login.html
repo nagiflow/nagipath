@@ -1,11 +1,13 @@
 {{template "head" .}}
-<section class="narrow">
-  <h1>nagipath</h1>
-  <p class="lbl">sign in</p>
-  <form method="post" action="/login">
+<section class="auth-shell">
+<section class="narrow auth-card">
+  <div class="auth-brand">nagipath</div>
+  <h1>Sign in</h1>
+  <form method="post" action="/login" class="auth-form">
     <label>Username <input name="username" required autofocus autocomplete="username"></label>
     <label>Password <input name="password" type="password" required autocomplete="current-password"></label>
     <button type="submit">Sign in</button>
   </form>
+</section>
 </section>
 {{template "foot" .}}

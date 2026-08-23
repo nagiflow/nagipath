@@ -1,6 +1,6 @@
 {{template "head" .}}
 {{with .Data}}
-{{template "toolbar" toolbar "Nodes" "every node is added here or imported — nagipath never scans a network"}}
+{{template "toolbar" toolbar "Nodes" ""}}
   {{if $.User.IsAdmin}}<a class="button p" href="#add">Add node</a>{{end}}
 {{template "body"}}
 
@@ -37,8 +37,7 @@
 {{template "empty-end"}}
 {{else}}
 {{template "empty" "No nodes yet"}}
-  <p>nagipath never scans for hosts — every node is added here or imported from an
-  inventory file. Add one below, approve its host key, then collect.</p>
+  <p>Add a node or import inventory, then approve its host key to collect.</p>
 {{template "empty-end"}}
 {{end}}
 

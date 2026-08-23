@@ -1,6 +1,6 @@
 {{template "head" .}}
 {{with .Data}}
-{{template "toolbar" toolbar "Instances" (printf "%v discovered" .Total)}}
+{{template "toolbar" toolbar "Instances" ""}}
 {{template "body"}}
 
 <form method="get" class="row center" style="gap:.5rem;padding:.4rem 0">
@@ -32,8 +32,8 @@
 {{template "empty-end"}}
 {{else}}
 {{template "empty" "No instances discovered yet"}}
-  <p>Instances are found by collecting from a node — nothing is declared by hand.
-  <a href="/nodes">Add a node</a> and collect.</p>
+  <p>Collect from a node to discover its instances.</p>
+  <a class="button p" href="/nodes">Add a node</a>
 {{template "empty-end"}}
 {{end}}
 {{end}}

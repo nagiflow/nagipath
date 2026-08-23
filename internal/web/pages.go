@@ -19,6 +19,7 @@ var Version = "dev"
 
 type rulesData struct {
 	Query   trace.LookupQuery
+	URL     string // Query rendered back the way it would be pasted, for the input's value
 	Results []trace.LookupResult
 	Classes []string
 	Vendors []string
@@ -38,17 +39,34 @@ func (s *Server) rules(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	q := r.URL.Query()
 	d := rulesData{Classes: trace.ActionClasses}
+
+	// One pasted URL, like the Trace page — scheme, port and path are read off
+	// it, and a bare host defaults to https. The separate scheme/hostname/path/
+	// port parameters still work unchanged, because the "Rule lookup" button on
+	// the instance page, and older bookmarks, build a link that way.
+	tq, err := parseTarget(q.Get("url"))
+	if err != nil {
+		redirect(w, r, "/rules", "", err.Error())
+		return
+	}
+	if tq.Hostname == "" {
+		tq = trace.Query{
+			Scheme:   q.Get("scheme"),
+			Hostname: strings.TrimSpace(q.Get("hostname")),
+			Path:     strings.TrimSpace(q.Get("path")),
+		}
+		if p, err := strconv.Atoi(q.Get("port")); err == nil {
+			tq.Port = p
+		}
+	}
 	d.Query = trace.LookupQuery{
-		Hostname: strings.TrimSpace(q.Get("hostname")),
-		Path:     strings.TrimSpace(q.Get("path")),
-		Scheme:   q.Get("scheme"),
-		Classes:  nonEmpty(q["class"]),
-		Vendors:  nonEmpty(q["vendor"]),
+		Scheme: tq.Scheme, Hostname: tq.Hostname, Path: tq.Path, Port: tq.Port,
+		Classes: nonEmpty(q["class"]), Vendors: nonEmpty(q["vendor"]),
+	}.Normalise()
+	if d.Query.Hostname != "" {
+		d.URL = targetURL(trace.Query{Scheme: d.Query.Scheme, Hostname: d.Query.Hostname,
+			Path: d.Query.Path, Port: d.Query.Port})
 	}
-	if p, err := strconv.Atoi(q.Get("port")); err == nil {
-		d.Query.Port = p
-	}
-	d.Query = d.Query.Normalise()
 
 	instances, err := s.DB.Instances(ctx)
 	if err != nil {

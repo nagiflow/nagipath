@@ -1,8 +1,7 @@
 {{template "head" .}}
 {{with .Data}}
 {{template "toolbar" toolbar "Connect the fleet" (printf "step %v of 4" (.Step))}}
-  <a class="button" href="/fleet">Skip</a>
-  <a class="button p" href="/fleet">Continue</a>
+  <a class="button p" href="/fleet">View fleet</a>
 {{template "body"}}
 
 {{/* The steps are derived from what the fleet actually contains, not remembered:

@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-{{if .LicenseNotice}}<p class="flash warn" role="status">{{.LicenseNotice}}</p>{{end}}
+{{if .LicenseNotice}}<p class="license-banner" role="status"><span>{{.LicenseNotice}}</span> <a href="/license">View license</a></p>{{end}}
 {{if .User.ID}}
 <div class="app">
 <nav class="sb">
@@ -34,7 +34,7 @@
   {{end}}
   <a class="nv {{on .Path "/collections"}}" href="/collections">Collections</a>
   {{if .User.IsAdmin}}
-  <a class="nv {{on .Path "/onboarding"}}" href="/onboarding">Setup</a>
+  <a class="nv {{on .Path "/onboarding"}}" href="/onboarding">Connect fleet</a>
   <a class="nv {{on .Path "/credentials"}}" href="/credentials">Credentials</a>
   <a class="nv {{on .Path "/users"}}" href="/users">Users</a>
   <a class="nv {{on .Path "/audit"}}" href="/audit">Audit</a>

@@ -2,7 +2,6 @@
 {{with .Data}}
 <div class="tb">
   <h1>Trace</h1>
-  <span class="crumb small">hop by hop, across the fleet, to wherever this request actually goes</span>
   <form method="post" action="/trace" class="trace-form">
     {{template "csrf" $.CSRF}}
     {{/* Method is here because the live request below sends it, and a trace that

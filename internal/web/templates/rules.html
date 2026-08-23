@@ -2,20 +2,15 @@
 {{with .Data}}
 <div class="tb">
   <h1>Rule lookup</h1>
-  <span class="crumb small">every rule in effect here, in order — not followed onward, that's Trace</span>
   {{/* One form, split across the toolbar and the filter column: the checkboxes
        below use form="lookup", so the filters submit with the query and no
-       script is needed to keep them together. */}}
+       script is needed to keep them together.
+
+       One pasted URL, like the Trace page: scheme, port and path are read off
+       it, and a bare host defaults to https — see parseTarget in handlers.go. */}}
   <form id="lookup" method="get" action="/rules" class="trace-form">
-    <select name="scheme" aria-label="scheme">
-      <option value="https" {{if eq .Query.Scheme "https"}}selected{{end}}>https</option>
-      <option value="http" {{if eq .Query.Scheme "http"}}selected{{end}}>http</option>
-    </select>
-    <span class="dim">://</span>
-    <input name="hostname" value="{{.Query.Hostname}}" placeholder="shop.example.com" size="24" required autofocus>
-    <input name="path" value="{{or .Query.Path "/"}}" placeholder="/api/v2/charge" size="20">
-    <label class="tiny">port <input name="port" type="number" value="{{if .Query.Port}}{{.Query.Port}}{{end}}"
-      min="1" max="65535" size="6"></label>
+    <input name="url" value="{{.URL}}" placeholder="https://shop.example.com/api/v2/charge"
+      size="42" required autofocus spellcheck="false" autocapitalize="off" aria-label="URL to look up">
     <button type="submit">Look up</button>
   </form>
   <span class="spacer"></span>

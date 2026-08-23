@@ -1,6 +1,6 @@
 {{template "head" .}}
 {{with .Data}}
-{{template "toolbar" toolbar "Fleet" "clusters, nodes and the instances found on them"}}
+{{template "toolbar" toolbar "Fleet" ""}}
   {{if $.User.IsAdmin}}
   <a class="button" href="/onboarding">Import inventory</a>
   <a class="button p" href="/nodes">Add node</a>
@@ -19,8 +19,8 @@
 
 {{if not .Nodes}}
 {{template "empty" "No nodes yet"}}
-  <p>nagipath collects from hosts you name. It never scans a network to find them.
-  <a href="/onboarding">Connect the fleet</a> or <a href="/nodes">add one host</a>.</p>
+  <p>Add or import a node to start collecting.</p>
+  <a class="button p" href="/onboarding">Connect fleet</a>
 {{template "empty-end"}}
 {{else}}
 
