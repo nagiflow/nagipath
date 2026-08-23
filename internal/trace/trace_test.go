@@ -170,6 +170,90 @@ func TestWalkCrossesNodesAndRewritesPath(t *testing.T) {
 	}
 }
 
+const edgeA = `
+events {}
+http {
+  upstream app {
+    server backend.internal:8080;
+  }
+  server {
+    listen 443 ssl;
+    server_name shop-a.example.com;
+    location /api/ {
+      proxy_pass http://app;
+    }
+  }
+}
+`
+
+const edgeB = `
+events {}
+http {
+  upstream app {
+    server backend.internal:8080;
+  }
+  server {
+    listen 443 ssl;
+    server_name shop-b.example.com;
+    location /api/ {
+      proxy_pass http://app;
+    }
+  }
+}
+`
+
+func targetBody(serverName string) string {
+	return `
+events {}
+http {
+  server {
+    listen 8080;
+    server_name ` + serverName + `;
+    location / {
+      return 200;
+    }
+  }
+}
+`
+}
+
+// TestWalkResolvesUpstreamHostnamesOnTheirOwnNode guards ADR-0010: split-horizon
+// DNS is the normal case in a fleet, so the same name legitimately means a
+// different address on different Nodes, and the only resolution that is ever
+// valid for an Upstream Member is the one performed on the Node whose
+// configuration names it — never another Node's answer for the same name,
+// silently picked because it happened to be collected more recently.
+func TestWalkResolvesUpstreamHostnamesOnTheirOwnNode(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	edgeAID := seed(t, db, "edgeA", "10.0.1.1", "nginx", "/etc/nginx/nginx.conf", edgeA)
+	edgeBID := seed(t, db, "edgeB", "10.0.1.2", "nginx", "/etc/nginx/nginx.conf", edgeB)
+	seed(t, db, "targetA", "10.0.2.10", "nginx", "/etc/nginx/nginx.conf", targetBody("shop-a.example.com"))
+	seed(t, db, "targetB", "10.0.2.20", "nginx", "/etc/nginx/nginx.conf", targetBody("shop-b.example.com"))
+
+	// Both edges proxy to the literal name "backend.internal", but each Node's own
+	// getent hosts answer points at a different real Instance.
+	if err := db.SaveDNS(ctx, edgeAID, "backend.internal", []string{"10.0.2.10"}, "getent_hosts"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.SaveDNS(ctx, edgeBID, "backend.internal", []string{"10.0.2.20"}, "getent_hosts"); err != nil {
+		t.Fatal(err)
+	}
+
+	top := load(t, db)
+
+	trA := Walk(top, Query{Scheme: "https", Hostname: "shop-a.example.com", Path: "/api/"})
+	if len(trA.Hops) < 2 || trA.Hops[1].Inst == nil || trA.Hops[1].Inst.NodeName != "targetA" {
+		t.Fatalf("edgeA's trace hop 1 = %+v, want targetA (edgeA's own DNS view)", trA.Hops)
+	}
+
+	trB := Walk(top, Query{Scheme: "https", Hostname: "shop-b.example.com", Path: "/api/"})
+	if len(trB.Hops) < 2 || trB.Hops[1].Inst == nil || trB.Hops[1].Inst.NodeName != "targetB" {
+		t.Fatalf("edgeB's trace hop 1 = %+v, want targetB (edgeB's own DNS view)", trB.Hops)
+	}
+}
+
 func TestWalkPicksTheEdgeNotTheBackendAsEntry(t *testing.T) {
 	db := testDB(t)
 	seed(t, db, "lb01", "10.90.4.2", "nginx", "/etc/nginx/nginx.conf", edge)
@@ -291,6 +375,28 @@ Listen 8080
 	// and the [L] on the conditional rule must not have stopped the walk either.
 	if len(hop.PathChangedBy) != 0 {
 		t.Errorf("no rule should have changed the path; got %+v", hop.PathChangedBy)
+	}
+}
+
+// A regex container's Specificity is deliberately 0 (parse/apache.go): a regex
+// has no inherent narrower/wider ordering, so real Apache resolves a tie between
+// two same-rank LocationMatch/DirectoryMatch sections by config order — the last
+// one to merge wins — never by which regex source string happens to be longer.
+func TestWalkApacheRegexContainerTieBreaksByConfigOrderNotPatternLength(t *testing.T) {
+	// r1 is declared first but has the textually longer pattern; r2 is declared
+	// second with a shorter one. A pattern-length tie-break (the bug) would keep
+	// r1; config order (the fix) must pick r2, since it merges last.
+	r1 := &Route{ID: 1, MatchType: "location_match", Pattern: `^/api/(charge|refund|void)$`,
+		PrecedenceRank: parse.RankApacheLocation}
+	r2 := &Route{ID: 2, MatchType: "location_match", Pattern: `^/api/charge$`,
+		PrecedenceRank: parse.RankApacheLocation}
+
+	best, _, branches := apacheRoute([]*Route{r1, r2}, "/api/charge")
+	if len(branches) != 0 {
+		t.Fatalf("unexpected branches: %+v", branches)
+	}
+	if best == nil || best.ID != r2.ID {
+		t.Errorf("apacheRoute picked route %+v, want r2 (the later, config-order winner)", best)
 	}
 }
 

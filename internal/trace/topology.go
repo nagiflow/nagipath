@@ -128,7 +128,12 @@ type Topology struct {
 	byID      map[int64]*Inst
 	// byAddress maps an address or hostname a Node is known by to its Instances.
 	byAddress map[string][]*Inst
-	DNS       map[string][]string
+	// DNS is keyed by node ID then name: the resolution that is ever valid for a
+	// Hop is the one performed on the specific Node that holds the Upstream
+	// referencing that name (ADR-0010), never another Node's answer for the same
+	// name. See store.ResolvedNames for why this cannot be collapsed to a single
+	// map[string][]string.
+	DNS map[int64]map[string][]string
 }
 
 func (t *Topology) Instance(id int64) *Inst { return t.byID[id] }
@@ -623,19 +628,21 @@ func loadRulesBatch(ctx context.Context, db *store.DB, holes string, args []any)
 	return idx, rows.Err()
 }
 
-// Resolve answers "which addresses does this name have, according to the fleet?".
-// The answers come from `getent hosts` run on the Nodes (ADR-0010), never from
-// the control plane's own resolver.
-func (t *Topology) Resolve(host string) []string {
+// Resolve answers "which addresses does nodeID's own `getent hosts` say this name
+// has?" (ADR-0010) — never the control plane's own resolver, and never another
+// Node's answer for the same name: split-horizon DNS means that would just be a
+// different, equally valid, wrong answer.
+func (t *Topology) Resolve(nodeID int64, host string) []string {
 	if ip := net.ParseIP(host); ip != nil {
 		return []string{host}
 	}
-	return t.DNS[host]
+	return t.DNS[nodeID][host]
 }
 
 // InstancesAt finds the Instances reachable at a member's host, by name or by any
-// address that name resolves to on the Node that holds the Upstream.
-func (t *Topology) InstancesAt(host string) []*Inst {
+// address that name resolves to **on nodeID**, the Node that holds the Upstream
+// naming it.
+func (t *Topology) InstancesAt(nodeID int64, host string) []*Inst {
 	seen := map[int64]bool{}
 	var out []*Inst
 	add := func(key string) {
@@ -648,7 +655,7 @@ func (t *Topology) InstancesAt(host string) []*Inst {
 	}
 	add(host)
 	add(hostOf(host))
-	for _, addr := range t.Resolve(host) {
+	for _, addr := range t.Resolve(nodeID, host) {
 		add(addr)
 	}
 	return out

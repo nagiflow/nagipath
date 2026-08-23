@@ -22,26 +22,35 @@ func (db *DB) SaveDNS(ctx context.Context, nodeID int64, name string, addrs []st
 	return err
 }
 
-// ResolvedNames returns the most recent resolution of every name, keyed by name.
-// The Trace engine uses it to decide whether an upstream member points at another
-// Instance we know about.
-func (db *DB) ResolvedNames(ctx context.Context) (map[string][]string, error) {
-	rows, err := db.R.QueryContext(ctx, `SELECT name, addresses FROM dns_resolution d
-		WHERE resolved_at = (SELECT MAX(resolved_at) FROM dns_resolution
-		                     WHERE name = d.name) AND method != 'unresolved'`)
+// ResolvedNames returns every Node's own resolution of every name, keyed by node
+// ID then name. It is deliberately per-Node rather than collapsed to one global
+// answer per name: split-horizon DNS is the normal case in a fleet (see SaveDNS),
+// so the same name can correctly mean different addresses on different Nodes, and
+// the only resolution that is ever valid for one Hop is the one performed on the
+// Node that holds the Upstream referencing that name (ADR-0010) — never another
+// Node's answer, and never a merge of several Nodes' answers into one list.
+// dns_resolution is keyed (node_id, name) with INSERT OR REPLACE, so there is
+// exactly one row per Node per name already; no "most recent" filter is needed.
+func (db *DB) ResolvedNames(ctx context.Context) (map[int64]map[string][]string, error) {
+	rows, err := db.R.QueryContext(ctx,
+		`SELECT node_id, name, addresses FROM dns_resolution WHERE method != 'unresolved'`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := map[string][]string{}
+	out := map[int64]map[string][]string{}
 	for rows.Next() {
+		var nodeID int64
 		var name, blob string
-		if err := rows.Scan(&name, &blob); err != nil {
+		if err := rows.Scan(&nodeID, &name, &blob); err != nil {
 			return nil, err
 		}
 		var addrs []string
 		json.Unmarshal([]byte(blob), &addrs)
-		out[name] = append(out[name], addrs...)
+		if out[nodeID] == nil {
+			out[nodeID] = map[string][]string{}
+		}
+		out[nodeID][name] = addrs
 	}
 	return out, rows.Err()
 }

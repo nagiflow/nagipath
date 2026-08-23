@@ -291,11 +291,11 @@ func TestCollectResolvesNamesOnTheTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := names["app01"]; len(got) != 1 || got[0] != "10.90.4.5" {
+	if got := names[nodeID]["app01"]; len(got) != 1 || got[0] != "10.90.4.5" {
 		t.Errorf("app01 resolved to %v, want [10.90.4.5]", got)
 	}
 	// A literal IP member is not a name and must not become a DNS record.
-	if _, ok := names["10.90.4.7"]; ok {
+	if _, ok := names[nodeID]["10.90.4.7"]; ok {
 		t.Error("an IP address was recorded as a resolved name")
 	}
 }

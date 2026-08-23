@@ -292,14 +292,18 @@ func Walk(top *Topology, q Query) *Trace {
 		hop.Upstream = up
 
 		for _, m := range up.Members {
-			addrs := top.Resolve(m.Host)
+			// Resolved on step.inst's own Node, never any other — the Upstream Member
+			// line being resolved lives in step.inst's own configuration, so that
+			// Node's getent hosts answer is the only one that was ever a valid answer
+			// to "what does this route to" (ADR-0010).
+			addrs := top.Resolve(step.inst.NodeID, m.Host)
 			n := Next{Member: m, ResolvedAddresses: addrs, HopOrdinal: -1}
 			targetPort := m.Port
 			if targetPort == 0 {
 				targetPort = defaultPort(m.Scheme)
 			}
 
-			target := pickInstance(top, m.Host, targetPort)
+			target := pickInstance(top, step.inst.NodeID, m.Host, targetPort)
 			if target != nil {
 				n.InstanceID = target.ID
 				hop.Next = append(hop.Next, n)
@@ -318,7 +322,7 @@ func Walk(top *Topology, q Query) *Trace {
 				Confidence: "inferred", InboundPath: hop.EffectivePath,
 				EffectivePath:  hop.EffectivePath,
 				ExternalTarget: net.JoinHostPort(m.Host, strconv.Itoa(targetPort)),
-				ExternalReason: externalReason(top, m.Host, targetPort, addrs),
+				ExternalReason: externalReason(top, step.inst.NodeID, m.Host, targetPort, addrs),
 				Terminal:       TermExternal,
 			}
 			tr.Hops = append(tr.Hops, ext)
@@ -460,7 +464,7 @@ func proxiesTo(top *Topology, from, to *Inst) bool {
 			if port == 0 {
 				port = defaultPort(m.Scheme)
 			}
-			for _, cand := range top.InstancesAt(m.Host) {
+			for _, cand := range top.InstancesAt(from.NodeID, m.Host) {
 				if cand.ID == to.ID && listensOn(to, port) {
 					return true
 				}
@@ -470,8 +474,8 @@ func proxiesTo(top *Topology, from, to *Inst) bool {
 	return false
 }
 
-func pickInstance(top *Topology, host string, port int) *Inst {
-	for _, in := range top.InstancesAt(host) {
+func pickInstance(top *Topology, nodeID int64, host string, port int) *Inst {
+	for _, in := range top.InstancesAt(nodeID, host) {
 		if listensOn(in, port) {
 			return in
 		}
@@ -488,11 +492,11 @@ func listensOn(in *Inst, port int) bool {
 	return false
 }
 
-func externalReason(top *Topology, host string, port int, addrs []string) string {
+func externalReason(top *Topology, nodeID int64, host string, port int, addrs []string) string {
 	if len(addrs) == 0 && net.ParseIP(host) == nil {
 		return host + " could not be resolved on the node that holds this upstream"
 	}
-	for _, in := range top.InstancesAt(host) {
+	for _, in := range top.InstancesAt(nodeID, host) {
 		return fmt.Sprintf("%s is a managed node, but no instance on it listens on port %d",
 			in.NodeName, port)
 	}
@@ -751,9 +755,16 @@ func apacheRoute(routes []*Route, path string) (*Route, string, []Branch) {
 		if !ok {
 			continue
 		}
-		// Later merge wins, and on a tie the more specific pattern does.
+		// Later merge wins, and on a tie the more specific pattern does — except
+		// DirectoryMatch/LocationMatch, whose Specificity the parser deliberately
+		// zeroes (apache.go), because a regex has no inherent narrower/wider
+		// ordering the way a literal path length does; real Apache resolves those
+		// ties by config order instead. routes is already in that order (loaded
+		// `ORDER BY site_id, id`), so >= — not > — lets a later same-specificity
+		// route (which for regex containers means every tied one) keep overriding
+		// rather than freezing on whichever was seen first.
 		if best == nil || r.PrecedenceRank > best.PrecedenceRank ||
-			(r.PrecedenceRank == best.PrecedenceRank && len(r.Pattern) > len(best.Pattern)) {
+			(r.PrecedenceRank == best.PrecedenceRank && r.Specificity >= best.Specificity) {
 			best = r
 		}
 	}
