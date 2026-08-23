@@ -234,4 +234,5 @@ The one-page answer for a security review. Every item is a design property, not 
 | 13 | No outbound network connection is made other than SSH to Nodes and operator-initiated Probes. |
 | 14 | Parser upgrades invalidate and recompute derived data rather than displaying stale results. |
 | 15 | Every response carries `X-Content-Type-Options`, `X-Frame-Options: DENY`, a `script-src 'none'` Content-Security-Policy (the UI ships no JavaScript, anywhere), and `Strict-Transport-Security` once `-secure-cookies` is set. The HTTP server enforces read, write and idle timeouts so a slow client cannot hold a connection open indefinitely. |
+| 16 | The Go toolchain is pinned in `go.mod` (`toolchain` directive) to a patch release with no known `govulncheck`-reachable vulnerabilities in the standard library; `go build`/`go test` fetch it automatically. Re-checked with `govulncheck ./...` before each release. |
 | 15 | Sizing figures are measured and published, including the ~500-Node single-process ceiling. |

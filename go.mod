@@ -2,6 +2,8 @@ module github.com/nagiflow/nagipath
 
 go 1.26
 
+toolchain go1.26.6
+
 require modernc.org/sqlite v1.57.0
 
 require (
