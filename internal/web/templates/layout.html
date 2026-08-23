@@ -39,6 +39,7 @@
   <a class="nv {{on .Path "/users"}}" href="/users">Users</a>
   <a class="nv {{on .Path "/audit"}}" href="/audit">Audit</a>
   {{end}}
+  <a class="nv {{on .Path "/license"}}" href="/license">License</a>
   <a class="nv {{on .Path "/password"}}" href="/password">{{.User.Username}}</a>
   <form method="post" action="/logout">
     {{template "csrf" .CSRF}}

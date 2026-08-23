@@ -187,7 +187,7 @@ func cmdServer(args []string) error {
 		lic = nil
 	}
 
-	srv, err := web.New(db, master, log, *secure, demoMode, lic, *metricsToken)
+	srv, err := web.New(db, master, log, *secure, demoMode, lic, *metricsToken, licFile)
 	if err != nil {
 		return err
 	}

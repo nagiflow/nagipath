@@ -45,8 +45,15 @@ type Server struct {
 	DemoMode bool
 	// License is nil when no license file was found or it failed to load —
 	// that is a valid, soft-enforced state (ADR-0014), never a startup
-	// failure. See licenseStatus for how a nil License is treated.
-	License *license.License
+	// failure. See licenseStatus for how a nil License is treated. Read on
+	// every request and written when an admin installs a new one from the
+	// UI, so every access goes through licenseMu — see currentLicense/setLicense.
+	License   *license.License
+	licenseMu sync.RWMutex
+	// LicensePath is where the running server was told to load its license
+	// from (the -license/NAGIPATH_LICENSE_FILE value); installLicense writes
+	// a newly pasted license here so it survives a restart.
+	LicensePath string
 	// MetricsToken gates GET /metrics. Empty means the endpoint is off (404):
 	// a security-conscious default, since fleet-internal counts should only be
 	// exposed once an operator deliberately turns them on.
@@ -67,9 +74,9 @@ type Server struct {
 	httpRequestDurMSSum atomic.Int64
 }
 
-func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode bool, lic *license.License, metricsToken string) (*Server, error) {
+func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode bool, lic *license.License, metricsToken string, licensePath string) (*Server, error) {
 	s := &Server{DB: db, Master: master, Log: log, Secure: secure, DemoMode: demoMode, License: lic,
-		MetricsToken: metricsToken}
+		MetricsToken: metricsToken, LicensePath: licensePath}
 	tpl, err := template.New("").Funcs(funcs).ParseFS(assets, "templates/*.html", "templates/parts/*.html")
 	if err != nil {
 		return nil, err
@@ -138,15 +145,31 @@ func (s *Server) LicenseStatus(ctx context.Context) (license.Status, string) {
 // message. It costs one cheap COUNT(*) query per request; a nil License
 // (missing or failed to load at startup) is its own status, not an error.
 func (s *Server) licenseStatus(ctx context.Context) (license.Status, string) {
-	if s.License == nil {
+	lic := s.currentLicense()
+	if lic == nil {
 		return license.Missing, license.Missing.Message()
 	}
 	n, err := s.DB.NodeCount(ctx)
 	if err != nil {
 		n = 0
 	}
-	st := s.License.Status(n, time.Now())
+	st := lic.Status(n, time.Now())
 	return st, st.Message()
+}
+
+// currentLicense and setLicense guard Server.License: every request reads it
+// (licenseStatus, above) and an admin installing a new one from /license
+// writes it, concurrently with those reads.
+func (s *Server) currentLicense() *license.License {
+	s.licenseMu.RLock()
+	defer s.licenseMu.RUnlock()
+	return s.License
+}
+
+func (s *Server) setLicense(lic *license.License) {
+	s.licenseMu.Lock()
+	defer s.licenseMu.Unlock()
+	s.License = lic
 }
 
 func (s *Server) routes() {
@@ -183,6 +206,11 @@ func (s *Server) routes() {
 
 	m.HandleFunc("GET /credentials", s.admin(s.credentials))
 	m.HandleFunc("POST /credentials", s.admin(s.addCredential))
+
+	// Viewers can see license status too (docs/frontend/settings.md); only
+	// admins can install a new one.
+	m.HandleFunc("GET /license", s.auth(s.license))
+	m.HandleFunc("POST /license", s.admin(s.installLicense))
 
 	m.HandleFunc("GET /users", s.admin(s.users))
 	m.HandleFunc("POST /users", s.admin(s.addUser))

@@ -121,6 +121,14 @@ func Load(path string) (*License, error) {
 	if err != nil {
 		return nil, err
 	}
+	return Parse(raw)
+}
+
+// Parse verifies and decodes a license file's raw bytes, whether they came
+// from disk (Load) or were pasted into the UI. A missing signature, a bad
+// signature or a malformed record are all reported as an error — the caller
+// decides how to treat that (ADR-0014: never as a reason to stop).
+func Parse(raw []byte) (*License, error) {
 	lines := strings.SplitN(strings.TrimRight(string(raw), "\n"), "\n", 2)
 	if len(lines) != 2 {
 		return nil, errors.New("license file is malformed: expected a record line and a signature line")

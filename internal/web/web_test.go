@@ -37,7 +37,8 @@ func newTestServer(t *testing.T) (*Server, *store.DB) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := New(db, master, slog.New(slog.NewTextHandler(io.Discard, nil)), false, false, nil, "")
+	s, err := New(db, master, slog.New(slog.NewTextHandler(io.Discard, nil)), false, false, nil, "",
+		filepath.Join(dir, "license.lic"))
 	if err != nil {
 		t.Fatal(err)
 	}
