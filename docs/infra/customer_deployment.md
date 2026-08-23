@@ -233,4 +233,5 @@ The one-page answer for a security review. Every item is a design property, not 
 | 12 | Logs are structured JSON and contain no secrets. |
 | 13 | No outbound network connection is made other than SSH to Nodes and operator-initiated Probes. |
 | 14 | Parser upgrades invalidate and recompute derived data rather than displaying stale results. |
+| 15 | Every response carries `X-Content-Type-Options`, `X-Frame-Options: DENY`, a `script-src 'none'` Content-Security-Policy (the UI ships no JavaScript, anywhere), and `Strict-Transport-Security` once `-secure-cookies` is set. The HTTP server enforces read, write and idle timeouts so a slow client cannot hold a connection open indefinitely. |
 | 15 | Sizing figures are measured and published, including the ~500-Node single-process ceiling. |

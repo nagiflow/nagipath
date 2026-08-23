@@ -110,12 +110,37 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.httpRequests.Add(1)
 		s.httpRequestDurMSSum.Add(time.Since(start).Milliseconds())
 	}()
+	s.securityHeaders(w)
 	status, message := s.licenseStatus(r.Context())
 	// ADR-0014: soft enforcement means a header and a banner, on every
 	// response, and nothing that could ever refuse to serve one.
 	w.Header().Set("X-Nagipath-License", string(status))
 	r = r.WithContext(context.WithValue(r.Context(), licenseKey, message))
 	s.mux.ServeHTTP(rw, r)
+}
+
+// securityHeaders is set on every response, not just rendered pages — /metrics,
+// /healthz and static assets get them too, since a security scanner checks the
+// response, not the route. The UI ships zero JavaScript, anywhere (see the
+// "no script" comments throughout internal/web/templates) — script-src 'none'
+// is therefore not a compromise, it's a fact about this codebase. style-src
+// needs 'unsafe-inline' because templates use style="..." attributes rather
+// than a stylesheet-only discipline; that's the one real relaxation here.
+func (s *Server) securityHeaders(w http.ResponseWriter) {
+	h := w.Header()
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Referrer-Policy", "same-origin")
+	h.Set("X-Frame-Options", "DENY")
+	h.Set("Content-Security-Policy",
+		"default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'none'; "+
+			"frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+	h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+	// Only asserted when this process was told it's behind TLS (-secure-cookies,
+	// the same flag session cookies key Secure off of) — sending it over plain
+	// HTTP would be a lie the browser has no way to check.
+	if s.Secure {
+		h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+	}
 }
 
 // recoveringWriter tracks whether a response has actually started, so the panic
@@ -356,8 +381,6 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title stri
 	p.Flash = r.URL.Query().Get("ok")
 	p.Error = r.URL.Query().Get("err")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Referrer-Policy", "same-origin")
 	if err := s.tpl.ExecuteTemplate(w, name, p); err != nil {
 		s.Log.Error("render", "template", name, "err", err)
 	}
@@ -403,6 +426,13 @@ func (s *Server) Listen(ctx context.Context, addr, certFile, keyFile string) err
 		Addr:              addr,
 		Handler:           s,
 		ReadHeaderTimeout: 10 * time.Second,
+		// A slow client trickling bytes must not hold a worker goroutine forever.
+		// WriteTimeout is generous because it covers the largest legitimate
+		// response — a snapshot config file served from a blob — not just a
+		// typical page.
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 	go func() {
 		<-ctx.Done()
