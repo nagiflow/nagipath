@@ -1,0 +1,42 @@
+{{template "head" .}}
+{{template "toolbar" toolbar "Diagnostics" ""}}
+{{template "body"}}
+
+<div class="bx col">
+  <table>
+    {{template "cols" cols "Field" "Value"}}
+    <tr><td>Version</td><td class="mono">{{.Data.Version}}</td></tr>
+    <tr><td>Go version</td><td class="mono">{{.Data.GoVersion}}</td></tr>
+    <tr><td>Uptime</td><td class="mono">{{.Data.Uptime}}</td></tr>
+    <tr><td>Database</td><td class="mono">{{.Data.DBPath}} ({{bytes .Data.DBSizeBytes}})</td></tr>
+    <tr><td>Listen address</td><td class="mono">{{.Data.ListenAddr}}</td></tr>
+    <tr><td>TLS</td><td>{{if .Data.TLSEnabled}}enabled{{else}}plain HTTP{{end}}</td></tr>
+    <tr><td>Demo mode</td><td>{{if .Data.DemoMode}}on{{else}}off{{end}}</td></tr>
+    <tr><td>License</td><td>
+      <span class="badge {{if eq .Data.LicenseStatus "valid"}}c-verified{{else if eq .Data.LicenseStatus "missing"}}c-inferred{{else}}c-disproved{{end}}">{{.Data.LicenseStatus}}</span>
+      {{.Data.LicenseMessage}}</td></tr>
+    <tr><td>Migrations applied</td><td class="mono">{{.Data.MigrationsApplied}} of {{.Data.MigrationsExpected}}</td></tr>
+  </table>
+</div>
+
+<div class="bx dash col">
+  <span class="lbl">master key</span>
+  <p class="mono">{{.Data.MasterKeyPath}}
+    {{if .Data.MasterKeyPresent}}present, mode {{.Data.MasterKeyMode}}{{else}}<span class="warn">MISSING</span>{{end}}</p>
+  <p class="note">⚠ Back this file up. Credentials in the database cannot be decrypted
+    without it, and nagipath will refuse to start if it is missing — it
+    will never generate a replacement.</p>
+</div>
+
+<div class="bx col">
+  <span class="lbl">diagnostics bundle</span>
+  <p class="note">The bundle is version, configuration with secrets redacted, recent logs,
+    migration state, collection statistics and license status, as one plain-text file.
+    It excludes, permanently and always: credentials, Master Key contents, session and
+    token values, certificate material, Probe tokens, and collected configuration file
+    contents.</p>
+  <a class="button" href="/diagnostics/bundle">Download diagnostics bundle</a>
+</div>
+
+</div>
+{{template "foot" .}}

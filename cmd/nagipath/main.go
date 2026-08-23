@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -130,11 +131,18 @@ func loadMaster(dir string) (*keys.Master, error) {
 	return m, nil
 }
 
-func logger(format string) *slog.Logger {
-	if format == "json" {
-		return slog.New(slog.NewJSONHandler(os.Stderr, nil))
+// logger builds the process logger. extra, when non-nil, receives a copy of
+// every line alongside stderr — cmdServer passes its diagnostics ring buffer;
+// every other subcommand passes nil and logs to stderr only.
+func logger(format string, extra io.Writer) *slog.Logger {
+	out := io.Writer(os.Stderr)
+	if extra != nil {
+		out = io.MultiWriter(os.Stderr, extra)
 	}
-	return slog.New(slog.NewTextHandler(os.Stderr, nil))
+	if format == "json" {
+		return slog.New(slog.NewJSONHandler(out, nil))
+	}
+	return slog.New(slog.NewTextHandler(out, nil))
 }
 
 // ---------------------------------------------------------------- server
@@ -166,7 +174,10 @@ func cmdServer(args []string) error {
 	if err != nil {
 		return err
 	}
-	log := logger(*logFormat)
+	// The diagnostics bundle's "recent logs" section reads this back; see
+	// internal/web/logbuf.go.
+	logs := web.NewRingBuffer()
+	log := logger(*logFormat, logs)
 
 	// A probe on a target host is identified by its User-Agent, so the build has to
 	// reach the probe rather than staying in main.
@@ -191,6 +202,12 @@ func cmdServer(args []string) error {
 	if err != nil {
 		return err
 	}
+	// Set directly rather than threading through New: the diagnostics panel is
+	// the only consumer, and New's parameter list is long enough already.
+	srv.StartedAt = time.Now()
+	srv.ListenAddr = *addr
+	srv.TLSEnabled = *tlsCert != "" || *tlsKey != ""
+	srv.Logs = logs
 	if demoMode {
 		log.Info("demo mode: probes are disabled (NAGIPATH_DEMO_MODE is set)")
 	}
@@ -574,7 +591,7 @@ func cmdCollect(args []string) error {
 	if err != nil {
 		return err
 	}
-	log := logger(*logFormat)
+	log := logger(*logFormat, nil)
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 

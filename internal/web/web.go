@@ -59,6 +59,17 @@ type Server struct {
 	// exposed once an operator deliberately turns them on.
 	MetricsToken string
 
+	// StartedAt, ListenAddr and TLSEnabled feed the /diagnostics panel
+	// (docs/frontend/settings.md §10). New's parameter list is already at 8;
+	// cmdServer sets these three directly on the returned *Server instead of
+	// growing it further.
+	StartedAt  time.Time
+	ListenAddr string
+	TLSEnabled bool
+	// Logs captures the process's recent log lines for the diagnostics bundle.
+	// nil unless cmdServer wired one in — only `nagipath server` needs it.
+	Logs *RingBuffer
+
 	tpl       *template.Template
 	collector *collect.Collector
 	mux       *http.ServeMux
@@ -236,6 +247,12 @@ func (s *Server) routes() {
 	// admins can install a new one.
 	m.HandleFunc("GET /license", s.auth(s.license))
 	m.HandleFunc("POST /license", s.admin(s.installLicense))
+
+	// Admin-only, unlike /license: docs/frontend/settings.md's role column
+	// puts /settings/system at admin, and a diagnostics bundle is exactly the
+	// kind of thing a viewer should not be handed a download link for.
+	m.HandleFunc("GET /diagnostics", s.admin(s.diagnostics))
+	m.HandleFunc("GET /diagnostics/bundle", s.admin(s.diagnosticsBundle))
 
 	m.HandleFunc("GET /users", s.admin(s.users))
 	m.HandleFunc("POST /users", s.admin(s.addUser))
