@@ -54,15 +54,17 @@ It also happens to be what makes an air-gapped install trivial, and air-gapped e
 Everything is configured by flags and environment variables. **There is no configuration file format**, because a configuration file means a parser, a schema, a migration path for that schema, and documentation for all of it — and this product has nothing whose configuration is complex enough to justify that.
 
 ```
+NAGIPATH_DATA=/var/lib/nagipath
 NAGIPATH_LISTEN=0.0.0.0:8080
-NAGIPATH_DB=/var/lib/nagipath/nagipath.db
-NAGIPATH_MASTER_KEY_FILE=/var/lib/nagipath/master.key
 NAGIPATH_TLS_CERT=/etc/nagipath/tls.crt
 NAGIPATH_TLS_KEY=/etc/nagipath/tls.key
-NAGIPATH_LICENSE_FILE=/etc/nagipath/license.jwt
-NAGIPATH_SSH_WORKERS=8
-NAGIPATH_LOG_LEVEL=info
 ```
+
+The database file, the license file (`license.lic`) and the Master Key file all live inside `NAGIPATH_DATA` at fixed names — none of the three has an independent path override, on purpose: one data directory is the whole state story, and `EnvironmentFile` is for secrets and network settings, not for relocating files within it. `-license` takes an explicit path only if you need a license file outside the data directory.
+
+The Master Key itself, not a path to it, can be injected directly via `NAGIPATH_MASTER_KEY` (the hex value `nagipath keygen` writes to `master.key`) — handy when the key comes from a secrets manager rather than a file on disk. Leave it unset to use `<data>/master.key`.
+
+There is no log-level filter and no configurable SSH worker pool: Collection is deliberately serial, one Node at a time, so it never floods a shared bastion — see `scheduledCollection` — and `-collect-every` is the only knob. `-log` selects `text` or `json` output, not a verbosity level.
 
 ---
 
@@ -166,11 +168,13 @@ Database growth is dominated by `snapshot_file` rows rather than blob content, b
 
 ## 9. Observability
 
-**Logs** — structured JSON to stdout via `log/slog`, so journald or any shipper handles it. Levels via `NAGIPATH_LOG_LEVEL`. Secrets are never logged: no key material, no session or token values, no Probe tokens.
+**Logs** — `-log text` (default) or `-log json` to stderr via `log/slog`, so journald or any shipper handles it. No verbosity level — every path already logs at the level that matches its severity. Secrets are never logged: no key material, no session or token values, no Probe tokens.
 
 **Health** — `GET /healthz` (process alive, unauthenticated) and `GET /readyz` (database reachable, migrations applied, unauthenticated). Both suitable for a load-balancer probe.
 
-**Metrics** — `GET /metrics` in Prometheus format, authenticated: collection successes and failures by reason, collection duration, quarantined Node count, database size, blob count, job queue depth, HTTP request duration, Probe count.
+**Metrics** — `GET /metrics` in Prometheus text-exposition format. Off by default: 404 until `-metrics-token`/`NAGIPATH_METRICS_TOKEN` is set, then it requires `Authorization: Bearer <token>` (constant-time compared). Node and Instance counts, quarantined Node count (`consecutive_failures` at or above `quarantine_after_failures` — a label only, never a scheduling decision, see below), Collections by final status, Collection duration (sum/count), database file size, blob count and bytes (raw and compressed — the dedup ratio this Sizing section describes), Probe count, and process-lifetime HTTP request count and duration. The job queue is not metered: the `job` table has no enforcement code behind it yet (see Failure modes) — a metric for a feature that doesn't run yet would be worse than no metric.
+
+**Quarantine** — a Node whose collection failures reach `quarantine_after_failures` (default 10) in a row is labelled quarantined on the Dashboard, the Nodes list and its own detail page. This is reporting, not scheduling: a quarantined Node is still collected on the same interval as every other Node. nagipath surfaces that a Node has failed beyond the operator's configured tolerance; it does not decide what to do about it, the same posture Drift takes toward divergence.
 
 **No telemetry.** Nothing is sent anywhere. `/metrics` is scraped by the customer if they want it; nothing initiates outbound traffic on its own.
 
@@ -205,7 +209,7 @@ The one-page answer for a security review. Every item is a design property, not 
 | Migration failure | Refuses to start with the failing migration and error. Never runs with a partially migrated schema. |
 | Listen port in use | Refuses to start with the address. |
 | SSH unreachable to a Node | That Node's collection fails; every other Node is unaffected. |
-| Process killed mid-collection | Jobs are database rows; in-flight work is reclaimed at startup. Nothing depends on process memory. |
+| Process killed mid-collection | A Collection is a database row, not process state, so nothing is silently lost — but Collections themselves are plain goroutines, not the leased `job` rows the schema has a column for and does not yet use. On the next startup, any Collection still marked `running` is therefore known-stale (it cannot belong to the process now starting) and is marked `failed` with an explanatory error before anything new can run, so a crash never leaves a Node showing a phantom in-progress Collection forever. |
 | Clock wrong | Schedules drift and a licence expiry may display incorrectly. Cosmetic, because enforcement is soft — and Probe correlation uses tokens rather than timestamps precisely so verification is immune to it. |
 | Licence expired | Banner. Collections and Traces continue. The rule that cannot be broken. |
 
@@ -222,10 +226,10 @@ The one-page answer for a security review. Every item is a design property, not 
 | 5 | Installation to first Trace takes under 30 minutes with no internet access. |
 | 6 | Migrations run automatically, are forward-only, and are embedded. |
 | 7 | A failed migration prevents startup. |
-| 8 | `nagipath backup` uses the online backup API and is safe while running. |
+| 8 | `nagipath backup` uses SQLite's `VACUUM INTO` for a transactionally-consistent snapshot and is safe against a live, in-use database. |
 | 9 | The Master Key backup warning appears at generation, in Settings, and in the backup output. |
 | 10 | The server refuses to start on a missing or malformed Master Key and never regenerates it. |
-| 11 | `/healthz` and `/readyz` are unauthenticated; `/metrics` is authenticated. |
+| 11 | `/healthz` and `/readyz` are unauthenticated; `/metrics` is off (404) until a bearer token is configured, then requires it. |
 | 12 | Logs are structured JSON and contain no secrets. |
 | 13 | No outbound network connection is made other than SSH to Nodes and operator-initiated Probes. |
 | 14 | Parser upgrades invalidate and recompute derived data rather than displaying stale results. |

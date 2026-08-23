@@ -1,10 +1,22 @@
 {{template "head" .}}
-{{template "toolbar" toolbar "Instances" (printf "%v discovered" (len .Data))}}
+{{with .Data}}
+{{template "toolbar" toolbar "Instances" (printf "%v discovered" .Total)}}
 {{template "body"}}
-{{if .Data}}
+
+<form method="get" class="row center" style="gap:.5rem;padding:.4rem 0">
+  <input name="q" value="{{.Query}}" placeholder="filter by name, vendor or node" size="30">
+  <button type="submit">Filter</button>
+  {{if .Query}}<a class="small" href="/instances">clear</a>{{end}}
+</form>
+
+{{if gt .Total (len .Instances)}}
+<p class="flash warn small">Showing {{len .Instances}} of {{.Total}} instances — narrow your search to see more.</p>
+{{end}}
+
+{{if .Instances}}
 <table>
   {{template "cols" cols "Instance" "Node" "Vendor" "Version" "Main config" "Cluster" "Managed by" "Last seen"}}
-  {{range .Data}}
+  {{range .Instances}}
   <tr><td><a href="/instances/{{.ID}}">{{.DisplayName}}</a></td>
       <td><a href="/nodes/{{.NodeID}}">{{.NodeDisplayName}}</a></td>
       <td>{{.Vendor}}</td><td class="mono small">{{.Version}}</td>
@@ -13,11 +25,17 @@
       <td>{{.ServiceManager}}</td><td class="mono small">{{.LastSeenAt}}</td></tr>
   {{end}}
 </table>
+{{else if .Query}}
+{{template "empty" "No instances match your filter"}}
+  <p>Nothing matched <span class="mono">{{.Query}}</span>. <a href="/instances">Clear the filter</a>
+  to see every instance.</p>
+{{template "empty-end"}}
 {{else}}
 {{template "empty" "No instances discovered yet"}}
   <p>Instances are found by collecting from a node — nothing is declared by hand.
   <a href="/nodes">Add a node</a> and collect.</p>
 {{template "empty-end"}}
+{{end}}
 {{end}}
 </div>
 {{template "foot" .}}

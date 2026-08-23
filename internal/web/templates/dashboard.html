@@ -86,7 +86,7 @@
     {{range .Attention}}
     <div class="block">
       <div class="row center">
-        <span class="badge {{if eq .Kind "CERT"}}c-observed_effect{{else if eq .Kind "HOSTKEY"}}c-disproved{{else if eq .Kind "LOGFMT"}}c-inferred{{else}}c-partial{{end}}">{{.Kind}}</span>
+        <span class="badge {{if eq .Kind "CERT"}}c-observed_effect{{else if eq .Kind "HOSTKEY"}}c-disproved{{else if eq .Kind "LOGFMT"}}c-inferred{{else if eq .Kind "QUAR"}}c-disproved{{else}}c-partial{{end}}">{{.Kind}}</span>
         <a href="{{.Link}}">{{.Text}} ↗</a>
       </div>
       <p class="tiny dim">{{.Note}}</p>

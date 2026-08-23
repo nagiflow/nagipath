@@ -15,12 +15,15 @@ import (
 	"net"
 	"net/http"
 	neturl "net/url"
+	"runtime/debug"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nagiflow/nagipath/internal/collect"
 	"github.com/nagiflow/nagipath/internal/keys"
+	"github.com/nagiflow/nagipath/internal/license"
 	"github.com/nagiflow/nagipath/internal/sshx"
 	"github.com/nagiflow/nagipath/internal/store"
 )
@@ -40,6 +43,14 @@ type Server struct {
 	// DemoMode refuses every Probe outright (probe.md §2, PRD-V1.md §8): a
 	// public-facing trial instance must never send a real outbound request.
 	DemoMode bool
+	// License is nil when no license file was found or it failed to load —
+	// that is a valid, soft-enforced state (ADR-0014), never a startup
+	// failure. See licenseStatus for how a nil License is treated.
+	License *license.License
+	// MetricsToken gates GET /metrics. Empty means the endpoint is off (404):
+	// a security-conscious default, since fleet-internal counts should only be
+	// exposed once an operator deliberately turns them on.
+	MetricsToken string
 
 	tpl       *template.Template
 	collector *collect.Collector
@@ -49,10 +60,16 @@ type Server struct {
 	probeMu   sync.Mutex
 	probeRuns map[int64]*probeRun
 	probeSeq  int64
+
+	// Process-lifetime request counters for /metrics. atomic because every
+	// request touches them, with no other synchronisation.
+	httpRequests        atomic.Int64
+	httpRequestDurMSSum atomic.Int64
 }
 
-func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode bool) (*Server, error) {
-	s := &Server{DB: db, Master: master, Log: log, Secure: secure, DemoMode: demoMode}
+func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode bool, lic *license.License, metricsToken string) (*Server, error) {
+	s := &Server{DB: db, Master: master, Log: log, Secure: secure, DemoMode: demoMode, License: lic,
+		MetricsToken: metricsToken}
 	tpl, err := template.New("").Funcs(funcs).ParseFS(assets, "templates/*.html", "templates/parts/*.html")
 	if err != nil {
 		return nil, err
@@ -65,7 +82,72 @@ func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode b
 	return s, nil
 }
 
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.mux.ServeHTTP(w, r) }
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	rw := &recoveringWriter{ResponseWriter: w}
+	// A panic anywhere below — a handler, a template, a store call — must not take
+	// the process down with it: this is the one request boundary every request
+	// crosses, so it is the one place recovery belongs (nothing per-handler).
+	defer func() {
+		if rec := recover(); rec != nil {
+			s.Log.Error("panic recovered", "method", r.Method, "path", r.URL.Path,
+				"panic", rec, "stack", string(debug.Stack()))
+			// A panic after the response was already partially written cannot be
+			// un-sent; writing again here would just log a second, noisier error.
+			if !rw.wrote {
+				http.Error(rw, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}
+		// Process-lifetime totals for /metrics: every request, once, after it
+		// completes — no per-route or per-status breakdown (out of scope).
+		s.httpRequests.Add(1)
+		s.httpRequestDurMSSum.Add(time.Since(start).Milliseconds())
+	}()
+	status, message := s.licenseStatus(r.Context())
+	// ADR-0014: soft enforcement means a header and a banner, on every
+	// response, and nothing that could ever refuse to serve one.
+	w.Header().Set("X-Nagipath-License", string(status))
+	r = r.WithContext(context.WithValue(r.Context(), licenseKey, message))
+	s.mux.ServeHTTP(rw, r)
+}
+
+// recoveringWriter tracks whether a response has actually started, so the panic
+// recovery in ServeHTTP knows whether it is still safe to write a 500.
+type recoveringWriter struct {
+	http.ResponseWriter
+	wrote bool
+}
+
+func (w *recoveringWriter) WriteHeader(code int) {
+	w.wrote = true
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *recoveringWriter) Write(b []byte) (int, error) {
+	w.wrote = true
+	return w.ResponseWriter.Write(b)
+}
+
+// LicenseStatus is licenseStatus exported for cmdServer's one startup audit
+// entry (ADR-0014); everything per-request uses the unexported form above.
+func (s *Server) LicenseStatus(ctx context.Context) (license.Status, string) {
+	return s.licenseStatus(ctx)
+}
+
+// licenseStatus computes the current license Status and its human-readable
+// message. It costs one cheap COUNT(*) query per request; a nil License
+// (missing or failed to load at startup) is its own status, not an error.
+func (s *Server) licenseStatus(ctx context.Context) (license.Status, string) {
+	if s.License == nil {
+		return license.Missing, license.Missing.Message()
+	}
+	n, err := s.DB.NodeCount(ctx)
+	if err != nil {
+		n = 0
+	}
+	st := s.License.Status(n, time.Now())
+	return st, st.Message()
+}
 
 func (s *Server) routes() {
 	m := http.NewServeMux()
@@ -80,6 +162,8 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
+	m.HandleFunc("GET /readyz", s.readyz)
+	m.HandleFunc("GET /metrics", s.metrics)
 
 	m.HandleFunc("GET /{$}", s.auth(s.dashboard))
 	m.HandleFunc("GET /password", s.auth(s.getPassword))
@@ -135,7 +219,10 @@ func (s *Server) routes() {
 
 type ctxKey int
 
-const userKey ctxKey = 1
+const (
+	userKey ctxKey = iota + 1
+	licenseKey
+)
 
 func userOf(r *http.Request) store.User {
 	u, _ := r.Context().Value(userKey).(store.User)
@@ -225,6 +312,10 @@ type page struct {
 	Error    string
 	Data     any
 	NextPath string
+	// LicenseNotice is the human-readable warning for the banner near the
+	// top of the page. Empty when the license is valid, so layout.html can
+	// gate the banner on this alone.
+	LicenseNotice string
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title string, data any) {
@@ -233,6 +324,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title stri
 		p.CSRF = csrfToken(c.Value)
 	}
 	p.Pending = s.DB.PendingHostKeyCount(r.Context())
+	p.LicenseNotice, _ = r.Context().Value(licenseKey).(string)
 	p.Flash = r.URL.Query().Get("ok")
 	p.Error = r.URL.Query().Get("err")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -254,6 +346,15 @@ func redirect(w http.ResponseWriter, r *http.Request, path, ok, errMsg string) {
 		q = "?ok=" + neturl.QueryEscape(ok)
 	}
 	http.Redirect(w, r, path+q, http.StatusSeeOther)
+}
+
+// serverError logs the real error (with route context) and sends the client a
+// generic message. err.Error() can carry SQL driver detail, file paths, or other
+// internals that were never meant to reach a browser — see the security-review
+// finding this fixes.
+func (s *Server) serverError(w http.ResponseWriter, r *http.Request, err error) {
+	s.Log.Error("internal error", "method", r.Method, "path", r.URL.Path, "err", err)
+	http.Error(w, "internal error", http.StatusInternalServerError)
 }
 
 func idOf(r *http.Request, name string) int64 {

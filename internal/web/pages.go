@@ -52,7 +52,7 @@ func (s *Server) rules(w http.ResponseWriter, r *http.Request) {
 
 	instances, err := s.DB.Instances(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	d.Empty = len(instances) == 0
@@ -72,7 +72,7 @@ func (s *Server) rules(w http.ResponseWriter, r *http.Request) {
 	d.Asked = true
 	top, err := trace.Load(ctx, s.DB)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	d.Results = trace.Lookup(top, d.Query)
@@ -138,12 +138,12 @@ func (s *Server) fleet(w http.ResponseWriter, r *http.Request) {
 	}
 	nodes, err := s.DB.Nodes(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	instances, err := s.DB.Instances(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	d := fleetData{ByNode: map[int64][]store.Instance{}, Total: len(nodes),
@@ -162,7 +162,7 @@ func (s *Server) fleet(w http.ResponseWriter, r *http.Request) {
 	}
 	all, err := s.DB.Clusters(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	// A cluster with no members is a name kept for a group that has diverged. It is
@@ -281,7 +281,7 @@ func (s *Server) drift(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	if d.Clusters, err = s.DB.Clusters(ctx); err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	d.ClusterID, _ = strconv.ParseInt(r.URL.Query().Get("cluster"), 10, 64)

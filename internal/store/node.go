@@ -75,6 +75,14 @@ func (db *DB) Node(ctx context.Context, id int64) (Node, error) {
 	return scanNode(db.R.QueryRowContext(ctx, `SELECT `+nodeCols+` FROM node WHERE id = ?`, id))
 }
 
+// NodeCount is the number of non-retired Nodes, i.e. what a license's node
+// ceiling is measured against.
+func (db *DB) NodeCount(ctx context.Context) (int, error) {
+	var n int
+	err := db.R.QueryRowContext(ctx, `SELECT COUNT(*) FROM node WHERE retired_at IS NULL`).Scan(&n)
+	return n, err
+}
+
 // Nodes returns every non-retired Node with the counts the list view shows.
 func (db *DB) Nodes(ctx context.Context) ([]Node, error) {
 	rows, err := db.R.QueryContext(ctx, `SELECT `+nodeCols+`,
@@ -105,6 +113,27 @@ func (db *DB) SetNodeFacts(ctx context.Context, id int64, osFamily string, sudo 
 	_, err := db.W.ExecContext(ctx,
 		`UPDATE node SET os_family = ?, sudo_available = ? WHERE id = ?`, osFamily, sudo, id)
 	return err
+}
+
+// Quarantined reports whether a Node's consecutive collection failures have
+// reached the operator's configured tolerance (the quarantine_after_failures
+// setting). It is a label only — nagipath reports that a Node has failed
+// beyond that tolerance, it does not skip or back off collection because of
+// it (see schema.md and CONTEXT.md's treatment of Drift for the same
+// posture: surfaced honestly, never acted on autonomously).
+func Quarantined(consecutiveFailures, threshold int) bool {
+	return consecutiveFailures >= threshold
+}
+
+// QuarantinedNodeCount is the number of non-retired Nodes whose consecutive
+// failures have reached threshold, computed in SQL so /metrics does not have
+// to pull every Node into Go just to count them.
+func (db *DB) QuarantinedNodeCount(ctx context.Context, threshold int) (int, error) {
+	var n int
+	err := db.R.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM node WHERE retired_at IS NULL AND consecutive_failures >= ?`,
+		threshold).Scan(&n)
+	return n, err
 }
 
 func (db *DB) NodeFailure(ctx context.Context, id int64, failed bool) error {

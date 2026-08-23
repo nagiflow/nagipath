@@ -115,15 +115,10 @@ func (db *DB) migrate() error {
 	}
 	rows.Close()
 
-	entries, err := migrationFS.ReadDir("migrations")
+	names, err := migrationNames()
 	if err != nil {
 		return err
 	}
-	names := make([]string, 0, len(entries))
-	for _, e := range entries {
-		names = append(names, e.Name())
-	}
-	sort.Strings(names)
 
 	for _, name := range names {
 		version, err := strconv.Atoi(strings.SplitN(name, "_", 2)[0])
@@ -156,6 +151,38 @@ func (db *DB) migrate() error {
 		}
 	}
 	return nil
+}
+
+// migrationNames lists every embedded migration file, in version order. Shared
+// by migrate() (applying them) and ExpectedMigrationCount (/readyz's check that
+// nothing is left unapplied).
+func migrationNames() ([]string, error) {
+	entries, err := migrationFS.ReadDir("migrations")
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+// ExpectedMigrationCount is how many migrations this binary embeds, for
+// /readyz to compare against AppliedMigrations.
+func ExpectedMigrationCount() (int, error) {
+	names, err := migrationNames()
+	if err != nil {
+		return 0, err
+	}
+	return len(names), nil
+}
+
+// Ping is a trivial reachability check against the reader pool, for /readyz.
+func (db *DB) Ping(ctx context.Context) error {
+	var n int
+	return db.R.QueryRowContext(ctx, `SELECT 1`).Scan(&n)
 }
 
 // AppliedMigrations reports what has run, for the diagnostics page.

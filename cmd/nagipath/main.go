@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/nagiflow/nagipath/internal/collect"
 	"github.com/nagiflow/nagipath/internal/keys"
+	"github.com/nagiflow/nagipath/internal/license"
 	"github.com/nagiflow/nagipath/internal/sshx"
 	"github.com/nagiflow/nagipath/internal/store"
 	"github.com/nagiflow/nagipath/internal/trace"
@@ -33,6 +35,7 @@ Usage:
   nagipath server    [flags]      run the control plane and web UI
   nagipath migrate   [flags]      apply schema migrations and exit
   nagipath keygen    [flags]      create the master key file
+  nagipath backup    [flags]      write a consistent copy of the database
   nagipath bootstrap [flags]      create the first admin, a credential and a host list
   nagipath collect   [flags] NODE collect one node by id or address
   nagipath trace     [flags] URL  trace a request and print the result
@@ -52,6 +55,10 @@ TLS: set both $NAGIPATH_TLS_CERT and $NAGIPATH_TLS_KEY (or -tls-cert/-tls-key) f
 direct TLS. Without them the server speaks plain HTTP — fine behind a customer's own
 TLS-terminating reverse proxy, otherwise pass -secure-cookies only once that proxy
 is actually terminating TLS in front of it.
+
+Metrics: GET /metrics is 404 until $NAGIPATH_METRICS_TOKEN (or -metrics-token) is
+set, then it requires "Authorization: Bearer <token>" and serves Prometheus text
+exposition format. GET /readyz and GET /healthz are always unauthenticated.
 `
 
 func main() {
@@ -73,6 +80,8 @@ func run(cmd string, args []string) error {
 		return cmdMigrate(args)
 	case "keygen":
 		return cmdKeygen(args)
+	case "backup":
+		return cmdBackup(args)
 	case "bootstrap":
 		return cmdBootstrap(args)
 	case "collect":
@@ -139,6 +148,9 @@ func cmdServer(args []string) error {
 	tlsCert := fs.String("tls-cert", os.Getenv("NAGIPATH_TLS_CERT"), "TLS certificate file (enables direct TLS)")
 	tlsKey := fs.String("tls-key", os.Getenv("NAGIPATH_TLS_KEY"), "TLS private key file (enables direct TLS)")
 	interval := fs.Duration("collect-every", 0, "collect every node on this interval (0 disables)")
+	licensePath := fs.String("license", os.Getenv("NAGIPATH_LICENSE_FILE"), "license file (default <data>/license.lic)")
+	metricsToken := fs.String("metrics-token", os.Getenv("NAGIPATH_METRICS_TOKEN"),
+		"bearer token required by GET /metrics (unset disables the endpoint, returning 404)")
 	fs.Parse(args)
 
 	d, err := dataDir(*dir)
@@ -161,7 +173,21 @@ func cmdServer(args []string) error {
 	web.Version = Version
 
 	demoMode := os.Getenv("NAGIPATH_DEMO_MODE") != ""
-	srv, err := web.New(db, master, log, *secure, demoMode)
+
+	// ADR-0014: a missing or invalid license is never a startup failure — it is
+	// logged and shown, and the server runs exactly as it would licensed.
+	licFile := *licensePath
+	if licFile == "" {
+		licFile = filepath.Join(d, "license.lic")
+	}
+	lic, licErr := license.Load(licFile)
+	if licErr != nil {
+		log.Warn("no valid license loaded; nagipath continues to run unlicensed (ADR-0014)",
+			"path", licFile, "err", licErr)
+		lic = nil
+	}
+
+	srv, err := web.New(db, master, log, *secure, demoMode, lic, *metricsToken)
 	if err != nil {
 		return err
 	}
@@ -171,6 +197,29 @@ func cmdServer(args []string) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// One audit entry per boot satisfies ADR-0014's "report entry" requirement.
+	// The actor is nil: this is a system event, not something a user did.
+	{
+		status, _ := srv.LicenseStatus(ctx)
+		if status != license.Valid {
+			log.Warn("license status", "status", status, "message", status.Message())
+		}
+		if err := db.Audit(ctx, nil, "license.status", "license", nil, string(status)); err != nil {
+			log.Warn("could not write the startup license audit entry", "err", err)
+		}
+	}
+
+	// Collections are goroutines, not database-backed jobs: a 'running' row
+	// left over from before this process started can only mean the previous
+	// process died mid-collection. Reconcile once, here, before anything new
+	// can start — never on a timer, which would misfire against a Collection
+	// that is genuinely still running.
+	if n, err := db.ReconcileInterruptedCollections(ctx); err != nil {
+		log.Warn("could not reconcile interrupted collections", "err", err)
+	} else if n > 0 {
+		log.Warn("marked collections interrupted by the previous restart", "count", n)
+	}
 
 	go housekeeping(ctx, db, log)
 	if *interval > 0 {
@@ -232,10 +281,25 @@ func scheduledCollection(ctx context.Context, db *store.DB, master *keys.Master,
 			if !n.Enabled || n.RetiredAt.Valid {
 				continue
 			}
-			if err := c.Node(ctx, n.ID, "scheduled", nil); err != nil {
-				log.Warn("scheduled collection", "node", n.DisplayName, "err", err)
-			}
+			collectNodeGuarded(ctx, c, n, log)
 		}
+	}
+}
+
+// collectNodeGuarded runs one Node's scheduled Collection behind a recover. SSH
+// execution and vendor-output parsing are exactly the kind of code that can panic
+// on a surprising input (an unexpected slice index on malformed vendor output,
+// say); one bad Node must never take the scheduled-collection goroutine — and
+// every other Node's collection with it — down with it.
+func collectNodeGuarded(ctx context.Context, c *collect.Collector, n store.Node, log *slog.Logger) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("panic in scheduled collection", "node", n.DisplayName,
+				"panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+	if err := c.Node(ctx, n.ID, "scheduled", nil); err != nil {
+		log.Warn("scheduled collection", "node", n.DisplayName, "err", err)
 	}
 }
 
@@ -298,6 +362,43 @@ func cmdKeygen(args []string) error {
 		return err
 	}
 	fmt.Printf("wrote %s (mode 0600)\nBack this up. Without it, stored credentials cannot be decrypted.\n", path)
+	return nil
+}
+
+// ---------------------------------------------------------------- backup
+
+// cmdBackup writes a consistent point-in-time copy of the database via
+// SQLite's own VACUUM INTO, rather than documenting "stop the service and cp
+// the file" and hoping every customer remembers the WAL caveat. VACUUM INTO
+// is safe to run against a live, in-use database — no downtime, and no risk
+// of the torn-file copy a plain `cp` of a WAL-mode database can produce.
+func cmdBackup(args []string) error {
+	fs := flag.NewFlagSet("backup", flag.ExitOnError)
+	dir := fs.String("data", "", "state directory")
+	out := fs.String("out", "", "destination path for the backup (required)")
+	fs.Parse(args)
+
+	if *out == "" {
+		return errors.New("backup: -out is required")
+	}
+	if _, err := os.Stat(*out); err == nil {
+		return fmt.Errorf("%s already exists; refusing to overwrite a backup", *out)
+	}
+
+	d, err := dataDir(*dir)
+	if err != nil {
+		return err
+	}
+	db, err := openDB(d)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	if _, err := db.W.ExecContext(context.Background(), "VACUUM INTO ?", *out); err != nil {
+		return fmt.Errorf("backup failed: %w", err)
+	}
+	fmt.Printf("wrote %s\nThis is the database only. Back up the Master Key separately — without it, stored credentials in this backup cannot be decrypted.\n", *out)
 	return nil
 }
 

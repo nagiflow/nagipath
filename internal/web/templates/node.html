@@ -3,7 +3,8 @@
 <div class="tb">
   <a class="crumb" href="/nodes">Nodes /</a>
   <h1>{{.Node.DisplayName}}</h1>
-  {{if .Node.ConsecutiveFailures}}<span class="badge c-partial">{{.Node.ConsecutiveFailures}} FAILURES IN A ROW</span>{{end}}
+  {{if ge .Node.ConsecutiveFailures .Threshold}}<span class="badge c-disproved">QUARANTINED: {{.Node.ConsecutiveFailures}} consecutive failures (threshold {{.Threshold}})</span>
+  {{else if .Node.ConsecutiveFailures}}<span class="badge c-partial">{{.Node.ConsecutiveFailures}} FAILURES IN A ROW</span>{{end}}
   <span class="spacer"></span>
   {{if $.User.IsAdmin}}
   <form method="post" action="/nodes/{{.Node.ID}}/collect">

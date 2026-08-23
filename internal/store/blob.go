@@ -60,6 +60,15 @@ func (db *DB) Blob(ctx context.Context, digest string) ([]byte, error) {
 	return out, nil
 }
 
+// BlobStats is the count and both size totals in one row, for /metrics —
+// three numbers, not three separate table scans.
+func (db *DB) BlobStats(ctx context.Context) (count int64, bytesRaw int64, bytesZstd int64, err error) {
+	err = db.R.QueryRowContext(ctx,
+		`SELECT COUNT(*), COALESCE(SUM(bytes_raw), 0), COALESCE(SUM(bytes_zstd), 0) FROM blob`).
+		Scan(&count, &bytesRaw, &bytesZstd)
+	return count, bytesRaw, bytesZstd, err
+}
+
 // GCBlobs removes blobs no snapshot_file references. Safe to run any time;
 // called after retention.
 func (db *DB) GCBlobs(ctx context.Context) (int64, error) {

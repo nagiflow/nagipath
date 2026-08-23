@@ -1,15 +1,25 @@
 {{template "head" .}}
 {{with .Data}}
 {{template "toolbar" toolbar "Nodes" "every node is added here or imported — nagipath never scans a network"}}
-  {{if and $.User.IsAdmin .Nodes}}<a class="button p" href="#add">Add node</a>{{end}}
+  {{if $.User.IsAdmin}}<a class="button p" href="#add">Add node</a>{{end}}
 {{template "body"}}
+
+<form method="get" class="row center" style="gap:.5rem;padding:.4rem 0">
+  <input name="q" value="{{.Query}}" placeholder="filter by name or address" size="30">
+  <button type="submit">Filter</button>
+  {{if .Query}}<a class="small" href="/nodes">clear</a>{{end}}
+</form>
+
+{{if gt .Total (len .Nodes)}}
+<p class="flash warn small">Showing {{len .Nodes}} of {{.Total}} nodes — narrow your search to see more.</p>
+{{end}}
 
 {{if .Nodes}}
 <table>
   {{template "cols" cols "Node" "Address" "OS" "sudo" "Instances" "Host keys" "Last collection"}}
   {{range .Nodes}}
   <tr class="{{if .PendingHostKeys}}row-warn{{end}}">
-    <td><a href="/nodes/{{.ID}}">{{.DisplayName}}</a></td>
+    <td><a href="/nodes/{{.ID}}">{{.DisplayName}}</a>{{if ge .ConsecutiveFailures $.Data.Threshold}} <span class="badge c-disproved">QUAR</span>{{end}}</td>
     <td class="mono small">{{.Address}}:{{.SSHPort}}</td>
     <td>{{or .OSFamily "—"}}</td>
     <td>{{if .SudoAvailable}}yes{{else}}no{{end}}</td>
@@ -20,6 +30,11 @@
   </tr>
   {{end}}
 </table>
+{{else if .Query}}
+{{template "empty" "No nodes match your filter"}}
+  <p>Nothing matched <span class="mono">{{.Query}}</span>. <a href="/nodes">Clear the filter</a>
+  to see every node.</p>
+{{template "empty-end"}}
 {{else}}
 {{template "empty" "No nodes yet"}}
   <p>nagipath never scans for hosts — every node is added here or imported from an

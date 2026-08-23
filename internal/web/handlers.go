@@ -206,21 +206,29 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 
 	nodes, err := s.DB.Nodes(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	d.Nodes = len(nodes)
+	quarantineThreshold := s.DB.SettingInt(ctx, "quarantine_after_failures")
 	for _, n := range nodes {
 		if n.ConsecutiveFailures > 0 {
 			d.Failing = append(d.Failing, n)
-			d.Attention = append(d.Attention, attention{"DEG", n.DisplayName,
-				fmt.Sprintf("%d collections failed in a row", n.ConsecutiveFailures),
-				fmt.Sprintf("/nodes/%d", n.ID)})
+			if store.Quarantined(n.ConsecutiveFailures, quarantineThreshold) {
+				d.Attention = append(d.Attention, attention{"QUAR", n.DisplayName,
+					fmt.Sprintf("quarantined: %d consecutive failures (threshold %d)",
+						n.ConsecutiveFailures, quarantineThreshold),
+					fmt.Sprintf("/nodes/%d", n.ID)})
+			} else {
+				d.Attention = append(d.Attention, attention{"DEG", n.DisplayName,
+					fmt.Sprintf("%d collections failed in a row", n.ConsecutiveFailures),
+					fmt.Sprintf("/nodes/%d", n.ID)})
+			}
 		}
 	}
 	instances, err := s.DB.Instances(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	d.Instances = len(instances)
@@ -341,20 +349,53 @@ func activity(list []store.Collection) ([]activityBucket, int) {
 
 // ---------------------------------------------------------------- nodes
 
+// listCap bounds how many rows /nodes and /instances render in one page load.
+// The PRD's buyer profile tops out around 1,000 Nodes; a plain Go-side filter
+// plus this cap is enough at that ceiling and needs no pagination or SQL
+// WHERE clauses.
+const listCap = 500
+
 type nodesData struct {
 	Nodes       []store.Node
 	Credentials []store.Credential
+	Query       string
+	Total       int // count after filtering, before the listCap truncation
+	Threshold   int // quarantine_after_failures, so the row badge needs no per-node lookup
 }
 
 func (s *Server) nodes(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	nodes, err := s.DB.Nodes(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if q != "" {
+		nodes = filterNodes(nodes, q)
+	}
+	total := len(nodes)
+	if total > listCap {
+		nodes = nodes[:listCap]
+	}
 	creds, _ := s.DB.Credentials(ctx)
-	s.render(w, r, "nodes.html", "Nodes", nodesData{Nodes: nodes, Credentials: creds})
+	threshold := s.DB.SettingInt(ctx, "quarantine_after_failures")
+	s.render(w, r, "nodes.html", "Nodes", nodesData{Nodes: nodes, Credentials: creds, Query: q, Total: total, Threshold: threshold})
+}
+
+// filterNodes keeps nodes whose display name or address contains q, matched
+// case-insensitively — the two fields an operator would actually search a
+// node list by.
+func filterNodes(nodes []store.Node, q string) []store.Node {
+	q = strings.ToLower(q)
+	out := make([]store.Node, 0, len(nodes))
+	for _, n := range nodes {
+		if strings.Contains(strings.ToLower(n.DisplayName), q) ||
+			strings.Contains(strings.ToLower(n.Address), q) {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 func (s *Server) addNode(w http.ResponseWriter, r *http.Request) {
@@ -400,6 +441,7 @@ type nodeData struct {
 	Instances   []store.Instance
 	Collections []store.Collection
 	Running     bool
+	Threshold   int // quarantine_after_failures
 }
 
 func (s *Server) node(w http.ResponseWriter, r *http.Request) {
@@ -410,7 +452,7 @@ func (s *Server) node(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	d := nodeData{Node: n}
+	d := nodeData{Node: n, Threshold: s.DB.SettingInt(ctx, "quarantine_after_failures")}
 	d.HostKeys, _ = s.DB.HostKeys(ctx, id)
 	all, _ := s.DB.Instances(ctx)
 	for _, in := range all {
@@ -482,7 +524,7 @@ func (s *Server) decideHostKey(w http.ResponseWriter, r *http.Request) {
 func (s *Server) credentials(w http.ResponseWriter, r *http.Request) {
 	creds, err := s.DB.Credentials(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	s.render(w, r, "credentials.html", "Credentials", creds)
@@ -500,13 +542,16 @@ func (s *Server) addCredential(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(r.FormValue("certificate")) != "" {
 		kind = "ssh_certificate"
 	}
-	_, err := s.DB.CreateCredential(ctx, s.Master, name,
+	id, err := s.DB.CreateCredential(ctx, s.Master, name,
 		strings.TrimSpace(r.FormValue("username")), kind, key,
 		r.FormValue("passphrase"), r.FormValue("certificate"), &u.ID)
 	if err != nil {
 		redirect(w, r, "/credentials", "", err.Error())
 		return
 	}
+	// Label with the name only — never the key material — matching what the
+	// credentials list itself displays.
+	s.DB.Audit(ctx, &u.ID, "credential.create", "credential", &id, name)
 	// The key is now encrypted at rest and is never rendered again, by any route.
 	redirect(w, r, "/credentials", "credential stored", "")
 }
@@ -516,7 +561,7 @@ func (s *Server) addCredential(w http.ResponseWriter, r *http.Request) {
 func (s *Server) users(w http.ResponseWriter, r *http.Request) {
 	list, err := s.DB.Users(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	s.render(w, r, "users.html", "Users", list)
@@ -598,13 +643,42 @@ func (s *Server) enableUser(w http.ResponseWriter, r *http.Request) {
 
 // ---------------------------------------------------------------- inventory
 
+type instancesData struct {
+	Instances []store.Instance
+	Query     string
+	Total     int // count after filtering, before the listCap truncation
+}
+
 func (s *Server) instances(w http.ResponseWriter, r *http.Request) {
 	list, err := s.DB.Instances(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
-	s.render(w, r, "instances.html", "Instances", list)
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if q != "" {
+		list = filterInstances(list, q)
+	}
+	total := len(list)
+	if total > listCap {
+		list = list[:listCap]
+	}
+	s.render(w, r, "instances.html", "Instances", instancesData{Instances: list, Query: q, Total: total})
+}
+
+// filterInstances keeps instances whose display name, vendor, or Node display
+// name contains q, matched case-insensitively.
+func filterInstances(list []store.Instance, q string) []store.Instance {
+	q = strings.ToLower(q)
+	out := make([]store.Instance, 0, len(list))
+	for _, in := range list {
+		if strings.Contains(strings.ToLower(in.DisplayName), q) ||
+			strings.Contains(strings.ToLower(in.Vendor), q) ||
+			strings.Contains(strings.ToLower(in.NodeDisplayName), q) {
+			out = append(out, in)
+		}
+	}
+	return out
 }
 
 type instanceData struct {
@@ -714,7 +788,7 @@ func (s *Server) snapshotFile(w http.ResponseWriter, r *http.Request) {
 	}
 	files, err := s.DB.SnapshotFiles(ctx, snap.ID)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	wanted := idOf(r, "fileID")
@@ -724,7 +798,7 @@ func (s *Server) snapshotFile(w http.ResponseWriter, r *http.Request) {
 		}
 		body, err := s.DB.Blob(ctx, f.Digest)
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			s.serverError(w, r, err)
 			return
 		}
 		s.render(w, r, "file.html", f.Path, fileData{Snapshot: snap, File: f, Body: string(body)})
@@ -736,7 +810,7 @@ func (s *Server) snapshotFile(w http.ResponseWriter, r *http.Request) {
 func (s *Server) collections(w http.ResponseWriter, r *http.Request) {
 	list, err := s.DB.Collections(r.Context(), 100)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	s.render(w, r, "collections.html", "Collections", list)
@@ -757,7 +831,7 @@ func (s *Server) certificates(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	list, err := s.DB.Certificates(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	d := certData{List: list}
@@ -780,7 +854,7 @@ func (s *Server) certificates(w http.ResponseWriter, r *http.Request) {
 func (s *Server) audit(w http.ResponseWriter, r *http.Request) {
 	list, err := s.DB.AuditEvents(r.Context(), 200)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	s.render(w, r, "audit.html", "Audit log", list)
@@ -1069,7 +1143,7 @@ func (s *Server) trace(w http.ResponseWriter, r *http.Request) {
 
 	top, err := trace.Load(ctx, s.DB)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		s.serverError(w, r, err)
 		return
 	}
 	d.Result = trace.Walk(top, q)

@@ -116,6 +116,13 @@ func (db *DB) RetireMissingInstances(ctx context.Context, nodeID int64, seen []i
 	return err
 }
 
+// InstanceCount is the number of non-retired Instances, for /metrics.
+func (db *DB) InstanceCount(ctx context.Context) (int, error) {
+	var n int
+	err := db.R.QueryRowContext(ctx, `SELECT COUNT(*) FROM instance WHERE retired_at IS NULL`).Scan(&n)
+	return n, err
+}
+
 func (db *DB) Instances(ctx context.Context) ([]Instance, error) {
 	rows, err := db.R.QueryContext(ctx, `SELECT i.id, i.node_id, i.cluster_id, i.vendor,
 		i.natural_key, i.display_name, i.version, i.binary_path, i.config_root,
@@ -204,6 +211,23 @@ func (db *DB) FinishCollection(ctx context.Context, id int64, status, errMsg str
 	return err
 }
 
+// ReconcileInterruptedCollections marks every Collection still in status
+// 'running' as failed. It must be called exactly once, at startup, before
+// any new Collection begins: a 'running' row can only mean the previous
+// process died mid-collection, since Collections are goroutines that do not
+// survive a restart. Called on every tick this would misfire against a
+// genuinely long-running Collection (the sizing table in
+// docs/infra/customer_deployment.md shows ~50 minutes for 500 Nodes).
+func (db *DB) ReconcileInterruptedCollections(ctx context.Context) (int64, error) {
+	res, err := db.W.ExecContext(ctx, `UPDATE collection SET finished_at = ?, status = 'failed',
+		error = 'interrupted: nagipath restarted while this collection was running'
+		WHERE status = 'running'`, Now())
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 type Collection struct {
 	ID            int64
 	NodeID        int64
@@ -216,6 +240,37 @@ type Collection struct {
 	InstancesSeen int
 	BytesStored   int64
 	DurationMS    sql.NullInt64
+}
+
+// CollectionStatusCounts is COUNT(*) grouped by status, for /metrics'
+// nagipath_collections_total counter.
+func (db *DB) CollectionStatusCounts(ctx context.Context) (map[string]int, error) {
+	rows, err := db.R.QueryContext(ctx, `SELECT status, COUNT(*) FROM collection GROUP BY status`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	for rows.Next() {
+		var status string
+		var n int
+		if err := rows.Scan(&status, &n); err != nil {
+			return nil, err
+		}
+		out[status] = n
+	}
+	return out, rows.Err()
+}
+
+// CollectionDurationStats is the sum and count of duration_ms across every
+// finished Collection, for /metrics' summary-style
+// nagipath_collection_duration_ms_sum/_count pair.
+func (db *DB) CollectionDurationStats(ctx context.Context) (sum int64, count int64, err error) {
+	var sumN sql.NullInt64
+	err = db.R.QueryRowContext(ctx,
+		`SELECT COALESCE(SUM(duration_ms), 0), COUNT(*) FROM collection WHERE duration_ms IS NOT NULL`).
+		Scan(&sumN, &count)
+	return sumN.Int64, count, err
 }
 
 func (db *DB) Collections(ctx context.Context, limit int) ([]Collection, error) {
