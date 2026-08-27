@@ -4,12 +4,14 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"embed"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"html/template"
 	"log/slog"
 	"net"
@@ -17,6 +19,7 @@ import (
 	neturl "net/url"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -132,18 +135,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // securityHeaders is set on every response, not just rendered pages — /metrics,
 // /healthz and static assets get them too, since a security scanner checks the
-// response, not the route. The UI ships zero JavaScript, anywhere (see the
-// "no script" comments throughout internal/web/templates) — script-src 'none'
-// is therefore not a compromise, it's a fact about this codebase. style-src
-// needs 'unsafe-inline' because templates use style="..." attributes rather
-// than a stylesheet-only discipline; that's the one real relaxation here.
+// response, not the route.
+//
+// script-src is 'self', not 'none': the UI loads two vendored, embedded scripts
+// (htmx and app.js) and nothing else, ever. There is no inline script, no eval
+// and no external origin, so 'self' with no 'unsafe-inline' is the whole budget
+// — an inline <script> anywhere in templates/ would be blocked by this header,
+// which is the point. style-src keeps 'unsafe-inline' for the style="..."
+// attributes that carry one-off panel widths.
 func (s *Server) securityHeaders(w http.ResponseWriter) {
 	h := w.Header()
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Referrer-Policy", "same-origin")
 	h.Set("X-Frame-Options", "DENY")
 	h.Set("Content-Security-Policy",
-		"default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'none'; "+
+		"default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; "+
 			"frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 	h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
 	// Only asserted when this process was told it's behind TLS (-secure-cookies,
@@ -208,8 +214,24 @@ func (s *Server) setLicense(lic *license.License) {
 	s.License = lic
 }
 
+// routes is split one file per navigation group, matching the sidebar in
+// nav.go. The split is not organisational tidiness: it is what lets the four
+// groups be worked on independently without every change landing in the same
+// hundred lines of this file.
 func (s *Server) routes() {
 	m := http.NewServeMux()
+	s.routesCore(m)
+	s.routesExplore(m)
+	s.routesInventory(m)
+	s.routesAnalysis(m)
+	s.routesOps(m)
+	s.mux = m
+}
+
+// routesCore is everything outside the navigation: assets, the unauthenticated
+// entry points, the two probes a load balancer reads, and the operator's own
+// account page.
+func (s *Server) routesCore(m *http.ServeMux) {
 	m.Handle("GET /static/", http.FileServerFS(assets))
 
 	// Open routes: setup runs only while there are no users, login always.
@@ -223,66 +245,26 @@ func (s *Server) routes() {
 	})
 	m.HandleFunc("GET /readyz", s.readyz)
 	m.HandleFunc("GET /metrics", s.metrics)
+	m.HandleFunc("GET /api/v1/nodes", s.apiAuth(s.apiNodes))
+	m.HandleFunc("GET /api/v1/clusters", s.apiAuth(s.apiClusters))
+	m.HandleFunc("GET /api/v1/drift", s.apiAuth(s.apiDrift))
 
-	m.HandleFunc("GET /{$}", s.auth(s.dashboard))
 	m.HandleFunc("GET /password", s.auth(s.getPassword))
 	m.HandleFunc("POST /password", s.auth(s.postPassword))
 
-	m.HandleFunc("GET /nodes", s.auth(s.nodes))
-	m.HandleFunc("POST /nodes", s.admin(s.addNode))
-	m.HandleFunc("GET /nodes/{id}", s.auth(s.node))
-	m.HandleFunc("POST /nodes/{id}/collect", s.admin(s.collectNode))
-	m.HandleFunc("POST /nodes/{id}/delete", s.admin(s.deleteNode))
-	m.HandleFunc("POST /hostkeys/{id}/decide", s.admin(s.decideHostKey))
-	m.HandleFunc("POST /hostkeys/approve", s.admin(s.approveHostKeys))
+	// Catch-all, last because every other pattern is more specific than "/".
+	// Behind auth so a mistyped URL sends a stranger to the login page rather
+	// than telling them which paths this deployment does not serve.
+	m.HandleFunc("/", s.auth(s.notFound))
+}
 
-	m.HandleFunc("GET /fleet", s.auth(s.fleet))
-	m.HandleFunc("GET /onboarding", s.admin(s.onboarding))
-	m.HandleFunc("POST /onboarding/nodes", s.admin(s.onboardNodes))
-
-	m.HandleFunc("GET /credentials", s.admin(s.credentials))
-	m.HandleFunc("POST /credentials", s.admin(s.addCredential))
-
-	// Viewers can see license status too (docs/frontend/settings.md); only
-	// admins can install a new one.
-	m.HandleFunc("GET /license", s.auth(s.license))
-	m.HandleFunc("POST /license", s.admin(s.installLicense))
-
-	// Admin-only, unlike /license: docs/frontend/settings.md's role column
-	// puts /settings/system at admin, and a diagnostics bundle is exactly the
-	// kind of thing a viewer should not be handed a download link for.
-	m.HandleFunc("GET /diagnostics", s.admin(s.diagnostics))
-	m.HandleFunc("GET /diagnostics/bundle", s.admin(s.diagnosticsBundle))
-
-	m.HandleFunc("GET /users", s.admin(s.users))
-	m.HandleFunc("POST /users", s.admin(s.addUser))
-	m.HandleFunc("POST /users/{id}/disable", s.admin(s.disableUser))
-	m.HandleFunc("POST /users/{id}/enable", s.admin(s.enableUser))
-
-	m.HandleFunc("GET /instances", s.auth(s.instances))
-	// A cluster is discovered from the configuration and is the level above a node,
-	// so it has no screen of its own and no membership form — only a name.
-	m.HandleFunc("POST /clusters/rename", s.admin(s.renameCluster))
-	m.HandleFunc("GET /instances/{id}", s.auth(s.instance))
-	m.HandleFunc("GET /snapshots/{id}/file/{fileID}", s.auth(s.snapshotFile))
-
-	m.HandleFunc("GET /collections", s.auth(s.collections))
-	m.HandleFunc("GET /certificates", s.auth(s.certificates))
-	m.HandleFunc("GET /audit", s.admin(s.audit))
-	m.HandleFunc("GET /search", s.auth(s.search))
-
-	m.HandleFunc("POST /trace/probe", s.admin(s.startTraceProbe))
-	m.HandleFunc("GET /trace", s.auth(s.trace))
-	m.HandleFunc("POST /trace", s.auth(s.trace))
-	m.HandleFunc("GET /rules", s.auth(s.rules))
-
-	m.HandleFunc("GET /drift", s.auth(s.drift))
-	m.HandleFunc("POST /drift/recompute", s.admin(s.driftRecompute))
-	m.HandleFunc("POST /drift/ignore", s.admin(s.driftIgnore))
-	m.HandleFunc("POST /drift/ignore/{id}/delete", s.admin(s.driftUnignore))
-	m.HandleFunc("POST /drift/golden", s.admin(s.driftGolden))
-
-	s.mux = m
+// moved answers a path this UI used to serve. The paths changed when the
+// navigation was rebuilt around the new design; a redirect costs one line and
+// keeps every link an operator pasted into a ticket working.
+func moved(to string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, to, http.StatusMovedPermanently)
+	}
 }
 
 // ---------------------------------------------------------------- middleware
@@ -386,34 +368,117 @@ type page struct {
 	// top of the page. Empty when the license is valid, so layout.html can
 	// gate the banner on this alone.
 	LicenseNotice string
+
+	// The shell. Nav, Section, Item and ItemHref all come from nav.go's one
+	// table, so the sidebar highlight and the header breadcrumb cannot
+	// disagree: "Inventory / Instances / app-nginx-042" is the group, the nav
+	// item and Title, and no page has to spell any of it out.
+	Nav      []navGroup
+	Section  string
+	Item     string
+	ItemHref string
+	Initials string
+	// Demo puts the badge in the header. Probes are refused outright in this
+	// mode, so an operator needs to know before they click one.
+	Demo bool
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title string, data any) {
-	p := page{Title: title, Path: r.URL.Path, User: userOf(r), Data: data}
+	s.renderStatus(w, r, http.StatusOK, name, title, data)
+}
+
+// renderFragment writes one named template with no shell around it, for an htmx
+// swap that replaces a row or a panel rather than the page. It takes the data
+// directly rather than a page, so a fragment cannot reach $.CSRF or $.User — a
+// fragment containing a form needs the token passed in with its data.
+//
+// Buffered for the same reason as renderStatus, and more sharply: a fragment
+// that fails halfway splices half a row into a table the operator is reading.
+func (s *Server) renderFragment(w http.ResponseWriter, r *http.Request, name string, data any) {
+	var buf bytes.Buffer
+	if err := s.tpl.ExecuteTemplate(&buf, name, data); err != nil {
+		s.serverError(w, r, fmt.Errorf("render fragment %s: %w", name, err))
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if _, err := buf.WriteTo(w); err != nil {
+		s.Log.Warn("render", "fragment", name, "err", err)
+	}
+}
+
+// notFound is the 404 every route uses: a wrong id or a mistyped URL keeps the
+// operator inside the product, with the sidebar they navigate by, instead of
+// dropping them onto Go's plain-text page with no way back.
+func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
+	s.renderStatus(w, r, http.StatusNotFound, "notfound.html", "Not found", nil)
+}
+
+func (s *Server) renderStatus(w http.ResponseWriter, r *http.Request, code int, name, title string, data any) {
+	ctx := r.Context()
+	p := page{Title: title, Path: r.URL.Path, User: userOf(r), Data: data, Demo: s.DemoMode}
 	if c, err := r.Cookie(cookieName); err == nil {
 		p.CSRF = csrfToken(c.Value)
 	}
-	p.Pending = s.DB.PendingHostKeyCount(r.Context())
-	p.LicenseNotice, _ = r.Context().Value(licenseKey).(string)
+	p.Pending = s.DB.PendingHostKeyCount(ctx)
+	p.LicenseNotice, _ = ctx.Value(licenseKey).(string)
 	p.Flash = r.URL.Query().Get("ok")
 	p.Error = r.URL.Query().Get("err")
+	// The shell is only drawn for a signed-in user, so login and setup pay for
+	// none of this.
+	if p.User.ID != 0 {
+		p.Initials = initials(p.User.Username)
+		p.Nav = nav(p.Path, p.User, s.DB.NavCounts(ctx))
+		p.Section, p.Item = crumb(p.Nav)
+		for _, g := range p.Nav {
+			for _, it := range g.Items {
+				if it.On {
+					p.ItemHref = it.Href
+				}
+			}
+		}
+	}
+	// Rendered into a buffer first, because a template that fails halfway has
+	// already written a header, a nav and half a table to the client — and with
+	// the status line long gone there is no way to say so. The operator gets a
+	// page that looks like the answer and stops mid-sentence, which is the one
+	// failure mode this product cannot afford. Pages are tens of kilobytes.
+	var buf bytes.Buffer
+	if err := s.tpl.ExecuteTemplate(&buf, name, p); err != nil {
+		s.serverError(w, r, fmt.Errorf("render %s: %w", name, err))
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := s.tpl.ExecuteTemplate(w, name, p); err != nil {
-		s.Log.Error("render", "template", name, "err", err)
+	// After the buffer, not before: WriteHeader freezes the header map, and a
+	// template that failed still has to be able to send a 500.
+	w.WriteHeader(code)
+	if _, err := buf.WriteTo(w); err != nil {
+		s.Log.Warn("render", "template", name, "err", err)
 	}
 }
 
 // redirect carries a one-line result in the query string. It is the laziest flash
 // message that survives a redirect without a session store.
 func redirect(w http.ResponseWriter, r *http.Request, path, ok, errMsg string) {
-	q := ""
+	var q string
 	switch {
 	case errMsg != "":
-		q = "?err=" + neturl.QueryEscape(errMsg)
+		q = "err=" + neturl.QueryEscape(errMsg)
 	case ok != "":
-		q = "?ok=" + neturl.QueryEscape(ok)
+		q = "ok=" + neturl.QueryEscape(ok)
 	}
-	http.Redirect(w, r, path+q, http.StatusSeeOther)
+	if q != "" {
+		// "&" when the path already carries filters. It was always "?", so
+		// /drift?cluster=all became /drift?cluster=all?ok=..., which parses as a
+		// cluster named "all?ok=..." — the scope was silently lost and the message
+		// never rendered. Every caller that redirects back to a filtered list
+		// (drift, collections, snapshots) went through that path.
+		sep := "?"
+		if strings.Contains(path, "?") {
+			sep = "&"
+		}
+		path += sep + q
+	}
+	http.Redirect(w, r, path, http.StatusSeeOther)
 }
 
 // serverError logs the real error (with route context) and sends the client a

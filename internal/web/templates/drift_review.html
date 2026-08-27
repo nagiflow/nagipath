@@ -1,0 +1,84 @@
+{{template "head" .}}
+{{with .Data}}
+{{template "ptitle" toolbar .Instance.DisplayName ""}}
+  <span class="bdg deg">{{num .ObjectCount}} OBJECTS DIFFER</span>
+  <span class="m mu">vs {{.BaselineLabel}} · snapshots {{clock .SubjectTime}} / {{clock .BaselineTime}}</span>
+  {{if .NextInstanceURL}}<a class="btn sm" href="{{.NextInstanceURL}}">Next node ›</a>{{end}}
+{{template "ptitle-end"}}
+
+{{template "bd" "row"}}
+  <div class="col" style="flex:0 0 250px">
+    <div class="pnl z" style="flex:1">
+      <div class="phd"><span class="ph2">Divergent objects</span><span class="m mus">{{.ObjectCount}}</span></div>
+      <div style="padding:8px 10px;overflow:auto;display:flex;flex-direction:column;gap:6px">
+        {{range .ObjectGroups}}
+        <div>
+          <div class="lbl" style="margin-bottom:3px">{{.Kind}}</div>
+          {{range .Findings}}
+          <div style="padding:3px 6px">
+            <div class="m" style="font-size:11.5px">{{.NaturalKey}}</div>
+            <span class="bdg diff-badge diff-{{.Change}}" style="font-size:10px">{{.Change}}</span>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+
+        {{if or (gt .ConformingCount 0) (gt .IgnoredCount 0)}}
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #edf0f5">
+          {{if gt .ConformingCount 0}}<div class="m mus" style="padding:2px 0">{{.ConformingCount}} objects identical</div>{{end}}
+          {{if gt .IgnoredCount 0}}<div class="m mus" style="padding:2px 0">{{.IgnoredCount}} ignored by rule</div>{{end}}
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+
+  <div class="col" style="flex:1;gap:10px">
+    {{range .ObjectGroups}}
+    {{range .Findings}}
+    <div class="pnl drift-diff diff-{{.Change}}" style="flex:none">
+      <div class="drift-diff-head">
+        <span class="bdg diff-badge diff-{{.Change}}">{{.Change}}</span>
+        <span class="m" style="font-weight:600">{{.ObjectKind}}</span>
+        <span class="m mu">{{.NaturalKey}}</span>
+        <div class="flex-1"></div>
+        {{if $.User.IsAdmin}}<form method="post" action="/drift/ignore" style="display:inline">
+          {{template "csrf" $.CSRF}}
+          <input type="hidden" name="cluster" value="{{if $.Data.Instance.ClusterID.Valid}}{{$.Data.Instance.ClusterID.Int64}}{{end}}">
+          <input type="hidden" name="object_kind" value="{{.ObjectKind}}">
+          <input type="hidden" name="pattern" value="{{.NaturalKey}}">
+          <input type="hidden" name="reason" value="marked from review">
+          <button class="btn s sm" type="submit">Ignore</button>
+        </form>{{end}}
+      </div>
+      <div class="drift-diff-body">
+        <div class="drift-code-grid">
+          <div class="drift-side drift-baseline">
+            <div class="lbl drift-side-label">BASELINE</div>
+            <pre class="ev drift-code">{{if .BaselineText}}{{if or (eq .Change "changed") (eq .Change "removed")}}{{range split .BaselineText "\n"}}<span class="diff-line diff-line-del">− {{.}}</span>{{end}}{{else}}{{range split .BaselineText "\n"}}<span class="diff-line diff-line-warn">↕ {{.}}</span>{{end}}{{end}}{{else}}<span class="diff-line diff-line-empty">— not present —</span>{{end}}</pre>
+          </div>
+          <div class="drift-side drift-subject">
+            <div class="lbl drift-side-label">THIS NODE</div>
+            <pre class="ev drift-code">{{if .SubjectText}}{{if or (eq .Change "changed") (eq .Change "added")}}{{range split .SubjectText "\n"}}<span class="diff-line diff-line-add">+ {{.}}</span>{{end}}{{else}}{{range split .SubjectText "\n"}}<span class="diff-line diff-line-warn">↕ {{.}}</span>{{end}}{{end}}{{else}}<span class="diff-line diff-line-empty">— not present —</span>{{end}}</pre>
+          </div>
+        </div>
+        {{if .FileID.Valid}}
+        <div style="margin-top:8px">
+          {{template "prov" .Prov}}
+        </div>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+    {{end}}
+
+    {{if not .ObjectGroups}}
+    <div class="pnl">
+      <span class="ph2">No divergences</span>
+      <p style="font-size:12.5px;color:var(--color-muted);margin-top:8px">This instance matches its baseline object for object.</p>
+    </div>
+    {{end}}
+  </div>
+{{template "bd-end"}}
+{{end}}
+{{template "foot" .}}

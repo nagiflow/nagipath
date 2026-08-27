@@ -50,10 +50,11 @@ type Dialer struct {
 // Client is a live SSH connection to one Node, plus the bastion chain that got
 // us there. Closing it closes the whole chain, newest first.
 type Client struct {
-	conn    *ssh.Client
-	parents []*ssh.Client
-	node    store.Node
-	timeout time.Duration
+	conn         *ssh.Client
+	parents      []*ssh.Client
+	node         store.Node
+	timeout      time.Duration
+	sudoPassword string // set only for username/password and LDAP-backed SSH
 }
 
 func (d *Dialer) Connect(ctx context.Context, nodeID int64) (*Client, error) {
@@ -76,9 +77,31 @@ func (d *Dialer) connect(ctx context.Context, nodeID int64, depth int) (*Client,
 	if err != nil {
 		return nil, fmt.Errorf("node %s: %w", node.DisplayName, err)
 	}
-	credUser, signer, err := d.DB.Signer(ctx, d.Master, credID)
+	kind, err := d.DB.CredentialKind(ctx, credID)
 	if err != nil {
 		return nil, err
+	}
+	var credUser, sudoPassword string
+	var auth ssh.AuthMethod
+	switch kind {
+	case "private_key", "ssh_certificate":
+		signerUser, signer, err := d.DB.Signer(ctx, d.Master, credID)
+		if err != nil {
+			return nil, err
+		}
+		credUser, auth = signerUser, ssh.PublicKeys(signer)
+	case "username_password", "ldap":
+		passwordUser, password, err := d.DB.SSHPassword(ctx, d.Master, credID)
+		if err != nil {
+			return nil, err
+		}
+		credUser, auth, sudoPassword = passwordUser, ssh.Password(password), password
+	case "kerberos":
+		return nil, fmt.Errorf("credential %d uses Kerberos; configure a GSSAPI provider before assigning it to a node", credID)
+	case "cyberark":
+		return nil, fmt.Errorf("credential %d is a CyberArk reference; configure a CyberArk provider before assigning it to a node", credID)
+	default:
+		return nil, fmt.Errorf("credential %d has unsupported authentication type %q", credID, kind)
 	}
 	user := credUser
 	if node.SSHUsername.Valid && node.SSHUsername.String != "" {
@@ -91,11 +114,11 @@ func (d *Dialer) connect(ctx context.Context, nodeID int64, depth int) (*Client,
 	}
 	cfg := &ssh.ClientConfig{
 		User:            user,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		Auth:            []ssh.AuthMethod{auth},
 		HostKeyCallback: d.hostKeyCallback(ctx, nodeID),
 		Timeout:         timeout,
-		// Key-based and certificate authentication only. Password auth is not
-		// offered anywhere in this package.
+		// The selected method is one stored credential. The connector never
+		// falls back across methods, which prevents surprising account lockouts.
 	}
 
 	addr := net.JoinHostPort(node.Address, strconv.Itoa(node.SSHPort))
@@ -133,7 +156,7 @@ func (d *Dialer) connect(ctx context.Context, nodeID int64, depth int) (*Client,
 		}
 		conn = ssh.NewClient(c, chans, reqs)
 	}
-	return &Client{conn: conn, parents: parents, node: node, timeout: timeout}, nil
+	return &Client{conn: conn, parents: parents, node: node, timeout: timeout, sudoPassword: sudoPassword}, nil
 }
 
 // hostKeyCallback records an unknown key as pending and refuses the connection.
@@ -180,8 +203,11 @@ func (c *Client) run(ctx context.Context, cmd Command) (Result, error) {
 		return Result{}, err
 	}
 	line := cmd.Line
+	var sudoInput string
 	if cmd.Sudo {
-		if !c.node.SudoAvailable {
+		// SudoCheck establishes this fact, so it is the one command permitted
+		// through before the node's sudo capability is known.
+		if !c.node.SudoAvailable && cmd.ID != CmdSudoCheck {
 			return Result{}, fmt.Errorf("command %s needs sudo, which is not available on %s",
 				cmd.ID, c.node.DisplayName)
 		}
@@ -189,7 +215,7 @@ func (c *Client) run(ctx context.Context, cmd Command) (Result, error) {
 		// invocation, so wrapping would force the grant to be `sh -c *` — which is
 		// root, and would make the narrow grant the product documents a fiction.
 		// validate() guarantees the line is a single command with no shell operators.
-		line = "sudo -n " + line
+		line, sudoInput = c.sudoCommand(line)
 	}
 
 	sess, err := c.conn.NewSession()
@@ -201,6 +227,9 @@ func (c *Client) run(ctx context.Context, cmd Command) (Result, error) {
 	var out, errBuf bytes.Buffer
 	sess.Stdout = &out
 	sess.Stderr = &errBuf
+	if sudoInput != "" {
+		sess.Stdin = strings.NewReader(sudoInput)
+	}
 
 	done := make(chan error, 1)
 	go func() { done <- sess.Run(line) }()
@@ -232,6 +261,16 @@ func (c *Client) run(ctx context.Context, cmd Command) (Result, error) {
 	}
 }
 
+// sudoCommand keeps a password out of the remote command line. It is kept
+// separate from run so the credential-policy boundary can be tested without a
+// live SSH server.
+func (c *Client) sudoCommand(line string) (command, stdin string) {
+	if c.sudoPassword != "" {
+		return "sudo -S -p '' " + line, c.sudoPassword + "\n"
+	}
+	return "sudo -n " + line, ""
+}
+
 // ReadFile reads a config file, retrying with sudo when a plain read is denied.
 // The retry exists because customer fleets routinely have root-only include
 // files, and reporting them as absent would silently understate a config.
@@ -258,7 +297,8 @@ func (c *Client) ReadFile(ctx context.Context, path string, max int64, sudo bool
 
 // Check is the cheapest proof that the connection works and tells us the two
 // facts every later command depends on: the OS family and whether sudo is
-// available without a password.
+// available. Password-backed credentials authenticate sudo using the same
+// sealed secret; key and certificate credentials still require NOPASSWD.
 func (c *Client) Check(ctx context.Context) error {
 	un, err := c.Run(ctx, Uname())
 	if err != nil {
@@ -268,7 +308,15 @@ func (c *Client) Check(ctx context.Context) error {
 	if strings.HasPrefix(strings.ToLower(un.Stdout), "linux") {
 		osFamily = "linux"
 	}
-	sudoRes, err := c.Run(ctx, SudoCheck())
+	var sudoRes Result
+	if c.sudoPassword != "" {
+		// A password-backed credential cannot use `sudo -n -l`: that command
+		// intentionally refuses to read stdin. Prove elevation with a harmless
+		// command instead, then later commands use the same stdin-only path.
+		sudoRes, err = c.run(ctx, Command{ID: CmdSudoCheck, Line: "true", Sudo: true, TolerateExit: true})
+	} else {
+		sudoRes, err = c.Run(ctx, SudoCheck())
+	}
 	if err != nil {
 		return err
 	}

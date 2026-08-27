@@ -1,0 +1,192 @@
+{{template "head" .}}
+{{with .Data}}
+{{/* The subtitle names the scope, because the two are different screens: reached
+     from one trace this lists that entry point, reached on its own it lists every
+     probe this installation ever sent. */}}
+{{template "ptitle" toolbar "Probe history" (or .URL "every entry point")}}
+  {{if .URL}}<a class="btn sm" href="/trace?url={{.URL | urlquery}}">Back to trace</a>
+  <a class="btn s sm" href="/trace/history">All probes</a>{{end}}
+  <div class="flex-1"></div>
+  {{/* The export is the filter, not the page — see writeCSV. Only when there is
+       something to export: a button that downloads an empty file is a control that
+       does nothing. */}}
+  {{if .Probes}}<a class="btn s sm" href="{{.Here}}&amp;export=csv">Export audit</a>{{end}}
+{{template "ptitle-end"}}
+
+{{/* Filter bar. The URL rides along in a hidden field so filtering inside one
+     entry point's history does not widen it to the whole fleet. */}}
+<form class="qbar" method="get" action="/trace/history">
+  {{with .URL}}<input type="hidden" name="url" value="{{.}}">{{end}}
+  <input class="fld f m" type="search" name="q" value="{{.Query}}"
+         placeholder="filter by entry point, actor or probe id">
+  <select class="sel" name="range">
+    <option value="7" {{if eq .Range "7"}}selected{{end}}>Range: 7 days</option>
+    <option value="30" {{if eq .Range "30"}}selected{{end}}>Range: 30 days</option>
+    <option value="90" {{if eq .Range "90"}}selected{{end}}>Range: 90 days</option>
+    <option value="all" {{if eq .Range "all"}}selected{{end}}>Range: all</option>
+  </select>
+  {{/* Only the actors who have actually sent a probe. A select of every user in the
+       installation offers filters that match nothing. */}}
+  {{if .Actors}}
+  <select class="sel" name="actor">
+    <option value="">Actor: any</option>
+    {{range $.Data.Actors}}<option value="{{.}}" {{if eq $.Data.Actor .}}selected{{end}}>{{.}}</option>{{end}}
+  </select>
+  {{end}}
+  <select class="sel" name="outcome">
+    <option value="">Outcome: any</option>
+    <option value="completed" {{if eq .Outcome "completed"}}selected{{end}}>Outcome: completed</option>
+    <option value="failed" {{if eq .Outcome "failed"}}selected{{end}}>Outcome: failed</option>
+    <option value="blocked" {{if eq .Outcome "blocked"}}selected{{end}}>Outcome: blocked</option>
+    <option value="running" {{if eq .Outcome "running"}}selected{{end}}>Outcome: running</option>
+  </select>
+  <button class="btn p" type="submit">Filter</button>
+</form>
+
+{{template "bd" "row"}}
+
+{{/* Left: Probes table */}}
+<div class="col" style="flex:1">
+  <div class="pnl z" style="flex:1;min-height:0;display:flex;flex-direction:column">
+    <div class="phd">
+      <span class="ph2">Probes</span>
+      <span class="m mus">one request each, operator-triggered</span>
+      <div class="flex-1"></div>
+      {{/* The count the filter matched, not the count on screen: a footer says which
+           slice of it this page is. */}}
+      <span class="m mu">{{plural .Total "probe"}}{{if .ActorCount}} · {{plural .ActorCount "actor"}}{{end}}</span>
+    </div>
+
+    <div style="flex:1;min-height:0;overflow:auto">
+      <table class="t">
+        {{$here := .Here}}{{$sel := .Selected}}
+        {{/* Trimmed from 11/7/5/12/8rem: those five added up to 43rem inside a 42rem
+             panel, so the one flexible column — the entry point, which is what the row
+             is about — collapsed to nothing and its header disappeared with it. */}}
+        {{template "cols" cols "ran:6rem" "entry point" "probe id:5rem" "status:4rem" "state changes:9rem" "actor:6rem"}}
+        {{range $p := .Probes}}
+        <tr{{if and $sel (eq $p.ProbeID $sel.ProbeID)}} class="hl"{{end}}>
+          <td class="m">{{ts $p.RequestedAt}}</td>
+          {{/* Selecting a row keeps the filter it was selected from: `$here` is this
+               screen's own query, with the probe id appended. */}}
+          <td class="m" title="{{$p.URL}}"><a href="{{$here}}&amp;probe={{$p.ProbeID}}">{{$p.URL}}</a></td>
+          <td class="m mu">{{shortid $p.Token}}</td>
+          {{/* A probe that never got a response has no status, and says so rather than
+               printing 0 — the request going out is the fact, not the number. */}}
+          <td class="m">{{if $p.Status}}{{$p.Status}}{{else}}—{{end}}</td>
+          {{/* The prior state, not an assumed one: degraded → verified and inferred →
+               verified are different results, and one line for each pair. A probe that
+               raised nothing says why in the same cell rather than just "none". */}}
+          <td class="m mu brk">{{if $p.Changes}}{{join $p.Changes}}{{else}}none{{if ne $p.Result "completed"}} · {{$p.Result}}{{end}}{{end}}</td>
+          <td class="m mu">{{or $p.ActorLabel "—"}}</td>
+        </tr>
+        {{end}}
+      </table>
+      {{if not .Probes}}
+      {{/* Three different nothings, and they are not the same answer. */}}
+      <div style="padding:12px">
+        {{if or .Query .Actor .Outcome (ne .Range "all")}}
+        <p class="m mu">No probe matches this filter. <a href="/trace/history?range=all{{with .URL}}&amp;url={{. | urlquery}}{{end}}">Widen it to every probe on record</a>.</p>
+        {{else if .URL}}
+        <p class="m mu">No probe has ever been sent at this entry point.
+        <a href="/trace?url={{.URL | urlquery}}">Trace it</a> and use <b>Probe</b> to send one.</p>
+        {{else}}
+        <p class="m mu">No probe has been sent yet. A Probe is one real request an
+        operator sends at a traced URL, which is the only thing that turns an inferred
+        hop into a verified one.</p>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+
+    {{if .Probes}}
+    <div class="pft">
+      <span class="m mus" title="a probe row is written before the request goes out and is never edited">read-only audit record</span>
+      <div class="flex-1"></div>
+      {{/* Which slice this is, not just how many are on screen: "50 probes" on page
+           two claims to be page one. */}}
+      <span class="m mus">{{.From}}–{{.To}} of {{num .Total}}</span>
+      {{if .HasMore}}
+      <a class="btn sm" href="{{.Here}}&amp;cursor={{.NextCursor}}">Older ↓</a>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+</div>
+
+{{/* Right: Selected probe detail */}}
+<div class="col" style="flex:0 0 340px">
+  {{with .Selected}}
+  <div class="pnl">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span class="ph2">{{shortid .Token}}</span>
+      {{if .Status}}<span class="bdg note" title="{{.StatusText}}">{{.Status}}</span>
+      {{else}}<span class="bdg none" title="the request went out and no response came back">no response</span>{{end}}
+      <div class="flex-1"></div>
+      <a class="btn s sm" href="/trace?url={{.URL | urlquery}}">Open trace</a>
+    </div>
+
+    <div class="kv m">
+      <span class="mus">entry</span><span>{{.URL}}</span>
+      <span class="mus">actor</span><span>{{or .ActorLabel "—"}}</span>
+      <span class="mus">source</span><span>{{or .OriginHost "—"}}</span>
+      <span class="mus">method</span><span>{{.Method}}{{if gt (len .Redirects) 0}} · {{len .Redirects}} redirect{{if ne (len .Redirects) 1}}s{{end}}{{end}}</span>
+      {{if .DurationMS}}<span class="mus">latency</span><span>{{.DurationMS}} ms</span>{{end}}
+      {{/* What the probe did on the fleet, not only what it concluded. */}}
+      {{with .LogReads}}<span class="mus">log reads</span><span>{{.}}</span>{{end}}
+      <span class="mus">requested</span><span>{{ts .RequestedAt}}</span>
+    </div>
+    {{/* A probe that never reached the fleet is our failure, not a fleet fact, and it
+         raised nothing. Same wording as the live panel on the trace screen. */}}
+    {{with .Err}}<p class="m mu" style="margin-top:8px;color:var(--color-err)">{{.}}</p>{{end}}
+  </div>
+
+  {{/* State changes from this probe: one line per host, its best evidence there.
+       A host it could prove nothing about is still listed — that is why the hop is
+       still inferred, and hiding it makes the probe look like it found less. */}}
+  <div class="pnl z" style="flex:1;min-height:0">
+    <div class="phd">
+      <span class="ph2">State changes</span>
+      <div class="flex-1"></div>
+      <span class="m mus" title="hosts this probe moved off their prior confidence">{{plural .ChangeCount "change"}}</span>
+    </div>
+
+    <div style="padding:8px 10px;display:flex;flex-direction:column;gap:6px">
+      {{range .Changes}}
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="m" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="{{.Kind}}{{with .LogPath}} · {{.}}{{end}}">{{.Host}}</span>
+        {{/* The prior as recorded, not assumed: a row written before nagipath stored
+             it reads inferred, which understates what was already known rather than
+             overstating what this probe proved. */}}
+        {{template "confidence" .Prior}}
+        {{with .To}}
+        <span class="m mus">→</span>
+        {{if eq . "verified"}}<span class="bdg ok" title="an access-log line identifies this request at that host">VERIFIED</span>
+        {{else}}<span class="bdg deg" title="the response carried something that host declares">OBSERVED</span>{{end}}
+        {{else}}
+        {{/* Not an arrow to nowhere: this hop is where it was, and the probe is why
+             we know that is all we know. */}}
+        <span class="m mus" title="this host's log records no field that identifies the request">unchanged</span>
+        {{end}}
+      </div>
+      {{end}}
+      {{if not .Changes}}
+      <p class="m mu">This probe produced no evidence at any hop, so it raised nothing.
+      A hop whose access log records no field that identifies a request cannot be
+      verified by one.</p>
+      {{end}}
+    </div>
+  </div>
+  {{else}}
+  {{/* No probe selected */}}
+  <div class="pnl">
+    <span class="lbl">Probe detail</span>
+    <p class="m mu">Select a probe from the table to see its details and evidence.</p>
+  </div>
+  {{end}}
+</div>
+
+{{template "bd-end"}}
+{{end}}{{/* end .Data */}}
+{{template "foot" .}}

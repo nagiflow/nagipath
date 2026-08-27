@@ -28,7 +28,10 @@ services:
   nagipath:
     build:
       context: ..
-      dockerfile: testlab/Dockerfile.nagipath
+      # The lab is our local development environment. Use the Air-equipped
+      # development image rather than the release image so source edits reload
+      # the control plane without rebuilding the five fixture containers.
+      dockerfile: Dockerfile.dev
     networks:
       lab:
         ipv4_address: 10.90.4.2
@@ -49,6 +52,7 @@ services:
     environment:
       SSL_CERT_DIR: /etc/ssl/lab
     volumes:
+      - ..:/workspace
       - nagipath-data:/data
       - ./keys:/lab/keys:ro
       - ./hosts:/lab/hosts:ro
@@ -59,12 +63,12 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        nagipath keygen || true
-        nagipath bootstrap \
+        go run ./cmd/nagipath keygen -data /data || true
+        go run ./cmd/nagipath bootstrap \
           -admin admin -password-file /lab/keys/admin-password \
           -credential lab -key /lab/keys/lab_key -ssh-user nagipath \
-          -hosts /lab/hosts
-        exec nagipath server
+          -hosts /lab/hosts -data /data
+        exec air -c .air.toml
     depends_on: [lb01, web02, web03, web05, app01]
 
   # The edge. One long haproxy.cfg — haproxy has no `include`, so its complexity

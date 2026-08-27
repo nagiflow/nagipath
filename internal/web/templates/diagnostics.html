@@ -1,42 +1,58 @@
 {{template "head" .}}
-{{template "toolbar" toolbar "Diagnostics" ""}}
-{{template "body"}}
+{{template "ptitle" toolbar "System" ""}}
+{{template "ptitle-end"}}
 
-<div class="bx col">
-  <table>
-    {{template "cols" cols "Field" "Value"}}
-    <tr><td>Version</td><td class="mono">{{.Data.Version}}</td></tr>
-    <tr><td>Go version</td><td class="mono">{{.Data.GoVersion}}</td></tr>
-    <tr><td>Uptime</td><td class="mono">{{.Data.Uptime}}</td></tr>
-    <tr><td>Database</td><td class="mono">{{.Data.DBPath}} ({{bytes .Data.DBSizeBytes}})</td></tr>
-    <tr><td>Listen address</td><td class="mono">{{.Data.ListenAddr}}</td></tr>
-    <tr><td>TLS</td><td>{{if .Data.TLSEnabled}}enabled{{else}}plain HTTP{{end}}</td></tr>
-    <tr><td>Demo mode</td><td>{{if .Data.DemoMode}}on{{else}}off{{end}}</td></tr>
-    <tr><td>License</td><td>
-      <span class="badge {{if eq .Data.LicenseStatus "valid"}}c-verified{{else if eq .Data.LicenseStatus "missing"}}c-inferred{{else}}c-disproved{{end}}">{{.Data.LicenseStatus}}</span>
-      {{.Data.LicenseMessage}}</td></tr>
-    <tr><td>Migrations applied</td><td class="mono">{{.Data.MigrationsApplied}} of {{.Data.MigrationsExpected}}</td></tr>
+{{template "bd" "row"}}
+<div class="col" style="flex:0 0 210px">
+  {{template "sidelist" (settingsNav .Path $.User)}}
+</div>
+
+<div class="col" style="flex:1">
+{{with .Data}}
+<div class="pnl z">
+  <div class="phd"><span class="ph2">This server</span></div>
+  <table class="t">
+    {{template "cols" cols "field:14rem" "value"}}
+    <tr><td class="m mu">version</td><td class="m">{{.Version}}</td></tr>
+    <tr class="zz"><td class="m mu">go version</td><td class="m">{{.GoVersion}}</td></tr>
+    <tr><td class="m mu">uptime</td><td class="m">{{.Uptime}}</td></tr>
+    <tr class="zz"><td class="m mu">database</td><td class="m">{{.DBPath}} <span class="mus">{{bytes .DBSizeBytes}}</span></td></tr>
+    <tr><td class="m mu">listen address</td><td class="m">{{.ListenAddr}}</td></tr>
+    <tr class="zz"><td class="m mu">TLS</td><td class="m">{{if .TLSEnabled}}enabled{{else}}plain HTTP{{end}}</td></tr>
+    <tr><td class="m mu">demo mode</td><td class="m">{{if .DemoMode}}on — every probe is refused{{else}}off{{end}}</td></tr>
+    <tr class="zz"><td class="m mu">license</td><td>
+      <span class="bdg {{bdg (print .LicenseStatus)}}" title="{{why (print .LicenseStatus)}}">{{label (print .LicenseStatus)}}</span>
+      <span class="m mu">{{.LicenseMessage}}</span></td></tr>
+    <tr><td class="m mu">migrations applied</td>
+      {{/* Fewer applied than expected is the one row here that means the binary
+           and the database disagree, so it does not read as a plain number. */}}
+      <td class="m">{{.MigrationsApplied}} of {{.MigrationsExpected}}
+      {{if lt .MigrationsApplied .MigrationsExpected}}<span class="bdg err">BEHIND</span>{{end}}</td></tr>
   </table>
 </div>
 
-<div class="bx dash col">
-  <span class="lbl">master key</span>
-  <p class="mono">{{.Data.MasterKeyPath}}
-    {{if .Data.MasterKeyPresent}}present, mode {{.Data.MasterKeyMode}}{{else}}<span class="warn">MISSING</span>{{end}}</p>
-  <p class="note">⚠ Back this file up. Credentials in the database cannot be decrypted
-    without it, and nagipath will refuse to start if it is missing — it
-    will never generate a replacement.</p>
+<div class="pnl" style="padding:10px 12px">
+  <div class="lbl" style="margin-bottom:6px">Master key</div>
+  <p class="m">{{.MasterKeyPath}}
+    {{if .MasterKeyPresent}}<span class="m mu">present, mode {{.MasterKeyMode}}</span>
+    {{else}}<span class="bdg err">MISSING</span>{{end}}</p>
+  <p class="m mu" style="margin-top:6px">Back this file up. Credentials in the database
+    cannot be decrypted without it, and nagipath will refuse to start if it is missing —
+    it will never generate a replacement.</p>
 </div>
 
-<div class="bx col">
-  <span class="lbl">diagnostics bundle</span>
-  <p class="note">The bundle is version, configuration with secrets redacted, recent logs,
+<div class="pnl" style="padding:10px 12px">
+  <div class="lbl" style="margin-bottom:6px">Diagnostics bundle</div>
+  <p class="m mu">The bundle is version, configuration with secrets redacted, recent logs,
     migration state, collection statistics and license status, as one plain-text file.
     It excludes, permanently and always: credentials, Master Key contents, session and
     token values, certificate material, Probe tokens, and collected configuration file
     contents.</p>
-  <a class="button" href="/diagnostics/bundle">Download diagnostics bundle</a>
+  <div style="margin-top:8px">
+    <a class="btn" href="/settings/system/bundle">Download diagnostics bundle</a>
+  </div>
 </div>
-
+{{end}}
 </div>
+{{template "bd-end"}}
 {{template "foot" .}}

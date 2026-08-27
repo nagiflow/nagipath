@@ -1,0 +1,81 @@
+{{template "head" .}}
+{{with .Data}}
+{{template "ptitle" toolbar .Cert.SubjectCN ""}}
+  <span class="bdg {{expclass .Cert.NotAfter}}">{{expiry .Cert.NotAfter}}</span>
+  <span class="m mu">{{.Cert.IssuerDN}} · {{if .Cert.KeyAlgorithm}}{{.Cert.KeyAlgorithm}}{{if .Cert.KeyBits.Valid}} {{.Cert.KeyBits.Int64}}{{end}}{{else}}key unknown{{end}} · {{.BindingCount}} binding{{if ne .BindingCount 1}}s{{end}}</span>
+{{template "ptitle-end"}}
+
+<div class="tabs">
+  <a class="tab{{if or (eq .ActiveTab "") (eq .ActiveTab "overview")}} on{{end}}" href="/certificates/{{.Cert.ID}}?tab=overview">Overview</a>
+  <a class="tab{{if eq .ActiveTab "bindings"}} on{{end}}" href="/certificates/{{.Cert.ID}}?tab=bindings">Bindings · {{.BindingCount}}</a>
+  <a class="tab{{if eq .ActiveTab "files"}} on{{end}}" href="/certificates/{{.Cert.ID}}?tab=files">Files · {{.FileCount}}</a>
+</div>
+
+{{template "bd" "row"}}
+  {{if eq .ActiveTab "bindings"}}
+  <div class="pnl z" style="flex:1">
+    <div class="phd"><span class="ph2">Bindings</span><span class="m mus">node · site · listener</span></div>
+    {{if .Bindings}}
+    <table class="t">
+      {{template "cols" cols "node" "cluster:8rem" "site:12rem" "listener:7rem" "file path" ":3rem"}}
+      {{range .Bindings}}
+      <tr><td><a href="/instances/{{.InstanceID}}">{{.Instance}}</a><br><span class="m mus">{{.Node}}</span></td>
+        <td class="m mu">{{if .ClusterName}}{{.ClusterName}}{{else}}—{{end}}</td>
+        <td class="m mu">{{if .SiteNames}}{{.SiteNames}}{{else}}—{{end}}</td>
+        <td class="m mu">{{if .Port}}{{.Port}}{{else}}—{{end}}</td>
+        <td class="m mu">{{if .FileID}}<a href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}" title="{{.FilePath}}">{{tail .FilePath}} ↗</a>{{else}}{{.FilePath}}{{end}}</td>
+        <td>{{/* provenance already in file path */}}</td></tr>
+      {{end}}
+    </table>
+    {{else}}
+    <div style="padding:12px;font-size:12px;color:var(--color-muted)">No current snapshot binds this certificate. It was seen once and the
+    binding is gone, which is history rather than a finding.</div>
+    {{end}}
+  </div>
+
+  {{else if eq .ActiveTab "files"}}
+  <div class="pnl z" style="flex:1">
+    <div class="phd"><span class="ph2">Files on disk</span><span class="m mus">stat only · contents never read</span></div>
+    {{if .FilePaths}}
+    <table class="t">
+      {{template "cols" cols "path" "nodes:6rem" "bundle type:8rem"}}
+      {{range .FilePaths}}
+      <tr><td class="m">{{.Path}}</td>
+        <td class="m">{{.NodeCount}}</td>
+        <td class="m mu">{{.BundleType}}</td></tr>
+      {{end}}
+    </table>
+    {{else}}
+    <div style="padding:12px;font-size:12px;color:var(--color-muted)">No file information available.</div>
+    {{end}}
+  </div>
+
+  {{else}}
+  {{/* Overview tab */}}
+  <div class="col" style="flex:1;gap:12px">
+    {{$stats := stats (stat 0 "expires" "" (expclass .Cert.NotAfter))
+                      (stat .BindingCount "bindings" "" "")
+                      (stat 0 "sites" "" "")
+                      (stat .FileCount "files on disk" "" "")}}
+    {{if $stats}}{{template "stats" $stats}}{{end}}
+
+    <div class="pnl">
+      <div class="ph2">Certificate identity</div>
+      <div class="kv" style="margin-top:8px">
+        <span class="lbl">fingerprint</span><span class="m mu">{{.Cert.Fingerprint}}</span>
+        <span class="lbl">subject DN</span><span class="m mu">{{.Cert.SubjectDN}}</span>
+        <span class="lbl">SANs</span><span class="m mu">{{if .Cert.SANs}}{{range $i, $san := .Cert.SANs}}{{if $i}}, {{end}}{{$san}}{{end}}{{else}}—{{end}}</span>
+        <span class="lbl">issuer</span><span class="m mu">{{.Cert.IssuerDN}}</span>
+        <span class="lbl">serial</span><span class="m mu">{{.Cert.Serial}}</span>
+        <span class="lbl">valid from</span><span class="m mu" title="{{.Cert.NotBefore}}">{{date .Cert.NotBefore}}</span>
+        <span class="lbl">valid to</span><span class="m mu" title="{{.Cert.NotAfter}}">{{date .Cert.NotAfter}}</span>
+        <span class="lbl">key</span><span class="m mu">{{if .Cert.KeyAlgorithm}}{{.Cert.KeyAlgorithm}}{{if .Cert.KeyBits.Valid}} {{.Cert.KeyBits.Int64}}{{end}}{{else}}not collected{{end}}</span>
+        <span class="lbl">signature</span><span class="m mu">{{.Cert.SigAlgorithm}}</span>
+        <span class="lbl">self-signed</span><span class="m mu">{{if .Cert.SelfSigned}}yes{{else}}no{{end}}</span>
+      </div>
+    </div>
+  </div>
+  {{end}}
+{{template "bd-end"}}
+{{end}}
+{{template "foot" .}}

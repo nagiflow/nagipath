@@ -1,0 +1,90 @@
+{{template "head" .}}
+{{template "ptitle" toolbar "Host keys" ""}}
+{{template "ptitle-end"}}
+
+{{template "bd" "row"}}
+<div class="col" style="flex:0 0 210px">
+  {{template "sidelist" (settingsNav .Path $.User)}}
+</div>
+
+<div class="col" style="flex:1">
+  {{with .Data}}
+  {{/* Stats row */}}
+  {{template "stats" stats
+    (statif (gt .Stats.Pending 0) .Stats.Pending "awaiting approval" "/settings/hostkeys?state=pending" "warn")
+    (statif (gt .Stats.Changed 0) .Stats.Changed "changed" "/settings/hostkeys?state=changed" "err")
+    (stat .Stats.Approved "approved" "/settings/hostkeys?state=approved" "")
+    (stat (len .Stats.Algorithms) "algorithms" "" "")
+  }}
+
+  <div class="pnl z" style="flex:1">
+    <div class="phd">
+      <span class="ph2">Host keys</span>
+      <div class="flex-1"></div>
+      <form method="get" action="/settings/hostkeys" style="display:flex;gap:8px;align-items:center">
+        <label class="sr-only" for="state">State</label>
+        <select class="sel" name="state" id="state">
+          <option value="">All states</option>
+          <option value="pending"{{if eq .StateFilter "pending"}} selected{{end}}>Pending</option>
+          <option value="changed"{{if eq .StateFilter "changed"}} selected{{end}}>Changed</option>
+          <option value="approved"{{if eq .StateFilter "approved"}} selected{{end}}>Approved</option>
+        </select>
+        <input type="hidden" name="cluster" value="{{.ClusterFilter}}">
+        <button class="btn p sm" type="submit">Filter</button>
+      </form>
+    </div>
+    {{if .Keys}}
+    <table class="t">
+      {{template "cols" cols "Node:220px" "Cluster:110px" "Fingerprint" "Algorithm:100px" "First seen:130px" "State:100px"}}
+      {{range .Keys}}
+      <tr{{if eq .State "pending"}} class="hl"{{end}}>
+        <td class="m">{{.NodeName}}</td>
+        <td class="m mu">{{if .Previous}}{{/* cluster extracted in query */}}{{end}}</td>
+        <td class="m mu" style="font-size:11px;overflow-wrap:break-word">{{.Fingerprint}}</td>
+        <td class="m mu">{{.Algorithm}}</td>
+        <td class="m mu">{{clock .FirstSeenAt}}</td>
+        <td>{{template "confidence" .State}}</td>
+      </tr>
+      {{if .Previous}}
+      <tr class="zz">
+        <td colspan="6" style="padding:8px 12px">
+          <div style="display:flex;gap:8px">
+            <span class="bdg {{bdg "err"}}">{{label "changed"}}</span>
+            <div class="m mus" style="font-size:11px;flex:1">
+              Replaces an approved key. A rekey and an interception look identical — compare against the host before approving.
+              <div style="margin-top:4px"><b>was:</b> {{.Previous}}</div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      {{end}}
+      {{end}}
+    </table>
+    {{if gt .Stats.Pending 0}}
+    <div class="pft">
+      <form method="post" action="/hostkeys/approve">
+        {{template "csrf" $.CSRF}}
+        <input type="hidden" name="back" value="/settings/hostkeys">
+        {{range .Keys}}{{if eq .State "pending"}}<input type="hidden" name="key" value="{{.ID}}">{{end}}{{end}}
+        <button type="submit" name="decision" value="approve" class="btn p">Approve pending</button>
+        <button type="submit" name="decision" value="reject" class="btn dgr">Reject</button>
+      </form>
+    </div>
+    {{end}}
+    {{else}}
+    <div style="padding:20px 12px">
+      {{template "empty" "No host keys"}}
+        <p>Every known host key was approved or rejected by a person.</p>
+      {{template "empty-end"}}
+    </div>
+    {{end}}
+  </div>
+
+  <div class="pnl">
+    <div class="lbl" style="margin-bottom:7px">Approval process</div>
+    <p class="m mus" style="font-size:12px">Compare each fingerprint with <span class="m">ssh-keygen -lf</span> on the host itself. There is no trust-on-first-use path in nagipath: an unapproved key means no collection, not a warning.</p>
+  </div>
+  {{end}}
+</div>
+{{template "bd-end"}}
+{{template "foot" .}}

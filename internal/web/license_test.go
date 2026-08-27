@@ -16,7 +16,7 @@ func TestLicensePageRequiresAuth(t *testing.T) {
 	// this test is about the latter.
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	w := c.get("/license")
+	w := c.get("/settings/license")
 	if w.Code != http.StatusSeeOther || !strings.HasPrefix(w.Header().Get("Location"), "/login") {
 		t.Errorf("GET /license while signed out = %d -> %q", w.Code, w.Header().Get("Location"))
 	}
@@ -34,7 +34,7 @@ func TestViewerCanViewLicenseButNotInstall(t *testing.T) {
 		t.Fatal("viewer could not sign in")
 	}
 
-	w := c.get("/license")
+	w := c.get("/settings/license")
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET /license as a viewer = %d, want 200: %s", w.Code, w.Body.String())
 	}
@@ -46,7 +46,7 @@ func TestViewerCanViewLicenseButNotInstall(t *testing.T) {
 		t.Error("a viewer's /license page rendered the install form, which is admin-only")
 	}
 
-	if got := c.post("/license", url.Values{"license_text": {"whatever"}}).Code; got != http.StatusForbidden {
+	if got := c.post("/settings/license", url.Values{"license_text": {"whatever"}}).Code; got != http.StatusForbidden {
 		t.Errorf("POST /license as a viewer = %d, want 403", got)
 	}
 }
@@ -60,7 +60,7 @@ func TestInstallingAGarbledLicenseChangesNothing(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.post("/license", url.Values{"license_text": {"this is not a license file"}})
+	w := c.post("/settings/license", url.Values{"license_text": {"this is not a license file"}})
 	if loc := w.Header().Get("Location"); !strings.Contains(loc, "err=") {
 		t.Errorf("installing garbage license text was not rejected (redirect %q)", loc)
 	}
@@ -97,7 +97,7 @@ func TestLicensePageRendersSeededLicenseState(t *testing.T) {
 
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-	body := c.get("/license").Body.String()
+	body := c.get("/settings/license").Body.String()
 	for _, want := range []string{"Acme Corp", "enterprise", "2030-06-30", "admin"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("GET /license is missing %q\n%s", want, body)

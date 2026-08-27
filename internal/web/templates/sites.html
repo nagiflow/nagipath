@@ -1,0 +1,89 @@
+{{template "head" .}}
+{{with .Data}}
+{{template "ptitle" toolbar "Sites" "fleet-wide hostnames from current snapshots"}}
+<a class="btn sm" href="/sites?export=csv{{if .Query}}&amp;q={{urlquery .Query}}{{end}}">Export CSV</a>
+{{template "ptitle-end"}}
+
+<div class="qbar">
+  <form method="get" action="/sites" style="display:contents">
+    <label class="fld f"><span class="sr-only">Filter sites</span><input class="in m" type="search" name="q" value="{{.Query}}" placeholder="filter by hostname or listener"></label>
+    <button class="btn p" type="submit">Filter</button>
+  </form>
+</div>
+
+{{template "bd"}}
+<div class="row" style="flex:none">
+  <div class="stat"><span class="lbl">Hostnames</span><span class="num">{{num .Stats.Hostnames}}</span><span class="m mus">incl. aliases</span></div>
+  <div class="stat"><span class="lbl">Served on</span><span class="num">{{num .Stats.Nodes}}</span><span class="m mus">nodes</span></div>
+  <div class="stat {{warnif .Stats.VariantHosts}}"><span class="lbl">Config variants</span><span class="num">{{num .Stats.VariantHosts}}</span><span class="m mus">same host, different config</span></div>
+  <div class="stat"><span class="lbl">TLS terminated</span><span class="num">{{num .Stats.TLSTerminated}}</span><span class="m mus">{{num .Stats.Plaintext}} plaintext</span></div>
+  <div class="stat {{warnif .Stats.ExpiringCerts}}"><span class="lbl">Certs ≤ 30d</span><span class="num">{{num .Stats.ExpiringCerts}}</span><span class="m mus">{{num .Stats.ExpiringBindings}} bindings</span></div>
+</div>
+
+<div class="pnl z" style="flex:1 0 auto">
+  <div class="phd"><span class="ph2">Sites</span><span class="m mus">one row per hostname across the fleet</span><div class="flex-1"></div><span class="m mus">{{num .Total}} shown</span></div>
+  {{if .Rows}}
+  <table class="t">
+    {{template "cols" cols "Hostname" "Nodes:5rem" "Listener:12rem" "Certificate:14rem" "Routes:5rem" "Config:9rem" "State:9rem"}}
+    {{range $i, $row := .Rows}}
+    <tr{{if and $.Data.Sel (eq $.Data.Sel $row.Name)}} class="hl"{{else if eq (mod $i 2) 1}} class="zz"{{end}}>
+      {{/* The hostname goes to the site's own page. It used to go to ?site=, which
+           reloaded this list with a preview strip at the bottom and left the detail
+           page reachable only from a small "Open" button inside that strip — so
+           clicking a site never arrived anywhere new. */}}
+      <td class="m"><a href="/sites/{{$row.Name}}">{{$row.Name}}</a>{{if gt $row.AliasCount 0}}<span class="m mus"> +{{$row.AliasCount}} {{if eq $row.AliasCount 1}}alias{{else}}aliases{{end}}</span>{{end}}</td>
+      <td class="m">{{$row.Nodes}}</td>
+      <td class="m mu">{{if $row.ListenerSummary}}{{$row.ListenerSummary}}{{else}}<span class="mus">—</span>{{end}}</td>
+      <td class="m mu">{{if $row.CertSubject}}{{$row.CertSubject}}{{else}}<span class="mus">none</span>{{end}}</td>
+      <td class="m">{{$row.Routes}}</td>
+      {{/* Only the hosts that actually differ get a compare link: the strip below
+           shows one column per variant, and for an identical host that is one
+           column repeating what the row already says. */}}
+      <td>{{if gt $row.Variants 1}}<a href="/sites?site={{urlquery $row.Name}}{{if $.Data.Query}}&amp;q={{urlquery $.Data.Query}}{{end}}"><span class="bdg deg">{{$row.Variants}} VARIANTS</span></a>{{else}}<span class="bdg ok">IDENTICAL</span>{{end}}</td>
+      <td>{{if ne $row.State "OK"}}<span class="bdg {{if eq $row.State "OK"}}ok{{else}}deg{{end}}">{{$row.State}}</span>{{else}}<span class="bdg ok">OK</span>{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  {{template "empty" "No sites match this filter"}}
+    <p>{{if .Query}}Nothing in the current snapshots matches <span class="m">{{.Query}}</span>. <a href="/sites">Clear the filter</a>.{{else}}Collect a node to populate the fleet-wide site index.{{end}}</p>
+  {{template "empty-end"}}
+  {{end}}
+</div>
+{{/* .Variants, not .Sel: a ?site= naming a hostname nothing serves has a
+     selection but no variants, and `index .Variants 0` panics on the empty
+     slice rather than rendering an empty panel. */}}
+{{if .Variants}}
+<div class="pnl z" style="flex:0 0 178px">
+  <div class="phd">
+    <span class="ph2">{{.Sel}}</span>
+    {{if gt (len .Variants) 1}}<span class="bdg deg">{{len .Variants}} VARIANTS</span>{{else}}<span class="bdg ok">IDENTICAL</span>{{end}}
+    <div class="flex-1"></div>
+    <a class="btn s sm" href="/sites/{{.Sel}}">Open</a>
+    <a class="btn s sm" href="/trace?scheme=https&amp;hostname={{urlquery .Sel}}&amp;path=/&amp;port=443">Trace</a>
+  </div>
+  <div style="display:flex;flex:1;min-height:0">
+    <div style="flex:0 0 280px;border-right:1px solid var(--color-line-soft);padding:8px 12px">
+      <div class="kv m" style="display:grid;grid-template-columns:70px 1fr;gap:4px 8px">
+        <span class="mus">nodes</span><span>{{$n := 0}}{{range .Variants}}{{$n = add $n .Nodes}}{{end}}{{$n}}</span>
+        <span class="mus">variants</span><span>{{len .Variants}}</span>
+      </div>
+    </div>
+    <div style="flex:1;min-width:0;padding:8px 12px;display:flex;gap:10px;overflow:auto">
+      {{range $vIdx, $variant := .Variants}}
+      <div style="flex:1;min-width:200px">
+        <div class="lbl" style="margin-bottom:5px">Variant {{$variant.Key}} · {{$variant.Nodes}} {{if eq $variant.Nodes 1}}node{{else}}nodes{{end}}{{if gt $vIdx 0}} <span class="bdg deg">DIFFERS</span>{{end}}</div>
+        {{range $rIdx, $route := $variant.Routes}}{{if lt $rIdx 5}}
+        <div class="fct"><span class="m">{{$route.Pattern}} → {{if $route.Upstream}}{{$route.Upstream}}{{else}}{{$route.Target}}{{end}}</span></div>
+        {{end}}{{end}}
+        {{if gt (len $variant.Routes) 5}}<div class="m mus">+{{sub (len $variant.Routes) 5}} more</div>{{end}}
+        <div class="m mus">{{join $variant.NodeNames}}</div>
+      </div>
+      {{end}}
+    </div>
+  </div>
+</div>
+{{end}}
+{{template "bd-end"}}
+{{end}}
+{{template "foot" .}}

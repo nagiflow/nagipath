@@ -36,6 +36,7 @@ Usage:
   nagipath server    [flags]      run the control plane and web UI
   nagipath migrate   [flags]      apply schema migrations and exit
   nagipath keygen    [flags]      create the master key file
+  nagipath rekey     [flags]      re-encrypt stored credentials under a new master key
   nagipath backup    [flags]      write a consistent copy of the database
   nagipath bootstrap [flags]      create the first admin, a credential and a host list
   nagipath collect   [flags] NODE collect one node by id or address
@@ -81,6 +82,8 @@ func run(cmd string, args []string) error {
 		return cmdMigrate(args)
 	case "keygen":
 		return cmdKeygen(args)
+	case "rekey":
+		return cmdRekey(args)
 	case "backup":
 		return cmdBackup(args)
 	case "bootstrap":
@@ -263,10 +266,13 @@ func housekeeping(ctx context.Context, db *store.DB, log *slog.Logger) {
 		if err := db.ExpireSessions(ctx); err != nil {
 			log.Warn("expire sessions", "err", err)
 		}
-		if n, err := db.GCBlobs(ctx); err != nil {
-			log.Warn("blob gc", "err", err)
-		} else if n > 0 {
-			log.Info("reclaimed orphaned blobs", "count", n)
+		// Retention, hourly. Prune finishes with the blob GC, because a blob is
+		// only orphaned once the last snapshot_file referencing it is gone.
+		if p, err := db.Prune(ctx); err != nil {
+			log.Warn("retention", "err", err)
+		} else if p.Any() {
+			log.Info("retention pruned", "snapshots", p.Snapshots, "job_logs", p.JobLogs,
+				"probes", p.Probes, "audit_events", p.AuditEvents, "blobs", p.Blobs)
 		}
 		select {
 		case <-ctx.Done():
@@ -379,6 +385,58 @@ func cmdKeygen(args []string) error {
 		return err
 	}
 	fmt.Printf("wrote %s (mode 0600)\nBack this up. Without it, stored credentials cannot be decrypted.\n", path)
+	return nil
+}
+
+// ---------------------------------------------------------------- rekey
+
+// cmdRekey moves every stored credential from one Master Key to another. It is
+// offline on purpose: the server holds the old key in memory for the life of the
+// process, so rotating under a running server would leave it decrypting with a
+// key the database no longer uses.
+//
+// It does not touch either key file. The operator generates the new key, runs
+// this, then swaps the file — so a failed run leaves a database that still opens
+// with the key that is still installed.
+func cmdRekey(args []string) error {
+	fs := flag.NewFlagSet("rekey", flag.ExitOnError)
+	dir := fs.String("data", "", "state directory")
+	oldPath := fs.String("old", "", "current master key file (required)")
+	newPath := fs.String("new", "", "new master key file (required)")
+	fs.Parse(args)
+
+	if *oldPath == "" || *newPath == "" {
+		return errors.New("rekey: both -old and -new are required")
+	}
+	if *oldPath == *newPath {
+		return errors.New("rekey: -old and -new are the same file")
+	}
+	oldKey, err := keys.Load("", *oldPath)
+	if err != nil {
+		return err
+	}
+	newKey, err := keys.Load("", *newPath)
+	if err != nil {
+		return err
+	}
+
+	d, err := dataDir(*dir)
+	if err != nil {
+		return err
+	}
+	db, err := openDB(d)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	n, err := db.Rekey(context.Background(), oldKey, newKey)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("re-encrypted %d credential(s) under %s\n", n, *newPath)
+	fmt.Printf("Now install it: mv %s %s — and keep the old key until the server starts with the new one.\n",
+		*newPath, filepath.Join(d, "master.key"))
 	return nil
 }
 

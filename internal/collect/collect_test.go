@@ -122,7 +122,14 @@ func nginxFake() *fakeHost {
 				"notBefore=Jan  1 00:00:00 2025 GMT\n" +
 				"notAfter=Jan  1 00:00:00 2027 GMT\n" +
 				"sha256 Fingerprint=AA:BB:CC\n" +
-				"DNS:shop.example.com, DNS:www.example.com\n",
+				"DNS:shop.example.com, DNS:www.example.com\n" +
+				// A real P-256 public key, because "RSA 2048" or "ECDSA 256" in the
+				// Key column comes from parsing this block, not from a string in
+				// openssl's output. Public half only, generated for this test.
+				"-----BEGIN PUBLIC KEY-----\n" +
+				"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjoRL8GM3inXElS2nLpOO1wR2bdi2\n" +
+				"deLqu+LLiCmIZN/O9/8c61aAMZSCs2urmXM3lssBSNnTS0vaDXOAhHUdWg==\n" +
+				"-----END PUBLIC KEY-----\n",
 		},
 	}
 }
@@ -330,6 +337,18 @@ func TestCollectStoresCertificateMetadataOnly(t *testing.T) {
 	}
 	if got.Bindings != 1 {
 		t.Errorf("bindings on the current snapshot = %d", got.Bindings)
+	}
+	// The Key column was empty on every row of a real install: nothing populated
+	// these, because the openssl command never asked for the public key.
+	if got.KeyAlgorithm != "ECDSA" || got.KeyBits.Int64 != 256 {
+		t.Errorf("key = %q %v, want ECDSA 256 read from the -pubkey block",
+			got.KeyAlgorithm, got.KeyBits)
+	}
+	// Private key material is never read, so nothing about it may reach the store.
+	for _, ran := range c.Dialer.(*fakeHost).ran {
+		if strings.Contains(string(ran), "private") {
+			t.Errorf("collector ran %q", ran)
+		}
 	}
 }
 

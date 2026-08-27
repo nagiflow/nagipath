@@ -1,0 +1,16 @@
+{{/* The figures a screen leads with: a row of .stat panels.
+
+     A stat with a href is a way in; one without is a fact with nowhere to go,
+     and the two read differently on purpose. `statif` omits one whose condition
+     is false, so no screen opens with "0 host keys to approve" — good news
+     nobody asked for, taking up the position the actual problem should hold.
+
+         {{template "stats" stats (stat .Nodes "nodes" "/nodes" "")
+                                  (statif (gt .Pending 0) .Pending "host keys to approve" "/settings/hostkeys" "warn")}} */}}
+
+{{define "stats"}}<div class="row">
+  {{range .}}
+  {{if .Href}}<a class="stat{{with .Tone}} {{.}}{{end}}" href="{{.Href}}"><span class="lbl">{{.Label}}</span><span class="num">{{num .N}}</span>{{with .Note}}<span class="m mus">{{.}}</span>{{end}}</a>
+  {{else}}<div class="stat{{with .Tone}} {{.}}{{end}}"><span class="lbl">{{.Label}}</span><span class="num">{{num .N}}</span>{{with .Note}}<span class="m mus">{{.}}</span>{{end}}</div>{{end}}
+  {{end}}
+</div>{{end}}

@@ -1,140 +1,151 @@
 {{template "head" .}}
 {{with .Data}}
-<div class="tb">
-  <h1>Rule lookup</h1>
-  {{/* One form, split across the toolbar and the filter column: the checkboxes
-       below use form="lookup", so the filters submit with the query and no
-       script is needed to keep them together.
+{{template "ptitle" toolbar "Rule lookup" ""}}
+{{if .Asked}}<button class="btn sm" type="submit" form="lookup" name="export" value="csv">Export CSV</button>{{end}}
+{{template "ptitle-end"}}
 
-       One pasted URL, like the Trace page: scheme, port and path are read off
-       it, and a bare host defaults to https — see parseTarget in handlers.go. */}}
-  <form id="lookup" method="get" action="/rules" class="trace-form">
-    <input name="url" value="{{.URL}}" placeholder="https://shop.example.com/api/v2/charge"
-      size="42" required autofocus spellcheck="false" autocapitalize="off" aria-label="URL to look up">
-    <button type="submit">Look up</button>
-  </form>
-  <span class="spacer"></span>
-  {{if .Asked}}<span class="small dim">{{.Rules}} rule{{if ne .Rules 1}}s{{end}} across
-    {{len .Answered}} instance{{if ne (len .Answered) 1}}s{{end}}</span>{{end}}
-{{template "body"}}
+<form id="lookup" method="get" action="/rules" class="qbar">
+  <input class="fld f m" name="url" value="{{.URL}}" placeholder="https://shop.example.com/api/v2/charge or /api/v2"
+    required autofocus spellcheck="false" autocapitalize="off" aria-label="URL or path to look up">
+  <button class="btn p" type="submit">Look up</button>
+</form>
+
+{{if .Asked}}
+{{template "stats" stats (stat .Rules "rules" "" "") (stat .Nodes "nodes" "" "") (stat .Files "files" "" "")}}
+{{end}}
+
+{{template "bd" "row"}}
+
 {{if .Empty}}
 {{template "empty" "Nothing is collected yet"}}
-  <p>Rule lookup reads collected configuration, and there is none.
-  <a href="/onboarding">Connect the fleet</a> first.</p>
+  <p>Rule lookup reads collected configuration, and there is none. <a href="/onboarding">Connect the fleet</a> first.</p>
 {{template "empty-end"}}
+{{else if not .Asked}}
+<div class="pnl" style="flex:1">
+  <div class="empty">
+    <b>Paste a URL above</b>
+    <p>Look up the collected rules that would handle one request. A bare path, like <code class="m">/api/v2</code>, searches every site in the fleet for a route that claims it, with no host needed.</p>
+  </div>
+</div>
 {{else}}
 
-<div class="split" style="--l:150px">
-
-<div class="col">
-  <div class="bx col">
-    <span class="lbl">action class</span>
-    {{range $.Data.Classes}}
-    <label class="facet"><input type="checkbox" form="lookup" name="class" value="{{.}}"
-      {{if has $.Data.Query.Classes .}}checked{{end}}> <span class="mono tiny">{{.}}</span></label>
+<div class="col" style="flex:0 0 13rem">
+  <div class="pnl" style="padding:10px">
+    <div class="lbl" style="margin-bottom:6px">Action class</div>
+    {{range $.Data.ClassFacets}}
+    <label class="fct"><input type="checkbox" class="cb" form="lookup" name="class" value="{{.Value}}"
+      {{if has $.Data.Query.Classes .Value}}checked{{end}}> <span class="m">{{.Value}}</span> <span class="c">{{.Count}}</span></label>
     {{end}}
-    <p class="tiny dim">other is kept verbatim; nagipath does not model it.</p>
-  </div>
 
-  <div class="bx col">
-    <span class="lbl">vendor</span>
-    {{range $.Data.Vendors}}
-    <label class="facet"><input type="checkbox" form="lookup" name="vendor" value="{{.}}"
-      {{if has $.Data.Query.Vendors .}}checked{{end}}> <span class="mono tiny">{{.}}</span></label>
+    <div class="lbl" style="margin:12px 0 6px">Vendor</div>
+    {{range $.Data.VendorFacets}}
+    <label class="fct"><input type="checkbox" class="cb" form="lookup" name="vendor" value="{{.Value}}"
+      {{if has $.Data.Query.Vendors .Value}}checked{{end}}> <span class="m">{{.Value}}</span> <span class="c">{{.Count}}</span></label>
     {{end}}
-    <p class="tiny dim">Nothing ticked means everything. A filter that defaults to
-    something is a filter that hides things.</p>
-  </div>
 
-  <div class="bx dash col">
-    <span class="lbl">scope</span>
-    <p class="tiny">Current configuration only. History is browsable, not indexed.</p>
+    <button class="btn p" type="submit" form="lookup" style="margin-top:10px;width:100%">Filter</button>
+    <p class="m mus" style="font-size:10.5px;margin-top:8px">Nothing ticked means everything. Counts show how many rules each filter would leave.</p>
   </div>
 </div>
 
-<div class="col">
-{{if .Asked}}
+<div class="col" style="flex:1;min-width:0">
+  {{if .Groups}}
+  <div class="pnl z" style="flex:1;min-height:0">
+    <div class="phd"><span class="ph2">Rules by node</span><div class="flex-1"></div><span class="m mus">{{.From}}–{{.To}} of {{len $.Data.Groups}} node{{if ne (len $.Data.Groups) 1}}s{{end}}</span></div>
+    <div class="tsc">
+    {{range .Groups}}
+    {{$group := .}}
+    {{$res := index .Results 0}}
+    <div style="padding:10px 12px;border-bottom:1px solid var(--color-line)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span class="m" style="font-weight:600">{{if $res.Inst}}{{$res.Inst.NodeName}}{{else}}(unknown node){{end}}</span>
+        <span class="m mu">{{if $res.Inst}}{{$res.Inst.Vendor}}{{end}}</span>
+        {{if gt .Count 1}}
+        <span class="m mus">· {{.Count}} node{{if ne .Count 1}}s{{end}} with identical rules</span>
+        {{end}}
+      </div>
+      {{if $res.Site}}
+      <div class="m mu" style="margin-bottom:6px">site: {{$res.Site.PrimaryName}}{{with $res.MatchedBy}} · {{.}}{{end}}</div>
+      {{end}}
+      {{if $res.Route}}
+      <div class="m mu" style="margin-bottom:8px">route: {{$res.Route.Pattern}} · {{$res.Route.MatchType}}</div>
+      {{end}}
 
-{{range .Answered}}
-{{$res := .}}
-<details class="bx" open>
-  <summary class="row center">
-    <b>{{.Inst.DisplayName}}</b>
-    <span class="mono small dim">{{.Inst.NodeAddress}}{{if .Listener}}:{{.Listener.Port}}{{end}}
-      · {{.Inst.Vendor}}</span>
-    {{template "confidence" .Confidence}}
-    <span class="spacer"></span>
-    <span class="small dim">{{len .Rules}} rule{{if ne (len .Rules) 1}}s{{end}}</span>
-  </summary>
+      <table class="t" style="margin-top:6px">
+        <tr><th style="width:2rem">#</th><th style="width:10rem">Directive</th><th>Arguments</th><th style="width:7rem">Class</th><th style="width:12rem">Source</th></tr>
+        {{range notglobal $res.Rules}}
+        <tr{{if .Shadowed}} class="zz"{{end}}>
+          <td class="m">{{if .Shadowed}}—{{else}}{{.Ordinal}}{{end}}</td>
+          <td class="m">{{.Rule.Directive}}
+            <div class="m mus">{{rulesummary $res.Inst.Vendor .Rule.Directive}}</div></td>
+          <td class="m">{{.Rule.Args}}
+            {{if .Shadowed}}<div class="m mus">{{.ShadowedBy}}</div>{{end}}</td>
+          <td class="m mu">{{.Rule.ActionClass}}</td>
+          <td>{{template "prov" .Rule}}</td>
+        </tr>
+        {{end}}
+      </table>
 
-  <table class="hop-facts">
-    {{if .Site}}<tr><th>Site</th><td>{{or .Site.PrimaryName "(unnamed)"}}
-      <span class="dim small">{{.MatchedBy}}</span></td></tr>{{end}}
-    {{if .Route}}<tr><th>Route</th><td class="mono">{{.Route.MatchType}} {{.Route.Pattern}}
-      <span class="dim small">{{.Precedence}}</span></td></tr>{{end}}
-  </table>
-
-  <table>
-  {{template "cols" cols "ord:2.5rem" "scope:8rem" "rule" "class:7rem" "src:14rem"}}
-    {{range notglobal .Rules}}
-    <tr class="{{if .Shadowed}}row-warn{{end}}">
-      <td class="mono">{{if .Shadowed}}—{{else}}{{.Ordinal}}{{end}}</td>
-      <td class="tiny {{if .Shadowed}}warn{{else}}dim{{end}}">{{if .Shadowed}}discarded{{else}}{{.Scope}}{{if .Inherited}} · inherited{{end}}{{end}}</td>
-      <td><code class="mono">{{.Rule.Directive}} {{.Rule.Args}}</code>
-        {{if .Shadowed}}<span class="tiny warn">— {{.ShadowedBy}}</span>{{end}}</td>
-      <td class="tiny mono">{{.Rule.ActionClass}}</td>
-      <td>{{template "prov" .Rule}}</td>
-    </tr>
+      {{with globalonly $res.Rules}}
+      <p class="m mus" style="margin-top:6px">{{len .}} inherited global directive{{if ne (len .) 1}}s{{end}} apply and are not specific to this request</p>
+      {{end}}
+    </div>
     {{end}}
-  </table>
+    </div>
 
-  {{/* Collapsed, not hidden: same reasoning as the Trace page's per-hop rule
-       list (funcs.go's routingRules/globalRules) — a global section is the same
-       few dozen tuning directives on every result and decides nothing about
-       this one, so it is a count and a link rather than fifty more rows. */}}
-  {{with globalonly .Rules}}
-  <p class="tiny dim">{{len .}} inherited global directive{{if ne (len .) 1}}s{{end}} apply and are
-    not specific to this request — <a href="/instances/{{$res.Inst.ID}}">read them on the instance</a>.</p>
+    {{if gt $.Data.Pages 1}}
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-top:1px solid var(--color-line)">
+      <div class="flex-1"></div>
+      <form method="get" action="/rules" style="display:flex;gap:7px">
+        <input type="hidden" name="url" value="{{$.Data.URL}}">
+        {{range $.Data.Query.Classes}}<input type="hidden" name="class" value="{{.}}">{{end}}
+        {{range $.Data.Query.Vendors}}<input type="hidden" name="vendor" value="{{.}}">{{end}}
+        <button class="pgb" type="submit" name="page" value="{{sub $.Data.Page 1}}" {{if le $.Data.Page 1}}disabled{{end}}>‹</button>
+        <span class="pgb on">{{$.Data.Page}}</span>
+        <button class="pgb" type="submit" name="page" value="{{add $.Data.Page 1}}" {{if ge $.Data.Page $.Data.Pages}}disabled{{end}}>›</button>
+      </form>
+    </div>
+    {{end}}
+  </div>
+  {{/* Not "else if .Answered": Groups is built from Answered, so that branch was
+       unreachable and a filter that matched nothing claimed nothing serves the
+       path. RulesUnfiltered is the count with the tickboxes ignored. */}}
+  {{else if .RulesUnfiltered}}
+  <div class="pnl">
+    <div class="empty">
+      <b>No rules match the filters</b>
+      <p>{{.RulesUnfiltered}} rule{{if ne .RulesUnfiltered 1}}s{{end}} were found, but none match the action class or vendor filters on the left. Untick them to widen.</p>
+    </div>
+  </div>
+  {{else}}
+  <div class="pnl">
+    <div class="empty">
+      <b>No instance claims that context path</b>
+      <p>Every collected instance was checked. The reasons are listed below, so it is clear this was answered rather than skipped.</p>
+    </div>
+  </div>
   {{end}}
 
-  {{if .Undetermined}}
-  <div class="bx dash col">
-    <span class="lbl">branches nagipath will not guess at</span>
-    <ul class="rules">
-      {{range .Undetermined}}<li><code class="mono">{{.Raw}}</code> — {{.Reason}}</li>{{end}}
-    </ul>
-  </div>
+  {{if .Silent}}
+  <details class="pnl" style="margin-top:10px">
+    <summary style="cursor:pointer;padding:8px 0;font:600 12px var(--font-sans);color:var(--color-ink)">
+      {{len .Silent}} instance{{if ne (len .Silent) 1}}s{{end}} with no candidates
+    </summary>
+    <table class="t" style="margin-top:8px">
+      <tr><th style="width:12rem">Instance</th><th style="width:6rem">Vendor</th><th>Reason</th></tr>
+      {{range .Silent}}
+      <tr>
+        <td><a href="/instances/{{.Inst.ID}}">{{.Inst.DisplayName}}</a></td>
+        <td class="m">{{.Inst.Vendor}}</td>
+        <td>{{or .Reason "no rules matched"}}</td>
+      </tr>
+      {{end}}
+    </table>
+  </details>
   {{end}}
-</details>
-{{end}}
+</div>
 
-{{if not .Answered}}
-<div class="bx col">
-  <span class="lbl">no instance claims that context path</span>
-  <p class="note">Every collected instance was checked. The reasons are listed below, so it
-  is clear this was answered rather than skipped.</p>
-</div>
 {{end}}
-
-{{if .Silent}}
-{{/* Collapsed, not hidden: an operator has to be able to see that an instance was
-     considered, or they will wonder whether it was. */}}
-<details class="bx dash">
-  <summary>{{len .Silent}} instance{{if ne (len .Silent) 1}}s{{end}} with no candidates</summary>
-  <table>
-  {{template "cols" cols "instance:12rem" "vendor:6rem" "reason"}}
-    {{range .Silent}}
-    <tr><td><a href="/instances/{{.Inst.ID}}">{{.Inst.DisplayName}}</a></td>
-      <td class="mono tiny">{{.Inst.Vendor}}</td>
-      <td class="small">{{or .Reason "no rules matched"}}</td></tr>
-    {{end}}
-  </table>
-</details>
-{{end}}
-{{end}}
-</div>
-</div>
-{{end}}
-</div>
+{{template "bd-end"}}
 {{end}}
 {{template "foot" .}}

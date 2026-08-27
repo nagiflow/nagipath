@@ -10,11 +10,12 @@
 | Route | Section | Role |
 |---|---|---|
 | `/settings/credentials` | Credentials | admin |
-| `/settings/host-keys` | Host keys | admin |
-| `/settings/collection` | Collection schedule | admin |
+| `/settings/hostkeys` | Host keys | admin |
+| `/settings/collection-defaults` | Collection defaults | admin |
+| `/collections` | Collection jobs | admin |
 | `/settings/retention` | Retention and storage | admin |
 | `/settings/users` | Users | admin |
-| `/settings/tokens` | API tokens | admin (own tokens) |
+| `/settings/api-keys` | API tokens | admin (own tokens) |
 | `/settings/audit` | Audit log | **both roles** |
 | `/settings/license` | Licence | admin to change, both to view |
 | `/settings/system` | System and diagnostics | admin |

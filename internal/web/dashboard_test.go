@@ -10,37 +10,43 @@ import (
 // The activity strip is arithmetic on timestamps, and off-by-one bucketing is
 // invisible on screen: a bar in the wrong place still looks like a bar.
 func TestActivityBuckets(t *testing.T) {
-	now := time.Now().UTC().Truncate(time.Hour)
+	// Mid-hour on purpose: the buckets are hour-aligned, so a run "30 minutes ago"
+	// only shares a bucket with now when now is past the half hour. Pinning the
+	// clock is what makes that assertion mean something instead of flaking.
+	now := time.Date(2026, 8, 24, 14, 40, 0, 0, time.UTC)
 	at := func(d time.Duration, status string) store.Collection {
 		return store.Collection{StartedAt: now.Add(d).Format("2006-01-02T15:04:05Z"), Status: status}
 	}
 
-	got, max := activity([]store.Collection{
-		at(-23*time.Hour, "succeeded"),   // oldest of the eight three-hour buckets
+	got, max := activity(now, []store.Collection{
+		// 15:30 yesterday: the window is [15:00 yesterday, 15:00 today), so a flat
+		// -23h from 14:40 would fall just outside it rather than in the first bucket.
+		at(-23*time.Hour-10*time.Minute, "succeeded"),
 		at(-30*time.Minute, "failed"),    // newest bucket
 		at(-10*time.Minute, "succeeded"), // newest bucket
-		at(-40*time.Hour, "succeeded"),   // outside the window
+		at(-5*time.Minute, "degraded"),   // newest bucket, degraded
+		at(-30*time.Hour, "succeeded"),   // outside the window
 		{StartedAt: "not a timestamp"},   // unparseable, must not panic or count
 	})
 
-	if len(got) != 8 {
-		t.Fatalf("buckets = %d, want 8", len(got))
+	if len(got) != 24 {
+		t.Fatalf("buckets = %d, want 24", len(got))
 	}
 	if got[0].Total != 1 {
 		t.Errorf("oldest bucket total = %d, want 1", got[0].Total)
 	}
-	if got[7].Total != 2 || got[7].Failed != 1 {
-		t.Errorf("newest bucket = %d total / %d failed, want 2/1", got[7].Total, got[7].Failed)
+	if got[23].Total != 3 || got[23].Failed != 1 || got[23].Degraded != 1 {
+		t.Errorf("newest bucket = %d total / %d failed / %d degraded, want 3/1/1", got[23].Total, got[23].Failed, got[23].Degraded)
 	}
-	if max != 2 {
-		t.Errorf("max = %d, want 2", max)
+	if max != 3 {
+		t.Errorf("max = %d, want 3", max)
 	}
 	var sum int
 	for _, b := range got {
 		sum += b.Total
 	}
-	if sum != 3 {
-		t.Errorf("counted %d collections, want 3 — the 40h-old row and the bad timestamp must be dropped", sum)
+	if sum != 4 {
+		t.Errorf("counted %d collections, want 4 — the 30h-old row and the bad timestamp must be dropped", sum)
 	}
 }
 

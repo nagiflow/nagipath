@@ -47,6 +47,11 @@ cd testlab
 docker compose up -d --build
 ```
 
+The `nagipath` container bind-mounts the repository and runs Air, so Go,
+template, migration and static-source changes rebuild and restart only the
+control plane. The fixture nodes and their persisted host keys remain running;
+follow rebuild output with `docker compose logs -f nagipath`.
+
 Then open <http://127.0.0.1:8080>. Sign in as `admin`, password
 `nagipath-lab-admin` (it is in `keys/admin-password`; it is a lab).
 

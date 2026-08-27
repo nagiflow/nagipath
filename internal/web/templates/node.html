@@ -1,104 +1,394 @@
 {{template "head" .}}
 {{with .Data}}
-<div class="tb">
-  <a class="crumb" href="/nodes">Nodes /</a>
-  <h1>{{.Node.DisplayName}}</h1>
-  {{if ge .Node.ConsecutiveFailures .Threshold}}<span class="badge c-disproved">QUARANTINED: {{.Node.ConsecutiveFailures}} consecutive failures (threshold {{.Threshold}})</span>
-  {{else if .Node.ConsecutiveFailures}}<span class="badge c-partial">{{.Node.ConsecutiveFailures}} FAILURES IN A ROW</span>{{end}}
-  <span class="spacer"></span>
-  {{if $.User.IsAdmin}}
-  <form method="post" action="/nodes/{{.Node.ID}}/collect">
-    {{template "csrf" $.CSRF}}
-    <button type="submit">Collect now</button>
+<div class="ptitle">
+  <h1 class="h1">{{.Node.DisplayName}}</h1>
+  {{/* Reachability comes before anything parsed from the node: a quarantined node's
+       panels are all describing the last snapshot before collection stopped. */}}
+  {{if quarantined .Node.ConsecutiveFailures .Threshold}}
+    <span class="bdg err" title="{{.Node.ConsecutiveFailures}} consecutive failures (threshold {{.Threshold}}); collection is suspended until a run succeeds">QUARANTINED</span>
+  {{else if gt .Node.ConsecutiveFailures 0}}
+    <span class="bdg deg" title="{{.Node.ConsecutiveFailures}} consecutive failures (quarantined at {{.Threshold}})">{{.Node.ConsecutiveFailures}} FAILED</span>
+  {{end}}
+  {{if .Selected}}
+    {{template "confidence" .Selected.ParseState}}
+    <span class="m mu">{{.Selected.Vendor}} {{.Selected.Version}}{{if .Snapshot.CapturedAt}} · collected {{clock .Snapshot.CapturedAt}}{{end}}</span>
+  {{end}}
+  <div class="flex-1"></div>
+  {{/* Process picker: appears only when node runs >1 process */}}
+  {{if gt (len .Instances) 1}}
+  <form method="get" style="display:inline;display:flex;gap:4px;align-items:center">
+    <select class="sel" name="process">
+      {{range .Instances}}<option value="{{.ID}}"{{if and $.Data.Selected (eq .ID $.Data.Selected.ID)}} selected{{end}}>{{.DisplayName}}</option>{{end}}
+    </select>
+    <button class="btn sm" type="submit">Switch</button>
   </form>
-  <form method="post" action="/nodes/{{.Node.ID}}/delete"
-        onsubmit="return confirm('Remove {{.Node.DisplayName}} and everything collected from it? This cannot be undone.')">
+  {{else if .Selected}}
+    <span class="m mu">{{.Selected.DisplayName}}</span>
+  {{end}}
+  {{if $.User.IsAdmin}}
+  <form method="post" action="/nodes/{{.Node.ID}}/collect" style="display:inline">
     {{template "csrf" $.CSRF}}
-    <button type="submit" class="danger">Remove node</button>
+    <button class="btn sm" type="submit">Collect now</button>
   </form>
   {{end}}
-{{template "body"}}
+</div>
+
+{{if .Tabs}}{{template "tabs" .Tabs}}{{end}}
 
 {{if .Running}}
-{{/* ponytail: a meta refresh is the whole progress indicator. Swap for SSE if
-     operators start watching long collections closely. */}}
-<meta http-equiv="refresh" content="3">
-<p class="flash warn">A collection is running; this page refreshes every 3 seconds.</p>
+<div class="banner" hx-get="/nodes/{{.Node.ID}}" hx-trigger="every 3s"
+     hx-select="main.main" hx-target="closest main" hx-swap="outerHTML">
+  A collection is running; this page refreshes itself until it finishes.
+</div>
 {{end}}
 
-<div class="row">
-  <div class="bx col" style="flex:0 0 20rem">
-    <span class="lbl">identity</span>
-    <dl class="facts">
-      <dt>address</dt><dd class="mono small">{{.Node.Address}}:{{.Node.SSHPort}}</dd>
-      <dt>ssh user</dt><dd>{{if .Node.SSHUsername.Valid}}{{.Node.SSHUsername.String}}{{else}}—{{end}}</dd>
-      <dt>os family</dt><dd>{{or .Node.OSFamily "unknown"}}</dd>
-      <dt>sudo</dt><dd>{{if .Node.SudoAvailable}}available{{else}}not available{{end}}</dd>
-      <dt>source</dt><dd>{{.Node.Source}}</dd>
-    </dl>
+{{if eq .Tab ""}}
+{{/* ================================================================ OVERVIEW TAB */}}
+<div class="bd flex-row">
+  <div class="col" style="flex:0 0 300px">
+    <div class="pnl" style="padding:10px 12px">
+      <div class="lbl" style="margin-bottom:6px">Identity</div>
+      <div class="kv m">
+        <span class="mus">addresses</span><span>{{.Node.Address}}:{{.Node.SSHPort}}</span>
+        <span class="mus">os</span><span>{{or .Node.OSFamily "unknown"}}</span>
+        <span class="mus">ssh user</span><span>{{if .Node.SSHUsername.Valid}}{{.Node.SSHUsername.String}}{{else}}<span class="mus">—</span>{{end}}</span>
+        {{if .Selected}}<span class="mus">cluster</span><span>{{if .Selected.ClusterName}}{{.Selected.ClusterName}}{{else}}<span class="mus">—</span>{{end}}</span>{{end}}
+        <span class="mus">credential</span><span>{{if .CredentialName}}{{.CredentialName}}{{else}}<span class="mus">none assigned</span>{{end}}</span>
+        {{/* The approved key, not whichever row came back first: a node with a
+             pending second key would otherwise show the one nobody trusts. */}}
+        <span class="mus">host key</span><span>
+          {{$fp := ""}}{{range .HostKeys}}{{if and (eq .State "approved") (eq $fp "")}}{{$fp = .Fingerprint}}{{end}}{{end}}
+          {{if $fp}}<span class="keyfp">{{$fp}}</span>{{else if .HostKeys}}<span class="bdg deg">PENDING</span>{{else}}<span class="mus">not seen yet</span>{{end}}
+        </span>
+      </div>
+    </div>
+
+    {{if .Snapshot.CapturedAt}}
+    <div class="pnl" style="padding:10px 12px">
+      <div class="lbl" style="margin-bottom:6px">Current snapshot</div>
+      <div class="kv m">
+        <span class="mus">captured</span><span>{{clock .Snapshot.CapturedAt}}</span>
+        <span class="mus">source</span><span>{{label .Snapshot.ConfigSource}}</span>
+        {{if .Snapshot.FileCount}}<span class="mus">files parsed</span><span>{{.Snapshot.FileCount}} · {{bytes .Snapshot.BytesRaw}}</span>{{end}}
+      </div>
+    </div>
+    {{end}}
   </div>
 
-  <div class="bx col" style="flex:1">
-    <div class="row center"><span class="lbl">ssh host keys</span><span class="spacer"></span>
-      {{if .HostKeys}}<span class="small dim">compare against the host before approving</span>{{end}}</div>
-    {{if .HostKeys}}
-    <table>
-  {{template "cols" cols "Algorithm" "Fingerprint" "State" "First seen" ""}}
-      {{range .HostKeys}}
-      <tr class="{{if eq .State "pending"}}row-warn{{end}}">
-        <td class="mono small">{{.Algorithm}}</td>
-        <td class="mono small">{{.Fingerprint}}</td>
-        <td>{{.State}}</td>
-        <td class="mono small">{{.FirstSeenAt}}</td>
-        <td>
-          {{if and (eq .State "pending") $.User.IsAdmin}}
-          <form method="post" action="/hostkeys/{{.ID}}/decide" class="inline">
-            {{template "csrf" $.CSRF}}
-            <input type="hidden" name="back" value="/nodes/{{.NodeID}}">
-            <button name="decision" value="approve" type="submit">Approve</button>
-            <button name="decision" value="reject" type="submit" class="danger">Reject</button>
-          </form>
+  <div class="col" style="flex:1">
+    {{if .Selected}}
+    <div class="row" style="flex:none">
+      <div class="stat"><span class="lbl">Sites</span><span class="num">{{.Stats.Sites}}</span></div>
+      <div class="stat"><span class="lbl">Routes</span><span class="num">{{.Stats.Routes}}</span></div>
+      <div class="stat"><span class="lbl">Upstreams</span><span class="num">{{.Stats.Upstreams}}</span></div>
+      <div class="stat"><span class="lbl">Cert bindings</span><span class="num">{{.Stats.CertCount}}</span></div>
+      <div class="stat"><span class="lbl">Drift</span><span class="num">{{.Stats.DriftCount}}</span></div>
+    </div>
+
+    {{if .Inst}}{{if .Inst.Sites}}
+    <div class="pnl z" style="flex:1">
+      <div class="phd"><span class="ph2">Sites on this node</span><div class="flex-1"></div>{{if gt (len .Inst.Sites) 10}}<span class="m mus">first 10 of {{len .Inst.Sites}} — <a href="/nodes/{{.Node.ID}}/sites?process={{.Selected.ID}}">see all</a></span>{{end}}</div>
+      {{/* No State column: nothing computes a per-site state, and a column of
+           hard-coded OK badges is worse than no column. */}}
+      <table class="t">
+        {{template "cols" cols "Hostname" "Listener:110px" "Routes:70px" "Upstreams:80px"}}
+        {{range $i, $site := .Inst.Sites}}{{if lt $i 10}}
+        <tr{{if eq (mod $i 2) 1}} class="zz"{{end}}>
+          <td class="m" style="font-weight:500"><a href="/sites/{{$site.PrimaryName}}">{{or $site.PrimaryName "_"}}</a></td>
+          <td class="m mu">{{ports $.Data.Inst $site}}</td>
+          <td class="m">{{len $site.Routes}}</td>
+          <td class="m">{{with upcount $site}}{{.}}{{else}}<span class="mus">—</span>{{end}}</td>
+        </tr>
+        {{end}}{{end}}
+      </table>
+    </div>
+    {{end}}{{end}}
+    {{end}}
+  </div>
+</div>
+
+{{else if eq .Tab "sites"}}
+{{/* ================================================================ SITES TAB */}}
+{{template "bd"}}
+<div class="pnl z" style="flex:1">
+  <div class="phd"><span class="ph2">Sites</span>{{if .Inst}}<span class="m mus">{{len .Inst.Sites}} total</span>{{end}}</div>
+  {{if .Inst}}{{if .Inst.Sites}}
+  <table class="t">
+    {{template "cols" cols "server_name" "kind:110px" "listener:120px" "routes:64px" "defined in:240px"}}
+    {{range $i, $site := .Inst.Sites}}
+    <tr{{if eq (mod $i 2) 1}} class="zz"{{end}}>
+      <td class="m">{{or $site.PrimaryName "_"}}{{if gt (len $site.Names) 1}}<span class="mus"> · +{{sub (len $site.Names) 1}} aliases</span>{{end}}</td>
+      <td class="m mu">{{sitekind $site.Kind}}</td>
+      <td class="m mu">{{ports $.Data.Inst $site}}</td>
+      <td class="m">{{len $site.Routes}}</td>
+      <td class="m mu">{{with prov1 $site.Rules}}{{template "prov" .}}{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  {{template "empty" "No sites in this snapshot"}}{{template "empty-end"}}
+  {{end}}{{else}}
+  {{template "empty" "No parsed configuration available"}}{{template "empty-end"}}
+  {{end}}
+</div>
+{{template "bd-end"}}
+
+{{else if eq .Tab "routes"}}
+{{/* ================================================================ ROUTES TAB */}}
+<div class="bd flex-row">
+  <div class="col" style="flex:1">
+    <div class="pnl z" style="flex:1">
+      <div class="phd"><span class="ph2">Routes</span>{{if .SelectedSiteName}}<span class="m mus">{{.SelectedSiteName}}</span>{{end}}</div>
+      {{if .Inst}}{{if .Inst.Sites}}
+        {{$selectedSite := .SelectedSiteName}}
+        {{if $selectedSite}}
+          {{/* Show routes for selected site only */}}
+          {{range $site := .Inst.Sites}}
+            {{if eq $site.PrimaryName $selectedSite}}
+            <table class="t">
+              {{template "cols" cols "Match" "Action" "Defined in:200px"}}
+              {{range $route := $site.Routes}}
+              <tr{{if and $.Data.SelectedRoute (eq $.Data.SelectedRoute.ID $route.ID)}} class="hl"{{end}}>
+                <td class="m" title="{{routekind $route.MatchType}} {{$route.Pattern}}">
+                  <a href="?process={{$.Data.Selected.ID}}&amp;site={{$site.PrimaryName | urlquery}}&amp;route={{$route.Pattern | urlquery}}">{{routekind $route.MatchType}} {{$route.Pattern}}</a>
+                </td>
+                <td class="m mu" title="{{target $.Data.Inst $route}}">{{target $.Data.Inst $route}}</td>
+                <td class="m mu">{{with prov1 $route.Rules}}{{template "prov" .}}{{end}}</td>
+              </tr>
+              {{end}}
+            </table>
+            {{end}}
           {{end}}
-        </td>
+        {{else}}
+          {{/* Site selection list */}}
+          <div style="padding:10px 12px">
+            <div class="lbl" style="margin-bottom:6px">Select a site to view its routes</div>
+            {{range $site := .Inst.Sites}}{{if gt (len $site.Routes) 0}}
+            <a class="fct" href="?process={{$.Data.Selected.ID}}&amp;site={{$site.PrimaryName | urlquery}}">
+              <span class="m">{{or $site.PrimaryName "_"}}</span>
+              <span class="c">{{len $site.Routes}} routes</span>
+            </a>
+            {{end}}{{end}}
+          </div>
+        {{end}}
+      {{else}}
+        {{template "empty" "No routes in this snapshot"}}{{template "empty-end"}}
+      {{end}}{{else}}
+        {{template "empty" "No parsed configuration available"}}{{template "empty-end"}}
+      {{end}}
+    </div>
+  </div>
+
+  {{if .RouteEffect}}
+  <div class="col" style="flex:0 0 360px">
+    <div class="pnl z">
+      <div class="phd"><span class="ph2">Effect</span><span class="m mus">{{.SelectedRoute.Pattern}}</span></div>
+      <div style="padding:10px 12px;display:flex;flex-direction:column;gap:10px">
+        {{if .RouteEffect.UpstreamName}}
+        <div>
+          <div class="lbl" style="margin-bottom:4px">Goes to</div>
+          <div class="m" style="font-weight:500">{{.RouteEffect.UpstreamName}}</div>
+          <div class="m mu">{{.RouteEffect.MemberCount}} members · {{.RouteEffect.BalanceMethod}}</div>
+        </div>
+        {{if .RouteEffect.Members}}
+        <div>
+          <div class="lbl" style="margin-bottom:4px">Members</div>
+          {{range .RouteEffect.Members}}
+          <div class="fct">
+            <span class="m">{{.Host}}{{if .Port}}:{{.Port}}{{end}}</span>
+            {{if .Flags}}<span class="c">{{.Flags}}</span>{{end}}
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+        {{else}}
+        <div class="m mus">This route does not forward to an upstream</div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+  {{end}}
+</div>
+
+{{else if eq .Tab "upstreams"}}
+{{/* ================================================================ UPSTREAMS TAB */}}
+<div class="bd flex-row">
+  <div class="col" style="flex:1">
+    <div class="pnl z" style="flex:1">
+      <div class="phd"><span class="ph2">Pools</span><div class="flex-1"></div></div>
+      {{if .Upstreams}}
+      <table class="t">
+        {{template "cols" cols "Pool:150px" "Members:70px" "Balance:110px" "Used by" "Resolution:145px" "State:110px"}}
+        {{range .Upstreams}}
+        <tr{{if and $.Data.SelectedPool (eq .ID $.Data.SelectedPool.ID)}} class="hl"{{end}}>
+          <td class="m" style="font-weight:500"><a href="?process={{$.Data.Selected.ID}}&amp;pool={{.ID}}">{{.Name}}</a></td>
+          <td class="m">{{.MemberCount}}</td>
+          <td class="m mu">{{or .BalanceMethod "round robin"}}</td>
+          <td class="m mu">{{.UsedBy}}</td>
+          <td class="m mu">{{.Resolution}}</td>
+          <td>{{if eq .State "RESOLVED"}}<span class="bdg ok">{{.State}}</span>{{else if eq .State "EXTERNAL"}}<span class="bdg ext">{{.State}}</span>{{else}}<span class="bdg deg">{{.State}}</span>{{end}}</td>
+        </tr>
+        {{end}}
+      </table>
+      {{else}}
+      {{template "empty" "No upstreams in this snapshot"}}{{template "empty-end"}}
+      {{end}}
+    </div>
+  </div>
+
+  {{if .SelectedPool}}
+  <div class="col" style="flex:0 0 360px">
+    <div class="pnl z">
+      <div class="phd"><span class="ph2">{{.SelectedPool.Name}}</span><span class="m mus">{{.SelectedPool.MemberCount}} members</span></div>
+      {{if .PoolMembers}}
+      <table class="t">
+        {{template "cols" cols "Member" "Weight:56px" "Role:70px" "Maps to:112px"}}
+        {{range .PoolMembers}}
+        <tr>
+          <td class="m">{{.Host}}{{if .Port}}:{{.Port}}{{end}}</td>
+          {{/* The config did not name a weight, so neither do we: a 1 here would be
+               nagipath's guess at the balancer's default presented as the file's word. */}}
+          <td class="m">{{if .Weight}}{{.Weight}}{{else}}<span class="mus">default</span>{{end}}</td>
+          <td class="m mu">{{.Role}}</td>
+          <td class="m mu">{{if .NodeID.Valid}}{{.NodeName.String}}{{else}}—{{end}}</td>
+        </tr>
+        {{end}}
+      </table>
+      {{end}}
+    </div>
+  </div>
+  {{end}}
+</div>
+
+{{else if eq .Tab "certificates"}}
+{{/* ================================================================ CERTIFICATES TAB */}}
+{{template "bd"}}
+<div class="pnl z" style="flex:1">
+  <div class="phd"><span class="ph2">Certificate bindings on this node</span></div>
+  {{if .Certificates}}
+  <table class="t">
+    {{template "cols" cols "Subject" "Bound to:170px" "Expires:100px" "Key:96px" "Chain:80px" "State:100px"}}
+    {{range .Certificates}}
+    <tr>
+      <td class="m" style="font-weight:500">{{.SubjectCN}}</td>
+      <td class="m mu">{{.SiteName}}{{if .Port}}:{{.Port}}{{end}}</td>
+      <td class="m mu" title="{{.NotAfter}}">{{date .NotAfter}}</td>
+      <td class="m mu">{{if .KeyType}}{{.KeyType}}{{else}}—{{end}}</td>
+      <td class="m mu">{{if gt .ChainLength 0}}{{.ChainLength}} interm.{{else}}self-signed{{end}}</td>
+      <td>{{with expiry .NotAfter}}{{if eq . "OK"}}<span class="bdg ok">OK</span>{{else}}<span class="bdg deg">{{.}}</span>{{end}}{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  {{template "empty" "No certificates in this snapshot"}}{{template "empty-end"}}
+  {{end}}
+</div>
+{{template "bd-end"}}
+
+{{else if eq .Tab "files"}}
+{{/* ================================================================ CONFIG FILES TAB */}}
+<div class="bd flex-row">
+  <div class="col" style="flex:0 0 300px">
+    <div class="pnl z" style="flex:1">
+      <div class="phd"><span class="ph2">{{len .Files}} files</span>{{if .Snapshot.BytesRaw}}<span class="m mus">{{bytes .Snapshot.BytesRaw}}</span>{{end}}</div>
+      {{if .Files}}
+      <div style="padding:7px 10px;overflow:auto;display:flex;flex-direction:column;gap:1px" class="m">
+        {{range .Files}}
+        <a class="fct{{if and $.Data.SelectedFile (eq $.Data.SelectedFile.ID .ID)}} on{{end}}" href="?process={{$.Data.Selected.ID}}&amp;file={{.ID}}">
+          <span>{{.Path}}</span>
+          <span class="c">{{bytes .BytesRaw}}</span>
+        </a>
+        {{end}}
+      </div>
+      {{else}}
+      <div style="padding:12px"><span class="m mus">No files in this snapshot</span></div>
+      {{end}}
+    </div>
+  </div>
+
+  <div class="col" style="flex:1">
+    {{if .SelectedFile}}
+    <div class="pnl z" style="flex:1">
+      <div class="phd"><span class="ph2">{{.SelectedFile.Path}}</span><div class="flex-1"></div><span class="m mus">{{bytes .SelectedFile.BytesRaw}}</span></div>
+      {{if .FileBody}}
+      <div style="padding:10px 12px;overflow:auto;flex:1">
+        <div class="code">
+          {{$lineNum := 1}}
+          {{$highlightStart := .LineStart}}
+          {{range $line := split .FileBody "\n"}}
+          <div class="cl{{if eq $lineNum $highlightStart}} on{{end}}" id="{{if eq $lineNum $highlightStart}}hl{{end}}">
+            <span class="no">{{$lineNum}}</span>
+            <span>{{$line}}</span>
+          </div>
+          {{$lineNum = add $lineNum 1}}
+          {{end}}
+        </div>
+      </div>
+      {{else}}
+      <div style="padding:12px"><span class="m mus">File is empty or could not be read</span></div>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="pnl" style="flex:1;display:flex;align-items:center;justify-content:center">
+      {{template "empty" "Select a file to view"}}
+        <p>Click a file in the list to view its contents with line numbers.</p>
+      {{template "empty-end"}}
+    </div>
+    {{end}}
+  </div>
+</div>
+
+{{else if eq .Tab "drift"}}
+{{/* ================================================================ DRIFT TAB */}}
+{{template "bd"}}
+{{if .HasDrift}}
+<div class="row" style="flex:none">
+  <div class="stat"><span class="lbl">Total findings</span><span class="num">{{len .DriftFindings}}</span><span class="m mus">across {{len .DriftRuns}} runs</span></div>
+  {{range $kind, $count := .DriftByObject}}
+  <div class="stat"><span class="lbl">{{$kind}}</span><span class="num">{{$count}}</span></div>
+  {{end}}
+</div>
+{{end}}
+
+<div class="pnl z" style="flex:1">
+  <div class="phd"><span class="ph2">Drift findings</span>{{if .Selected}}<span class="m mus">{{.Selected.DisplayName}}</span>{{end}}</div>
+  {{if .DriftRuns}}
+    {{if .HasDrift}}
+    <table class="t">
+      {{template "cols" cols "Object" "Field" "Change" "Baseline:80px" "Run:120px"}}
+      {{range .DriftFindings}}
+      {{if not .IgnoredBy.Valid}}
+      <tr>
+        <td class="m">{{.ObjectKind}}</td>
+        <td class="m mu">{{.Field}}</td>
+        <td class="m">{{.Change}}</td>
+        <td class="m mus">{{.BaselineText}}</td>
+        <td class="m mu">{{ts .SubjectText}}</td>
       </tr>
       {{end}}
+      {{end}}
     </table>
+    <div class="pft">
+      <a class="btn p sm" href="/drift/review/{{.Selected.ID}}">Full drift review →</a>
+    </div>
     {{else}}
-    <p class="note">No host key seen yet. The first collection attempt records it as pending
-    and stops; approve it here, then collect again. Until a key is approved, nagipath runs
-    no command on this node.</p>
+    {{template "empty" "No drift findings"}}
+      <p>This instance matches its baseline. {{if gt (len .DriftRuns) 0}}Last compared {{ts (index .DriftRuns 0).ComputedAt}}.{{end}}</p>
+    {{template "empty-end"}}
     {{end}}
-  </div>
+  {{else if .NoDriftReason}}
+    {{template "empty" "No drift analysis available"}}
+      <p>{{.NoDriftReason}}</p>
+    {{template "empty-end"}}
+  {{else}}
+    {{template "empty" "No drift analysis available"}}
+      <p>Drift detection requires cluster membership or a previous snapshot to compare against.</p>
+    {{template "empty-end"}}
+  {{end}}
 </div>
+{{template "bd-end"}}
 
-<div class="bx col">
-  <span class="lbl">instances on this node</span>
-  {{if .Instances}}
-  <table>
-  {{template "cols" cols "Instance" "Vendor" "Version" "Main config" "Managed by"}}
-    {{range .Instances}}
-    <tr><td><a href="/instances/{{.ID}}">{{.DisplayName}}</a></td><td>{{.Vendor}}</td>
-        <td class="mono small">{{.Version}}</td><td class="mono small">{{.MainConfigPath}}</td>
-        <td>{{.ServiceManager}}</td></tr>
-    {{end}}
-  </table>
-  {{else}}<p class="note">Nothing discovered on this node yet.</p>{{end}}
-</div>
-
-<div class="bx col">
-  <span class="lbl">collections</span>
-  {{if .Collections}}
-  <table>
-  {{template "cols" cols "Started" "Trigger" "Status" "Instances" "Stored" "Error"}}
-    {{range .Collections}}
-    <tr><td class="mono small">{{.StartedAt}}</td><td>{{.Trigger}}</td>
-        <td class="s-{{.Status}}">{{.Status}}</td>
-        <td>{{.InstancesSeen}}</td><td>{{bytes .BytesStored}}</td>
-        <td class="mono small">{{.Error}}</td></tr>
-    {{end}}
-  </table>
-  {{else}}<p class="note">Never collected.</p>{{end}}
-</div>
 {{end}}
-</div>
+
+{{end}}
 {{template "foot" .}}

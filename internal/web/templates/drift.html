@@ -1,235 +1,118 @@
 {{template "head" .}}
 {{with .Data}}
-<div class="tb">
-  <h1>Drift</h1>
-  <form method="get" action="/drift" class="trace-form">
-    <select name="cluster" aria-label="cluster">
-      {{range .Clusters}}
-      <option value="{{.ID}}" {{if eq .ID $.Data.ClusterID}}selected{{end}}>{{.Name}} ({{.Members}})</option>
-      {{end}}
-    </select>
-    <label class="tiny">baseline
-      <select name="baseline">
-        <option value="">all baselines</option>
-        {{range .Baselines}}
-        <option value="{{.Kind}}" {{if eq .Kind $.Data.Baseline}}selected{{end}}>{{.Label}}</option>
-        {{end}}
-      </select>
-    </label>
-    <label class="tiny">group by
-      <select name="group">
-        <option value="object" {{if eq .GroupBy "object"}}selected{{end}}>object</option>
-        <option value="instance" {{if eq .GroupBy "instance"}}selected{{end}}>instance</option>
-      </select>
-    </label>
-    <button type="submit">Show</button>
-  </form>
-  <span class="spacer"></span>
-  <a class="button" href="#ignored">Ignore list</a>
+{{template "ptitle" toolbar "Drift" ""}}
+  {{if not .AllScope}}<a class="btn s sm" href="#ignored">Ignore rules · {{len .Ignores}}</a>{{end}}
   {{if $.User.IsAdmin}}
-  <form method="post" action="/drift/recompute" class="inline">
+  <form method="post" action="/drift/recompute" style="display:inline">
     {{template "csrf" $.CSRF}}
-    <input type="hidden" name="cluster" value="{{.ClusterID}}">
+    <input type="hidden" name="cluster" value="{{.Scope}}">
     <input type="hidden" name="baseline" value="{{.Baseline}}">
-    <button type="submit">Re-diff</button>
+    <button class="btn p sm" type="submit">Re-diff {{if .AllScope}}every instance{{else}}cluster{{end}}</button>
   </form>
   {{end}}
-{{template "body"}}
+{{template "ptitle-end"}}
 
-{{if .Empty}}
-{{template "empty" "Nothing is collected yet"}}
-  <p>Drift compares parsed configuration between instances, and there is none.
-  <a href="/onboarding">Connect the fleet</a> first.</p>
-{{template "empty-end"}}
-{{else if not .Clusters}}
-{{template "empty" "No clusters yet"}}
-  <p>A cluster forms when two instances hold identical configuration; nothing collected
-  so far does. Until then each instance is compared against its own previous snapshot.
-  <a href="/fleet">See the fleet</a>.</p>
-{{template "empty-end"}}
-{{else}}
-
-<div class="split" style="--l:200px">
-
-<div class="col">
-  <div class="bx col">
-    <span class="lbl">{{or .Cluster.Name "cluster"}} · {{len .Members}} instance{{if ne (len .Members) 1}}s{{end}}</span>
-    {{if $.User.IsAdmin}}<form method="post" action="/drift/golden">
-      {{template "csrf" $.CSRF}}
-      <input type="hidden" name="cluster" value="{{.ClusterID}}">{{end}}
-      {{range .Members}}
-      <label class="facet">
-        {{if $.User.IsAdmin}}<input type="radio" name="instance" value="{{.ID}}"
-          {{if and $.Data.Cluster.GoldenPeer.Valid (eq $.Data.Cluster.GoldenPeer.Int64 .ID)}}checked{{end}}>{{end}}
-        <a href="/instances/{{.ID}}">{{.DisplayName}}</a>
-        {{if and $.Data.Cluster.GoldenPeer.Valid (eq $.Data.Cluster.GoldenPeer.Int64 .ID)}}<span title="golden peer">★</span>{{end}}
-        <span class="spacer"></span>
-        {{$n := index $.Data.Counts .ID}}{{$ig := index $.Data.Ignored .ID}}
-        <span class="mono tiny {{if $n}}warn{{else}}dim{{end}}">{{$n}}{{if $ig}} · {{$ig}} ignored{{end}}</span>
-      </label>
+<div class="qbar">
+  <form method="get" action="/drift" style="display:contents">
+    <select class="sel" name="cluster" aria-label="scope">
+      {{range .Clusters}}
+      <option value="{{.ID}}" {{if and (not $.Data.AllScope) (eq .ID $.Data.ClusterID)}}selected{{end}}>{{.Name}} · {{plural .Members "instance"}}</option>
       {{end}}
-      {{if $.User.IsAdmin}}
-      <button type="submit">Set golden peer</button>
-    </form>{{end}}
-    <span class="cal">★ golden peer — operator-declared</span>
-  </div>
-
-  <div class="bx dash col" id="ignored">
-    <div class="row center">
-      <span class="lbl">ignored keys</span>
-      <span class="spacer"></span>
-      <span class="small dim">{{len .Ignores}}</span>
-    </div>
-    {{if .Ignores}}
-    <table>
-      {{range .Ignores}}
-      <tr>
-        <td><span class="mono tiny">{{.ObjectKind}}{{if .Field}}.{{.Field}}{{end}}</span><br>
-          <span class="mono tiny dim">{{.Pattern}}</span><br>
-          <span class="tiny">{{.Reason}}</span></td>
-        <td class="tiny dim">{{.Matched}}</td>
-        <td>{{if $.User.IsAdmin}}<form method="post" action="/drift/ignore/{{.ID}}/delete" class="inline">
-          {{template "csrf" $.CSRF}}
-          <input type="hidden" name="cluster" value="{{$.Data.ClusterID}}">
-          <button type="submit" class="link" title="stop ignoring">✕</button>
-        </form>{{end}}</td>
-      </tr>
-      {{end}}
-    </table>
-    {{else}}
-    <p class="tiny dim">Nothing ignored. An ignored key needs a reason, and the findings it
-    matches stay visible as ignored rather than disappearing.</p>
-    {{end}}
-    {{if $.User.IsAdmin}}
-    <details>
-      <summary>Edit</summary>
-      <form method="post" action="/drift/ignore">
-        {{template "csrf" $.CSRF}}
-        <input type="hidden" name="cluster" value="{{.ClusterID}}">
-        <label>Object kind
-          <select name="object_kind">
-            <option value="">any</option>
-            {{range $k := (csv "listener,site,route,upstream,upstream_member,rule")}}<option value="{{$k}}">{{$k}}</option>{{end}}
-          </select>
-        </label>
-        <label>Field <input name="field" placeholder="text"></label>
-        <label>Pattern <input name="pattern" placeholder="{{"{{node_hostname}}"}}" required></label>
-        <label>Reason (required) <input name="reason" placeholder="per-host name, expected to differ" required></label>
-        <button type="submit">Ignore</button>
-      </form>
-    </details>
-    {{end}}
-  </div>
+      <option value="all" {{if .AllScope}}selected{{end}}>Every instance · vs previous snapshot</option>
+    </select>
+    <select class="sel" name="scope" aria-label="object kind filter">
+      <option value="">Scope: all objects</option>
+      <option value="route" {{if eq .ScopeFilter "route"}}selected{{end}}>Scope: routes</option>
+      <option value="upstream" {{if eq .ScopeFilter "upstream"}}selected{{end}}>Scope: upstreams</option>
+      <option value="site" {{if eq .ScopeFilter "site"}}selected{{end}}>Scope: sites</option>
+      <option value="listener" {{if eq .ScopeFilter "listener"}}selected{{end}}>Scope: listeners</option>
+      <option value="rule" {{if eq .ScopeFilter "rule"}}selected{{end}}>Scope: rules</option>
+    </select>
+    <button class="btn p sm" type="submit">Filter</button>
+    <div class="flex-1"></div>
+    <span class="m mu">{{len .InstancesWithDrift}} of {{len .Members}} nodes differ{{if .Clusters}} · {{len .Clusters}} {{if eq (len .Clusters) 1}}cluster{{else}}clusters{{end}}{{end}}</span>
+  </form>
 </div>
 
-<div class="col">
-  <div class="row center">
-    <span class="lbl">divergences · {{.Objects}} object{{if ne .Objects 1}}s{{end}}</span>
-    <span class="spacer"></span>
-    <span class="small dim">group by: {{.GroupBy}}</span>
-  </div>
+{{template "bd"}}
+  {{if .Empty}}
+  {{template "empty" "Nothing is collected yet"}}
+    <p>Drift compares parsed configuration between instances, and there is none.
+    <a href="/onboarding">Connect the fleet</a> first.</p>
+  {{template "empty-end"}}
+  {{else}}
+
+  {{$stats := stats (stat (len .InstancesWithDrift) "nodes off baseline" "" (warnif (len .InstancesWithDrift)))
+                    (stat .TotalDivergentObjects "divergent objects" "" "")
+                    (stat .ClustersWithoutBaseline "no baseline set" "" (warnif .ClustersWithoutBaseline))}}
+  {{if $stats}}{{template "stats" $stats}}{{end}}
 
   {{if not .Runs}}
-  <div class="bx col">
-    <span class="lbl">nothing compared yet</span>
-    <p class="note">Re-diff compares every member of this cluster against its baseline:
+  <div class="pnl">
+    <span class="ph2">Nothing compared yet</span>
+    <p style="font-size:12.5px;color:var(--color-muted);margin-top:8px">Re-diff compares {{if .AllScope}}every instance{{else}}every member of this cluster{{end}} against its baseline:
     the golden peer if one is declared, otherwise the cluster majority, otherwise the
     instance's own previous snapshot. Both sides are always at the current parser version,
     so a parser change cannot look like drift.</p>
     {{if $.User.IsAdmin}}
-    <form method="post" action="/drift/recompute">
+    <form method="post" action="/drift/recompute" style="margin-top:8px">
       {{template "csrf" $.CSRF}}
-      <input type="hidden" name="cluster" value="{{.ClusterID}}">
-      <button type="submit">Re-diff now</button>
+      <input type="hidden" name="cluster" value="{{.Scope}}">
+      <button class="btn p" type="submit">Re-diff now</button>
     </form>
     {{end}}
   </div>
-  {{else if not .Groups}}
-  <div class="bx col">
-    <span class="lbl">no divergences</span>
-    <p class="note">Every member matches its baseline object for object. Compared
-    {{len .Runs}} instance{{if ne (len .Runs) 1}}s{{end}} at
-    {{with index .Runs 0}}{{.ComputedAt}} against the {{.BaselineLabel}}{{end}}.</p>
+  {{else if not .InstancesWithDrift}}
+  <div class="pnl">
+    <span class="ph2">No divergences</span>
+    <p style="font-size:12.5px;color:var(--color-muted);margin-top:8px">Every member matches its baseline object for object. Compared
+    {{len .Runs}} instance{{if ne (len .Runs) 1}}s{{end}}{{with index .Runs 0}} at
+    {{ts .ComputedAt}} against the {{.BaselineLabel}}{{end}}.</p>
   </div>
-  {{end}}
+  {{else}}
 
-  {{range .Groups}}
-  <div class="bx col">
-    <div class="row center">
-      <span class="badge t">divergence</span>
-      <b class="mono">{{.Kind}} {{.Key}}</b>
-      <span class="spacer"></span>
-      <span class="small dim">{{len .Instances}} of {{len $.Data.Members}} instances</span>
-    </div>
-
-    {{with index .Findings 0}}
-    <div class="sbs">
-      <div class="bx">
-        <span class="lbl">baseline</span>
-        <pre class="config">{{or .BaselineText "(absent)"}}</pre>
-      </div>
-      <div class="bx">
-        <span class="lbl">this instance — {{.InstanceName}}</span>
-        <pre class="config">{{or .SubjectText "(absent)"}}</pre>
-      </div>
-    </div>
-    {{end}}
-
-    <span class="cal">a divergence, not a violation — nagipath has no opinion which side is correct</span>
-
-    <table>
-  {{template "cols" cols "object" "kind:7rem" "instances:12rem" "first seen:9rem" ":4rem"}}
-      {{range .Findings}}
-      <tr class="{{if .IgnoredBy.Valid}}dim{{end}}">
-        <td><span class="mono">{{.NaturalKey}}</span>
-          {{if .Field}}<span class="tiny dim">· {{.Field}}</span>{{end}}
-          {{if .IgnoredBy.Valid}}<br><span class="tiny">ignored: {{.IgnoreReason}}</span>{{end}}
-          {{if .FileID.Valid}}<br><a class="mono tiny"
-            href="/snapshots/{{.SnapshotID.Int64}}/file/{{.FileID.Int64}}">provenance ↗</a>{{end}}</td>
-        <td><span class="badge">{{.Change}}</span> <span class="tiny mono dim">{{.ObjectKind}}</span></td>
-        <td class="small">{{.InstanceName}}</td>
-        <td class="mono tiny">{{index $.Data.RunAt .RunID}}</td>
-        <td>{{if and $.User.IsAdmin (not .IgnoredBy.Valid)}}
-          <details><summary title="ignore this key">✕</summary>
-            <form method="post" action="/drift/ignore">
-              {{template "csrf" $.CSRF}}
-              <input type="hidden" name="cluster" value="{{$.Data.ClusterID}}">
-              <input type="hidden" name="object_kind" value="{{.ObjectKind}}">
-              <input type="hidden" name="pattern" value="{{.NaturalKey}}">
-              <label class="tiny">Reason (required)
-                <input name="reason" required placeholder="why this difference is expected"></label>
-              <button type="submit">Ignore</button>
-            </form>
-          </details>
-        {{end}}</td>
-      </tr>
+  <div class="pnl z" style="flex:1">
+    <div class="phd"><span class="ph2">Nodes off baseline</span><div class="flex-1"></div><span class="m mus">{{len .InstancesWithDrift}} of {{len .Members}}</span></div>
+    <table class="t">
+      {{template "cols" cols "node" "divergences:7rem" "objects" "first seen:8rem" ":6rem"}}
+      {{range .ClusterGroups}}
+      <tr><td colspan="5" style="background:#f7f8fc;border-bottom:1px solid #d3dae6;padding:7px 12px">
+        <span class="m" style="font-weight:600">{{.ClusterName}}</span>
+        <span class="m mus">{{if .BaselineName}}baseline {{.BaselineName}} · {{end}}{{.NodesWithDrift}} of {{.TotalNodes}} nodes differ</span>
+      </td></tr>
+      {{range .Instances}}
+      <tr><td><a href="/instances/{{.ID}}">{{.DisplayName}}</a>
+          {{if .NodeDisplayName}}<br><span class="m mus">{{.NodeDisplayName}}</span>{{end}}</td>
+        <td class="m warn">{{.DivergenceCount}}</td>
+        <td class="m mu">{{.ObjectBreakdown}}</td>
+        <td class="m mu">{{clock .FirstSeen}}</td>
+        <td><a class="btn s sm" href="/drift/review/{{.ID}}">Review</a></td></tr>
+      {{end}}
       {{end}}
     </table>
   </div>
-  {{end}}
 
-  {{if .Runs}}
-  <div class="bx dash col">
-    <span class="lbl">what was compared</span>
-    <table>
-  {{template "cols" cols "instance" "baseline:11rem" "divergences:6rem" "ignored:6rem" "computed:11rem"}}
+  <div class="pnl z">
+    <div class="phd"><span class="ph2">What was compared</span></div>
+    <table class="t">
+      {{template "cols" cols "instance" "baseline:12rem" "divergences:6rem" "ignored:6rem" "computed:11rem"}}
       {{range .Runs}}
       <tr><td><a href="/instances/{{.InstanceID}}">{{.InstanceName}}</a>
-          {{if .IsGoldenPeer}}<span title="golden peer">★</span>{{end}}
-          <span class="tiny mono dim">{{.Vendor}}</span></td>
-        <td class="tiny">{{.BaselineLabel}}</td>
+          {{if .IsGoldenPeer}}<span class="bdg note" title="golden peer">GOLDEN</span>{{end}}
+          <span class="m mus">{{.NodeName}} · {{.Vendor}}</span></td>
+        <td class="m mu">{{.BaselineLabel}}</td>
         <td class="{{if .FindingCount}}warn{{end}}">{{.FindingCount}}</td>
-        <td class="dim">{{.IgnoredCount}}</td>
-        <td class="mono tiny">{{.ComputedAt}}</td></tr>
+        <td class="m mus">{{.IgnoredCount}}</td>
+        <td class="m mu">{{ts .ComputedAt}}</td></tr>
       {{end}}
     </table>
-    <p class="tiny dim">Both sides are always at parser v{{with index .Runs 0}}{{.ParserVersion}}{{end}}.
-    An instance whose snapshot predates that is refused rather than compared.</p>
+    <div class="pft">
+      <span class="m mus">Both sides are always at parser v{{with index .Runs 0}}{{.ParserVersion}}{{end}}.
+      An instance whose snapshot predates that is refused rather than compared.</span>
+    </div>
   </div>
   {{end}}
-</div>
-</div>
-{{end}}
-</div>
+  {{end}}
+{{template "bd-end"}}
 {{end}}
 {{template "foot" .}}

@@ -1,0 +1,36 @@
+# Development-only image. Production and the lab keep using their small,
+# compiled images; this one contains the reload and CSS build tools.
+# Tailwind's official Linux binary targets glibc. Use the Debian Go image here
+# instead of Alpine (whose compatibility layer can execute it but segfaults on
+# arm64); this is development-only and never ships to customers.
+FROM golang:1.26-bookworm
+
+ARG TARGETARCH
+ARG AIR_VERSION=v1.67.3
+ARG TAILWIND_VERSION=v4.3.3
+
+WORKDIR /workspace
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates curl git make && \
+    rm -rf /var/lib/apt/lists/* && \
+    go install github.com/air-verse/air@${AIR_VERSION} && \
+    case "${TARGETARCH}" in \
+      amd64) tailwind_arch=linux-x64 ;; \
+      arm64) tailwind_arch=linux-arm64 ;; \
+      *) echo "unsupported Docker architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
+    curl -fsSL -o /usr/local/bin/tailwindcss \
+      "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-${tailwind_arch}" && \
+    chmod +x /usr/local/bin/tailwindcss
+
+# Prime the dependency layer. The project source is bind-mounted by Compose.
+COPY go.mod go.sum ./
+RUN go mod download
+
+ENV PATH="/go/bin:${PATH}" \
+    TAILWIND=/usr/local/bin/tailwindcss \
+    NAGIPATH_DATA=/data \
+    NAGIPATH_LISTEN=0.0.0.0:8080
+
+EXPOSE 8080

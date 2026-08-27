@@ -111,7 +111,7 @@ func Save(ctx context.Context, db *store.DB, tr *Trace, entryPointID *int64) (in
 	return traceID, nil
 }
 
-// Recent lists stored Traces for the history view.
+// Summary is one stored Trace as the history lists reflect it.
 type Summary struct {
 	ID             int64
 	Scheme         string
@@ -124,11 +124,19 @@ type Summary struct {
 	TerminalReason string
 }
 
+// Recent lists the newest stored Trace per entry point, newest first. Per entry
+// point, because tracing the same URL twice is the normal thing to do — before a
+// change and after it — and a list that repeated it five times spent the whole
+// panel saying one thing. The older runs are not lost; they are simply not the
+// current answer for that URL.
 func Recent(ctx context.Context, db *store.DB, limit int) ([]Summary, error) {
 	rows, err := db.R.QueryContext(ctx, `SELECT id,
 		COALESCE(ad_hoc_scheme,''), COALESCE(ad_hoc_hostname,''), COALESCE(ad_hoc_path,''),
 		COALESCE(ad_hoc_port,0), computed_at, hop_count, confidence, terminal_reason
-		FROM trace ORDER BY id DESC LIMIT ?`, limit)
+		FROM trace WHERE id IN (
+			SELECT MAX(id) FROM trace
+			GROUP BY ad_hoc_scheme, ad_hoc_hostname, ad_hoc_port, ad_hoc_path)
+		ORDER BY id DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}

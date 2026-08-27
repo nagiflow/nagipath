@@ -1,0 +1,72 @@
+{{template "head" .}}
+{{template "ptitle" toolbar "API keys" ""}}
+{{template "ptitle-end"}}
+
+{{template "bd" "row"}}
+<div class="col" style="flex:0 0 210px">
+  {{template "sidelist" (settingsNav .Path $.User)}}
+</div>
+<div class="col" style="flex:1;min-width:0">
+  {{with .Data}}
+  {{if .CreatedToken}}
+  <div class="pnl" style="border-color:var(--color-ok-line);background:var(--color-ok-soft)">
+    <div class="lbl" style="color:var(--color-ok);margin-bottom:7px">Copy this key now</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <code id="created-api-key" class="ev" style="flex:1">{{.CreatedToken}}</code>
+      <button class="btn" type="button" data-copy="#created-api-key">Copy</button>
+    </div>
+    <p class="m mu" style="margin-top:7px">This is the only time the plaintext is shown. nagipath stored only its SHA-256 hash.</p>
+  </div>
+  {{end}}
+
+  <div class="pnl z">
+    <div class="phd">
+      <span class="ph2">Keys</span><span class="m mus">{{len .Keys}}</span>
+      <div class="flex-1"></div>
+      <form method="get" action="/settings/api-keys" style="display:flex;gap:8px;align-items:center">
+        <label class="sr-only" for="state">State</label>
+        <select class="sel" name="state" id="state">
+          <option value="">All states</option>
+          <option value="active"{{if eq .StateFilter "active"}} selected{{end}}>Active</option>
+          <option value="revoked"{{if eq .StateFilter "revoked"}} selected{{end}}>Revoked</option>
+          <option value="expired"{{if eq .StateFilter "expired"}} selected{{end}}>Expired</option>
+        </select>
+        <button class="btn p sm" type="submit">Filter</button>
+      </form>
+    </div>
+    {{if .Keys}}
+    <table class="t">
+      {{template "cols" cols "Name" "Prefix:9rem" "Owner:9rem" "Created:8rem" "Last used:8rem" "Expires:8rem" "State:7rem" ":6rem"}}
+      {{range .Keys}}
+      <tr{{if .RevokedAt.Valid}} class="zz"{{end}}>
+        <td class="m">{{.Name}}</td>
+        <td class="m mu">{{if .Prefix}}{{.Prefix}}…{{else}}—{{end}}</td>
+        <td class="m mu">{{.Username}}</td>
+        <td class="m mu">{{clock .CreatedAt}}</td>
+        <td class="m mu">{{if .LastUsedAt.Valid}}{{clock .LastUsedAt.String}}{{else}}never{{end}}</td>
+        <td class="m mu">{{if .ExpiresAt.Valid}}{{date .ExpiresAt.String}}{{else}}never{{end}}</td>
+        <td>{{if .RevokedAt.Valid}}<span class="bdg err">REVOKED</span>{{else}}<span class="bdg ok">ACTIVE</span>{{end}}</td>
+        <td>{{if not .RevokedAt.Valid}}<form method="post" action="/settings/api-keys/{{.ID}}/revoke">{{template "csrf" $.CSRF}}<button class="btn dgr sm" type="submit">Revoke</button></form>{{end}}</td>
+      </tr>
+      {{end}}
+    </table>
+    {{else}}
+    <div style="padding:20px 12px">
+      {{template "empty" "No API keys"}}<p>Create one for CI or <span class="m">nagipath ctl</span>.</p>{{template "empty-end"}}
+    </div>
+    {{end}}
+  </div>
+
+  <div class="pnl">
+    <div class="lbl" style="margin-bottom:8px">Create key</div>
+    <form method="post" action="/settings/api-keys" style="display:flex;align-items:center;gap:8px">
+      {{template "csrf" $.CSRF}}
+      <label class="fld f"><span class="sr-only">Key name</span><input name="name" placeholder="ci-readonly" required></label>
+      <label class="fld"><input class="m" type="number" name="expires_days" min="1" max="3650" value="90" style="width:5rem"><span class="m mus">days</span></label>
+      <button class="btn p" type="submit">Create key</button>
+    </form>
+  </div>
+  {{end}}
+</div>
+{{template "bd-end"}}
+{{template "foot" .}}

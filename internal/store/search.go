@@ -31,28 +31,42 @@ type TextHit struct {
 	InstanceID int64
 	Instance   string
 	Vendor     string
-	Cluster    string
-	Path       string
-	Snippet    string
+	// Node, because an instance display name is vendor + config basename: five
+	// nodes running stock nginx all read "nginx nginx.conf", and a result list of
+	// five identical rows cannot be acted on. RuleHit already carried this.
+	Node    string
+	Cluster string
+	Path    string
+	Snippet string
 }
 
 // SearchRules is the structured search: it answers "which directives across the
 // fleet mention this?" and is scoped to current Snapshots, because a hit in a
 // retired Snapshot is history, not a finding.
 func (db *DB) SearchRules(ctx context.Context, query string, limit int) ([]RuleHit, error) {
-	rows, err := db.R.QueryContext(ctx, `SELECT r.id, r.instance_id, r.snapshot_id, f.id,
+	return db.SearchRulesScoped(ctx, query, limit, true)
+}
+
+// SearchRulesScoped searches rules with optional scope restriction.
+func (db *DB) SearchRulesScoped(ctx context.Context, query string, limit int, currentOnly bool) ([]RuleHit, error) {
+	scopeFilter := ""
+	if currentOnly {
+		scopeFilter = "AND s.is_current = 1"
+	}
+	sql := `SELECT r.id, r.instance_id, r.snapshot_id, f.id,
 		i.display_name, i.vendor, n.display_name, COALESCE(cl.name, ''),
 		r.directive, r.action_class, r.args,
 		r.raw_text, f.path, r.prov_byte_start, r.shadowed
 		FROM rule_fts
 		JOIN rule r ON r.id = rule_fts.rowid
-		JOIN snapshot s ON s.id = r.snapshot_id AND s.is_current = 1
+		JOIN snapshot s ON s.id = r.snapshot_id ` + scopeFilter + `
 		JOIN instance i ON i.id = r.instance_id
 		JOIN node n ON n.id = i.node_id
 		LEFT JOIN cluster cl ON cl.id = i.cluster_id
 		JOIN snapshot_file f ON f.id = r.prov_file_id
 		WHERE rule_fts MATCH ?
-		ORDER BY rank LIMIT ?`, ftsQuery(query), limit)
+		ORDER BY rank LIMIT ?`
+	rows, err := db.R.QueryContext(ctx, sql, ftsQuery(query), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -73,17 +87,28 @@ func (db *DB) SearchRules(ctx context.Context, query string, limit int) ([]RuleH
 // SearchConfigText is the escape hatch for everything the parser does not model:
 // verbatim text of the current Snapshots' configuration files.
 func (db *DB) SearchConfigText(ctx context.Context, query string, limit int) ([]TextHit, error) {
-	rows, err := db.R.QueryContext(ctx, `SELECT f.id, f.snapshot_id, s.instance_id,
-		i.display_name, i.vendor, COALESCE(cl.name, ''), f.path,
+	return db.SearchConfigTextScoped(ctx, query, limit, true)
+}
+
+// SearchConfigTextScoped searches config text with optional scope restriction.
+func (db *DB) SearchConfigTextScoped(ctx context.Context, query string, limit int, currentOnly bool) ([]TextHit, error) {
+	scopeFilter := ""
+	if currentOnly {
+		scopeFilter = "AND s.is_current = 1"
+	}
+	sql := `SELECT f.id, f.snapshot_id, s.instance_id,
+		i.display_name, i.vendor, n.display_name, COALESCE(cl.name, ''), f.path,
 		snippet(snapshot_text_fts, 1, '[', ']', '…', 12)
 		FROM snapshot_text_fts
 		JOIN snapshot_text_fts_map mp ON mp.rowid = snapshot_text_fts.rowid
 		JOIN snapshot_file f ON f.id = mp.snapshot_file_id
-		JOIN snapshot s ON s.id = f.snapshot_id
+		JOIN snapshot s ON s.id = f.snapshot_id ` + scopeFilter + `
 		JOIN instance i ON i.id = s.instance_id
+		JOIN node n ON n.id = i.node_id
 		LEFT JOIN cluster cl ON cl.id = i.cluster_id
 		WHERE snapshot_text_fts MATCH ?
-		ORDER BY rank LIMIT ?`, ftsQuery(query), limit)
+		ORDER BY rank LIMIT ?`
+	rows, err := db.R.QueryContext(ctx, sql, ftsQuery(query), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +117,7 @@ func (db *DB) SearchConfigText(ctx context.Context, query string, limit int) ([]
 	for rows.Next() {
 		var h TextHit
 		if err := rows.Scan(&h.FileID, &h.SnapshotID, &h.InstanceID, &h.Instance,
-			&h.Vendor, &h.Cluster, &h.Path, &h.Snippet); err != nil {
+			&h.Vendor, &h.Node, &h.Cluster, &h.Path, &h.Snippet); err != nil {
 			return nil, err
 		}
 		out = append(out, h)

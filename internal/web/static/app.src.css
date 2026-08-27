@@ -1,0 +1,619 @@
+/* nagipath theme — source for static/app.css.
+ *
+ * Build:  make css   (tools/tailwindcss, downloaded on demand, gitignored)
+ * Output: static/app.css is COMMITTED and embedded. `go build` alone still
+ *         produces a working binary; only editing this file or the templates
+ *         needs the CLI. See docs/adr/0016-tailwind-build-step.md.
+ *
+ * Structure:
+ *   @theme       — design tokens, from design/nagipath Wireframes.dc.html
+ *   @layer base  — element defaults
+ *   @layer components — the component set. Class names match the wireframe's
+ *         so a screen can be ported from the design doc almost line for line.
+ *         One-off geometry in the wireframe's inline style="" attributes
+ *         becomes Tailwind utilities in the template.
+ */
+
+@import "tailwindcss";
+@source "../templates";
+
+@theme {
+  /* Only these two families; --mono is for literal machine text only
+     (paths, directives, hostnames, fingerprints) — never for labels. */
+  --font-sans: Inter, -apple-system, "Segoe UI Variable", "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Surfaces */
+  --color-page: #fafbfd;
+  --color-panel: #ffffff;
+  --color-subtle: #f7f8fc;
+  --color-sunken: #eef1f7;
+  --color-zebra: #fcfcfd;
+
+  /* Edges */
+  --color-line: #d3dae6;
+  --color-line-soft: #edf0f5;
+  --color-line-hard: #c8cdd8;
+
+  /* Ink, darkest to faintest */
+  --color-ink: #1d1e24;
+  --color-body: #343741;
+  --color-body-2: #535966;
+  --color-muted: #69707d;
+  --color-subdued: #98a2b3;
+  --color-faint: #c1c7d4;
+
+  /* Accent: link, primary action, selection. One blue, one meaning. */
+  --color-accent: #0077cc;
+  --color-accent-ink: #0061a6;
+  --color-accent-soft: #e6f1fa;
+  --color-accent-soft-2: #cfe4f5;
+
+  /* Status pairs: -soft is the only fill that ever sits behind text,
+     the solid shade is already darkened to clear AA on it. */
+  --color-ok: #00726b;
+  --color-ok-soft: #e6f2f1;
+  --color-ok-line: #a3d4cf;
+  --color-warn: #8a5300;
+  --color-warn-soft: #fdf3e2;
+  --color-warn-line: #f2cd8e;
+  --color-warn-ink: #a15c00;
+  --color-err: #a1231c;
+  --color-err-soft: #fceeed;
+  --color-err-line: #f0b3ad;
+  --color-info: #535966;
+  --color-info-soft: #f1f4f9;
+  --color-info-line: #c8cdd8;
+  --color-note: #0061a6;
+  --color-note-soft: #e9f2fa;
+  --color-note-line: #b8d4ea;
+
+  /* Code viewer highlight (byte range a provenance link points at) */
+  --color-mark: #fff8e1;
+  --color-mark-line: #f5a700;
+
+  /* Chart bars. Their own tokens rather than the status colours: a bar is a
+     quantity, and an activity chart drawn in --color-err reads as an outage. */
+  --color-bar: #0077cc;
+  --color-bar-deg: #f5a700;
+
+  --radius-panel: 6px;
+  --radius-ctl: 4px;
+  --radius-badge: 3px;
+
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.03);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-pop: 0 6px 20px rgb(29 30 36 / 0.14);
+}
+
+/* Self-hosted, latin subset, embedded in the binary. An air-gapped install
+   must render identically to a connected one, so there is no <link> to a CDN
+   anywhere in this product. Variable fonts: one file covers 400–700. */
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/static/fonts/inter-latin-var.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Roboto Mono";
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url("/static/fonts/robotomono-latin-var.woff2") format("woff2");
+}
+
+@layer base {
+  html {
+    color-scheme: light; /* not wired to prefers-color-scheme: an operator who
+                            never asked for dark got an unreadable trace graph */
+  }
+  body {
+    margin: 0;
+    background: var(--color-page);
+    color: var(--color-body);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  a { color: var(--color-accent); text-decoration: none; }
+  a:hover { color: var(--color-accent-ink); text-decoration: underline; }
+  /* Components that happen to be anchors inherit body ink: in a 200-row table
+     the colour is the affordance and an underline per cell is noise. */
+  a.nv, a.ni, a.btn, a.tab, a.chip, a.crumb, a.card, a.node, a.rowlink {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  h1, h2, h3, h4 { margin: 0; color: var(--color-ink); letter-spacing: -0.01em; }
+
+  table { border-collapse: separate; border-spacing: 0; }
+
+  /* Numbers compared down a column must line up. */
+  td, th, .num, .m { font-variant-numeric: tabular-nums; }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+
+  /* ---------------------------------------------------------------- shell */
+
+  .app { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  .hdr {
+    height: 46px; flex: none; display: flex; align-items: center; gap: 12px;
+    padding: 0 14px; background: var(--color-panel);
+    border-bottom: 1px solid var(--color-line);
+  }
+  .lg { font: 700 15px/1 var(--font-sans); letter-spacing: -0.01em; color: var(--color-ink); }
+  .crumb { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--color-subdued); }
+  .crumb b { color: var(--color-ink); font-weight: 600; }
+  .crumb a:hover { color: var(--color-accent); text-decoration: underline; }
+
+  .gsearch {
+    display: flex; align-items: center; gap: 8px; width: 280px;
+    border: 1px solid var(--color-line); border-radius: var(--radius-ctl);
+    padding: 5px 8px; background: var(--color-subtle);
+    color: var(--color-subdued); font-size: 12.5px; text-align: left;
+  }
+  .gsearch:hover { border-color: var(--color-line-hard); }
+  .kbd {
+    font: 500 10px/1.4 var(--font-mono); border: 1px solid var(--color-line);
+    border-radius: 3px; padding: 1px 4px; color: var(--color-muted); background: var(--color-panel);
+  }
+  .av {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--color-line);
+    display: flex; align-items: center; justify-content: center;
+    font: 600 10.5px var(--font-sans); color: var(--color-body-2); flex: none;
+  }
+
+  .wrap { flex: 1; display: flex; min-height: 0; }
+
+  /* Left nav: grouped, with counts. Scrolls independently of the table. */
+  .nav {
+    flex: 0 0 210px; background: var(--color-subtle);
+    border-right: 1px solid var(--color-line); padding: 8px;
+    display: flex; flex-direction: column; gap: 1px; overflow-y: auto;
+  }
+  .ngrp {
+    font: 600 10.5px/1.4 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--color-subdued); padding: 9px 8px 3px;
+  }
+  .ni {
+    display: flex; align-items: center; gap: 8px; padding: 5px 8px;
+    border-radius: var(--radius-ctl); font-size: 13px; color: var(--color-body);
+  }
+  .ni:hover { background: var(--color-sunken); }
+  .ni.on { background: var(--color-accent-soft); color: var(--color-accent-ink); font-weight: 600; }
+  /* The glyph inherits the item's colour, so the active state needs no second
+     rule — .ni.on already sets the ink these strokes are drawn in. */
+  .ni .ic { width: 14px; height: 14px; flex: none; color: var(--color-subdued); }
+  .ni:hover .ic { color: var(--color-muted); }
+  .ni.on .ic { color: var(--color-accent); }
+  .ni .ct { margin-left: auto; font: 500 10.5px var(--font-mono); color: var(--color-muted); }
+  .ni .ct.warn { color: var(--color-warn-ink); }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+  .ptitle {
+    display: flex; align-items: center; gap: 10px; padding: 11px 16px 9px;
+    background: var(--color-panel); border-bottom: 1px solid var(--color-line); flex: none;
+  }
+  .h1 { font: 700 19px/1.2 var(--font-sans); color: var(--color-ink); letter-spacing: -0.01em; }
+  .sub1 { font-size: 12.5px; color: var(--color-muted); }
+
+  /* Query bar: the row of controls a screen answers questions with. */
+  .qbar {
+    display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+    background: var(--color-panel); border-bottom: 1px solid var(--color-line); flex: none;
+  }
+  .qbar.wrapping { flex-wrap: wrap; }
+
+  /* Body: the scrolling content column. */
+  .bd {
+    flex: 1; min-height: 0; padding: 12px 16px;
+    display: flex; flex-direction: column; gap: 10px; overflow: auto;
+  }
+  .row { display: flex; gap: 10px; min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+  /* ------------------------------------------------------------- panels */
+
+  .pnl {
+    background: var(--color-panel); border: 1px solid var(--color-line);
+    border-radius: var(--radius-panel); padding: 12px; min-width: 0;
+    box-shadow: var(--shadow-panel);
+    /* A panel is never crushed below its content. Inside a .col it is a flex item,
+       so the default flex-shrink:1 let a stack of panels squeeze the tallest one:
+       the Credentials list was given 54px for two 28px rows and its only row was
+       drawn underneath the panel below it. A panel that should shrink or grow says
+       so in its own flex. */
+    flex-shrink: 0;
+  }
+  /* .z = zero padding, for a panel whose child owns its own edges (a table,
+     a scroll region). Pairs with .phd. */
+  .pnl.z { padding: 0; display: flex; flex-direction: column; min-height: 0; }
+  .phd {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    border-bottom: 1px solid var(--color-line-soft); flex: none;
+  }
+  .pft {
+    display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+    border-top: 1px solid var(--color-line-soft); flex: none;
+  }
+  .ph2 { font: 600 12px var(--font-sans); color: var(--color-ink); }
+
+  /* Uppercase mono micro-label. Sparingly: a section key, a legend, a stat
+     caption. Never a value. */
+  .lbl {
+    font: 600 10.5px/1.4 var(--font-mono); letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--color-subdued);
+  }
+
+  /* Literal machine text. .mu / .mus step it back one and two levels. */
+  .m { font: 12px/1.45 var(--font-mono); }
+  .mu { color: var(--color-muted); }
+  .mus { color: var(--color-subdued); }
+
+  .stat {
+    flex: 1; background: var(--color-panel); border: 1px solid var(--color-line);
+    border-radius: var(--radius-panel); padding: 9px 12px;
+    display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  }
+  .stat .num { font: 700 21px/1 var(--font-sans); color: var(--color-ink); letter-spacing: -0.02em; }
+  .stat.warn { border-color: var(--color-warn-line); background: var(--color-warn-soft); }
+  /* err and note were already being asked for — statif passes them from the Nodes
+     and Collections screens — and with no rule they rendered as a plain tile, so a
+     quarantined node counted the same as a healthy one. */
+  .stat.err { border-color: var(--color-err-line); background: var(--color-err-soft); }
+  .stat.err .num { color: var(--color-err); }
+  .stat.note { border-color: var(--color-note-line); background: var(--color-note-soft); }
+  .stat.note .num { color: var(--color-note); }
+  .stat.warn .num { color: var(--color-warn); }
+  /* The wireframe tints the caption too, not only the figure: on a row of six
+     tiles the label is what the eye lands on first, and an amber number under a
+     grey "CERTS ≤ 30D" reads as a stray colour rather than as one warned tile. */
+  .stat.warn .lbl { color: var(--color-warn); }
+  .stat.err .lbl { color: var(--color-err); }
+  .stat.note .lbl { color: var(--color-note); }
+
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; align-items: baseline; }
+  .kv > * { min-width: 0; overflow-wrap: anywhere; }
+  /* Fingerprints are identifiers, not code-viewer lines. Keeping them in an
+     ordinary inline box lets the grid wrap at safe punctuation instead of
+     inheriting .cl's display:flex and white-space:pre. */
+  .keyfp { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+
+  /* ------------------------------------------------------------- badges */
+
+  /* Never a bare dot: every state is also a word. Hover reveals the reason,
+     which is why .bdg carries a title="" in the templates. */
+  .bdg {
+    display: inline-flex; align-items: center; gap: 4px;
+    font: 600 10.5px/1.5 var(--font-mono); letter-spacing: 0.03em;
+    padding: 1px 6px; border-radius: var(--radius-badge);
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .bdg.ok   { border-color: var(--color-ok-line);   background: var(--color-ok-soft);   color: var(--color-ok); }
+  .bdg.inf  { border-color: var(--color-info-line); background: var(--color-info-soft); color: var(--color-info); border-style: dashed; }
+  .bdg.deg  { border-color: var(--color-warn-line); background: var(--color-warn-soft); color: var(--color-warn); }
+  .bdg.err  { border-color: var(--color-err-line);  background: var(--color-err-soft);  color: var(--color-err); }
+  .bdg.note { border-color: var(--color-note-line); background: var(--color-note-soft); color: var(--color-note); }
+  /* Solid: the trace left the fleet. A fact, stated flatly. */
+  .bdg.ext  { border-color: var(--color-body); background: var(--color-body); color: #fff; }
+  /* Hollow neutral: where the walk stopped is a fact, not an alarm. */
+  .bdg.none { border-color: var(--color-line); background: var(--color-panel); color: var(--color-muted); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none;
+    border: 1px solid var(--color-line); background: var(--color-subtle);
+    border-radius: 12px; padding: 2px 8px; font: 11.5px/1.5 var(--font-mono); color: var(--color-body);
+  }
+  .chip b { font-weight: 600; color: var(--color-body-2); }
+  .chip .x { color: var(--color-subdued); }
+  .chip:hover .x { color: var(--color-err); }
+
+  /* ------------------------------------------------------------ controls */
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--color-line); border-radius: var(--radius-ctl);
+    padding: 5px 11px; font: 500 12.5px var(--font-sans); color: var(--color-accent);
+    background: var(--color-panel); white-space: nowrap; cursor: pointer;
+    transition: background-color 120ms, border-color 120ms;
+  }
+  .btn:hover { background: var(--color-accent-soft); border-color: var(--color-accent-soft-2); text-decoration: none; }
+  .btn.p { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+  .btn.p:hover { background: var(--color-accent-ink); border-color: var(--color-accent-ink); }
+  .btn.s { color: var(--color-body-2); }
+  .btn.s:hover { background: var(--color-sunken); border-color: var(--color-line-hard); }
+  .btn.dgr { color: var(--color-err); }
+  .btn.dgr:hover { background: var(--color-err-soft); border-color: var(--color-err-line); }
+  .btn.sm { padding: 3px 8px; font-size: 11.5px; }
+  .btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+
+  /* A button that reads as text: "Sign out", "Clear filters". */
+  .link {
+    border: 0; background: none; padding: 0; font: inherit;
+    color: var(--color-accent); cursor: pointer; text-align: left;
+  }
+  .link:hover { text-decoration: underline; }
+
+  /* .sel styles a real <select>; the wireframe's arrow becomes the background
+     image, since appearance:none removes the native one. */
+  .sel {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--color-line); border-radius: var(--radius-ctl);
+    padding: 5px 9px; background: var(--color-panel); font-size: 12.5px;
+    color: var(--color-body); white-space: nowrap; cursor: pointer;
+  }
+  select.sel {
+    appearance: none; padding-right: 24px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='%2369707d' d='M0 0h8L4 5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+  }
+  .sel:hover { border-color: var(--color-line-hard); }
+  /* A non-select that wants the same disclosure caret. */
+  .sel.caret::after { content: "▾"; color: var(--color-muted); font-size: 10px; }
+
+  /* .fld wraps an input with prefixes/suffixes; input.fld is the bare case. */
+  .fld {
+    display: flex; align-items: center; gap: 7px; white-space: nowrap; overflow: hidden;
+    border: 1px solid var(--color-line); border-radius: var(--radius-ctl);
+    padding: 5px 9px; background: var(--color-panel); font-size: 13px;
+    box-shadow: inset 0 1px 0 rgb(0 0 0 / 0.02);
+  }
+  .fld.f { flex: 1; min-width: 0; }
+  .fld:focus-within { border-color: var(--color-accent); outline: 2px solid var(--color-accent-soft-2); outline-offset: -1px; }
+  .fld input, .fld > .in {
+    flex: 1; min-width: 0; border: 0; outline: 0; padding: 0;
+    background: none; font: inherit; color: inherit;
+  }
+  .fld input::placeholder, .fld .ph { color: var(--color-subdued); }
+  .fld.m input, input.fld.m, textarea.fld.m { font: 12px/1.45 var(--font-mono); }
+  input.fld, textarea.fld, select.fld { width: 100%; }
+  textarea.fld { white-space: pre; overflow: auto; }
+
+  /* Real checkbox/radio, sized to the dense rows and tinted with accent-color:
+     one line of CSS instead of a hand-drawn control that loses its semantics. */
+  input[type="checkbox"].cb, input[type="radio"].rd {
+    width: 13px; height: 13px; flex: none; margin: 0;
+    accent-color: var(--color-accent);
+  }
+  /* Static (non-interactive) indicators, for rendering a stored state. */
+  .cb { width: 13px; height: 13px; border: 1.5px solid var(--color-subdued); border-radius: 2px; flex: none; background: var(--color-panel); }
+  .cb.on { background: var(--color-accent); border-color: var(--color-accent); }
+  .rd { width: 13px; height: 13px; border: 1.5px solid var(--color-subdued); border-radius: 50%; flex: none; background: var(--color-panel); }
+  .rd.on { border: 4px solid var(--color-accent); }
+
+  /* Facet row in a filter panel: label, then a right-aligned count. */
+  .fct { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 2px 0; cursor: pointer; }
+  /* The path gives way, not the size: without min-width:0 on the name and nowrap
+     on the size, "13.1 KiB" broke across two lines and made the row twice as tall. */
+  .fct > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fct .c { margin-left: auto; font: 11px var(--font-mono); color: var(--color-subdued); white-space: nowrap; }
+
+  .bar { height: 6px; border-radius: 3px; background: #e3e8f0; overflow: hidden; flex: 1; }
+  .bar > i { display: block; height: 100%; background: var(--color-accent); }
+
+  .tabs {
+    display: flex; gap: 18px; padding: 0 16px; background: var(--color-panel);
+    border-bottom: 1px solid var(--color-line); flex: none; overflow-x: auto;
+  }
+  .tab { padding: 8px 0 7px; font-size: 13px; color: var(--color-body-2); white-space: nowrap; }
+  .tab:hover { color: var(--color-ink); }
+  .tab.on { color: var(--color-accent-ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--color-accent); }
+
+  /* Cursor pagination: "Load more", never page numbers — a Collection writing
+     rows makes offset pagination skip and repeat. .pgb stays for the few
+     places showing a bounded set. */
+  .pg { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--color-muted); }
+  .pgb {
+    border: 1px solid var(--color-line); border-radius: 3px; min-width: 22px;
+    text-align: center; padding: 1px 5px; font: 11.5px var(--font-mono); background: var(--color-panel);
+  }
+  .pgb.on { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+
+  /* --------------------------------------------------------------- tables */
+
+  /* table-layout:fixed with declared widths, so a column does not resize
+     between page loads. Widths come from <col> or th utilities. */
+  .t { width: 100%; font-size: 12.5px; table-layout: fixed; }
+  .t th {
+    text-align: left; font: 600 10.5px var(--font-mono); letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--color-muted); background: var(--color-subtle);
+    border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line);
+    padding: 6px 8px; white-space: nowrap; position: sticky; top: 0; z-index: 1;
+    /* A squeezed header truncates like its cells do. Without this, a th's nowrap
+       text paints outside the table and over whatever panel sits beside it —
+       "LAST COLLECTED" was landing on top of the cluster detail panel. */
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .t th a { color: inherit; }
+  .t td {
+    border-bottom: 1px solid var(--color-line-soft); padding: 5px 8px;
+    vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* .brk, not .wrap: .wrap is the app-shell flex container, and a td carrying it
+     became display:flex — so a cell holding a subject plus a dimmed note laid the
+     two out side by side instead of stacked, and on the Dashboard the note ran
+     straight into the end of the hostname. Two different jobs, two names. */
+  .t td.brk { white-space: normal; overflow-wrap: anywhere; }
+  /* .tsc wraps a table with more columns than its panel is wide: it scrolls
+     inside the panel instead of dragging the whole page sideways, which is how
+     the Instances table lost its last column off the right edge. Headers stay
+     sticky, because this is now their nearest scrolling ancestor. */
+  .tsc { flex: 1; min-height: 0; overflow: auto; }
+  .t tbody tr:hover td { background: var(--color-subtle); }
+  /* .hl = the selected row. .zz = a continuation row belonging to the one above. */
+  .t tr.hl td { background: var(--color-accent-soft); box-shadow: inset 2px 0 0 var(--color-accent); }
+  .t tr.zz td { background: var(--color-zebra); }
+  .t tr.zz:hover td { background: var(--color-subtle); }
+
+  /* ---------------------------------------------------------- drift review */
+
+  /* Object-level comparison cannot honestly claim a line diff, but its two
+     source objects still need GitHub's at-a-glance grammar: old is red, new
+     is green, and a changed object shows both. */
+  .drift-diff { overflow: hidden; }
+  .drift-diff-head {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    background: var(--color-subtle); border-bottom: 1px solid var(--color-line);
+  }
+  .drift-diff-body { padding: 10px 12px; }
+  .drift-code-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  .drift-side { min-width: 0; }
+  .drift-side-label { margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+  .drift-code { font-size: 11.5px; max-height: 300px; overflow: auto; }
+  .diff-badge { border-color: var(--color-warn-line); background: var(--color-warn-soft); color: var(--color-warn); }
+  .diff-added .diff-badge { border-color: var(--color-ok-line); background: var(--color-ok-soft); color: var(--color-ok); }
+  .diff-removed .diff-badge { border-color: var(--color-err-line); background: var(--color-err-soft); color: var(--color-err); }
+  .diff-line { display: block; min-height: 1.6em; margin: 0 -10px; padding: 0 10px; }
+  .diff-line-del { background: #ffebe9; color: #56201d; box-shadow: inset 3px 0 #cf222e; }
+  .diff-line-add { background: #dafbe1; color: #173b20; box-shadow: inset 3px 0 #1a7f37; }
+  .diff-line-warn { background: var(--color-warn-soft); color: var(--color-warn); box-shadow: inset 3px 0 var(--color-warn-line); }
+  .diff-line-empty { color: var(--color-subdued); font-style: italic; }
+  .diff-changed .drift-baseline .drift-side-label::before,
+  .diff-removed .drift-baseline .drift-side-label::before { content: "−"; color: var(--color-err); font-size: 14px; }
+  .diff-changed .drift-subject .drift-side-label::before,
+  .diff-added .drift-subject .drift-side-label::before { content: "+"; color: var(--color-ok); font-size: 14px; }
+  @media (max-width: 860px) {
+    .drift-code-grid { grid-template-columns: 1fr; }
+  }
+
+  /* At a compact desktop width, preserve readable data columns and put their
+     overflow in the panel. A crushed 6-column table is less usable than a
+     deliberate horizontal scroll with sticky headings. */
+  .collection-table { min-width: 42rem; }
+  .credential-table { min-width: 39rem; }
+
+  @media (max-width: 860px) {
+    .hdr { gap: 8px; padding: 0 10px; }
+    .hdr form[role="search"] { display: none; }
+    .nav { flex-basis: 180px; }
+    .ptitle { padding-inline: 12px; }
+    .qbar { padding: 8px 12px; flex-wrap: wrap; }
+    .qbar form { flex-wrap: wrap; }
+    .bd { padding: 10px 12px; }
+    .row { flex-wrap: wrap; }
+    .stat { flex: 1 1 10rem; }
+  }
+
+  /* ------------------------------------------------------- config viewer */
+
+  .code {
+    font: 11.5px/1.6 var(--font-mono); background: var(--color-subtle);
+    border: 1px solid var(--color-line); border-radius: var(--radius-ctl);
+    padding: 7px 0; overflow: auto;
+  }
+  .cl { display: flex; gap: 10px; padding: 0 10px; white-space: pre; }
+  .cl .no { color: var(--color-faint); width: 30px; text-align: right; flex: none; user-select: none; }
+  /* The byte range a provenance link pointed at. */
+  .cl.on { background: var(--color-mark); box-shadow: inset 2px 0 0 var(--color-mark-line); }
+  .cl .k { color: var(--color-note); }
+  .cl .s { color: var(--color-ok); }
+  .cl .c { color: var(--color-subdued); }
+
+  /* Verbatim evidence: a log line, a response header. The bytes as they were. */
+  .ev {
+    font: 11.5px/1.6 var(--font-mono); background: var(--color-sunken);
+    border: 1px solid var(--color-line); border-radius: var(--radius-ctl);
+    padding: 7px 10px; overflow: auto; white-space: pre; color: var(--color-body);
+  }
+
+  /* ---------------------------------------------------------- path graph */
+
+  .node {
+    display: block; border: 1px solid var(--color-line-hard); border-radius: 5px; background: var(--color-panel);
+    padding: 7px 9px; min-width: 0; box-shadow: var(--shadow-card);
+  }
+  .node.on { border-color: var(--color-accent); box-shadow: 0 0 0 2px rgb(0 119 204 / 0.25); }
+  .node.ext { border-style: dashed; background: var(--color-subtle); }
+  .edge {
+    display: flex; flex-direction: column; align-items: center;
+    color: var(--color-subdued); font: 10.5px var(--font-mono); line-height: 1.25;
+  }
+  /* Dotted canvas behind the graph, so a hop card reads as sitting on a plane. */
+  .canvas {
+    background-image: radial-gradient(var(--color-line-soft) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+
+  /* -------------------------------------------------------------- notices */
+
+  .banner {
+    margin: 0; padding: 7px 16px; font-size: 12.5px; display: flex;
+    align-items: center; gap: 10px; border-bottom: 1px solid var(--color-warn-line);
+    background: var(--color-warn-soft); color: var(--color-warn);
+  }
+  .banner.err { border-color: var(--color-err-line); background: var(--color-err-soft); color: var(--color-err); }
+
+  /* Bottom-right, 5s, aria-live. A strip above the page pushes the table down
+     at the moment the operator is reading it. */
+  .toast {
+    position: fixed; right: 16px; bottom: 16px; z-index: 40; max-width: 420px;
+    margin: 0; padding: 9px 13px; font-size: 13px; border-radius: var(--radius-ctl);
+    border: 1px solid var(--color-ok-line); background: var(--color-ok-soft);
+    color: var(--color-ok); box-shadow: var(--shadow-pop);
+  }
+  .toast.ok { animation: toast-out 200ms ease-in 5s forwards; }
+  .toast.err { border-color: var(--color-err-line); background: var(--color-err-soft); color: var(--color-err); }
+  @keyframes toast-out { to { opacity: 0; visibility: hidden; } }
+
+  /* Never a bare "No results": what would be here, why it is not, and the
+     action that fixes it. */
+  .empty {
+    padding: 26px 20px; text-align: center; color: var(--color-muted); font-size: 13px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .empty b { display: block; color: var(--color-ink); font-size: 14px; }
+
+  /* Login, setup, first-run password: one card on the page. */
+  .solo {
+    width: 360px; margin: 9vh auto; background: var(--color-panel);
+    border: 1px solid var(--color-line); border-radius: var(--radius-panel);
+    padding: 22px; box-shadow: var(--shadow-pop);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  /* Two-step confirmation for a destructive action. The CSP has no
+     script-src 'unsafe-inline', so onsubmit="return confirm(...)" never runs —
+     the button would just fire. <details> asks the same question in HTML, and
+     Escape closes it (app.js). The summary is the button; the panel holds the
+     sentence and the real submit. */
+  details.cnf { position: relative; display: inline-flex; }
+  /* Every summary in the app carries its own affordance — a button, a "view"
+     link, an ✕ — so the browser's disclosure triangle only ever appeared beside
+     one of those and read as a second, broken control. */
+  summary { cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  details.cnf > .pop {
+    position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; width: 21rem;
+    background: var(--color-panel); border: 1px solid var(--color-err-line);
+    border-radius: var(--radius-panel); padding: 11px; box-shadow: var(--shadow-pop);
+    text-align: left; white-space: normal; font-size: 12.5px; color: var(--color-body);
+    display: flex; flex-direction: column; gap: 9px;
+  }
+
+  /* htmx: any element with hx-indicator gets this. Under 200ms shows nothing. */
+  .spin { display: none; }
+  .htmx-request .spin, .htmx-request.spin { display: inline-flex; }
+}

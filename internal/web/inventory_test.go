@@ -1,6 +1,9 @@
 package web
 
 import (
+	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -118,5 +121,64 @@ all:
 	}
 	if !strings.Contains(refused[0], "list form") {
 		t.Errorf("refusal = %q, want it to name the shape", refused[0])
+	}
+}
+
+// Cluster detail panel rendering is exercised here because template field errors
+// only surface when their branch executes — an untested branch is a 500 in
+// production. The panel is conditional on ?cluster=<id>.
+func TestClustersRendersDetailPanel(t *testing.T) {
+	s, db := newTestServer(t)
+	ctx := t.Context()
+
+	// Create an admin user so we can log in.
+	if _, err := db.CreateUser(ctx, "admin", "a good long password", "admin", "Admin", false); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a cluster. For this template test, we just need to verify that
+	// the detail panel renders without error when ?cluster=X is provided,
+	// regardless of whether it has members (ReconcileClusters may clear them).
+	res, err := db.W.ExecContext(ctx,
+		`INSERT INTO cluster (name, description, config_hash, created_at) VALUES (?, ?, ?, ?)`,
+		"test-cluster", "test cluster description", "abcd1234", "2026-01-01T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	clusterID, _ := res.LastInsertId()
+
+	c := &client{t: t, s: s}
+	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+
+	// Render without selection: should show "Pick a cluster" panel.
+	w := c.get("/clusters")
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /clusters = %d, want 200", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "Pick a cluster") {
+		t.Errorf("no-selection state did not render: missing 'Pick a cluster'")
+	}
+
+	// Render with selection: should show cluster detail panel. The cluster may
+	// have zero members after ReconcileClusters runs (it clears cluster_id for
+	// instances without parsed config), but the panel should still render.
+	w = c.get("/clusters?cluster=" + strconv.FormatInt(clusterID, 10))
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /clusters?cluster=%d = %d, want 200", clusterID, w.Code)
+	}
+	body = w.Body.String()
+	if !strings.Contains(body, "test-cluster") {
+		t.Errorf("cluster detail did not render: missing cluster name 'test-cluster'")
+	}
+	if !strings.Contains(body, "Members") {
+		t.Errorf("cluster detail did not render: missing 'Members' section")
+	}
+	// The template rendering is what we're testing here — content varies
+	// based on ReconcileClusters behavior, but both the empty and populated
+	// states must render without a 500 (which would happen if a template
+	// field reference was wrong).
+	if !strings.Contains(body, "</html>") {
+		t.Errorf("page did not complete rendering (template error mid-render)")
 	}
 }

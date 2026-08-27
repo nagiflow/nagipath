@@ -104,13 +104,9 @@ func Uname() Command {
 	return Command{ID: CmdUname, Line: "uname -sr"}
 }
 
-// SudoCheck asks sudo what this user may run. `sudo -n true` would be the
-// obvious probe and is the wrong one: `true` is not in the grant nagipath
-// documents, so a correctly configured host would report that it has no sudo and
-// then quietly degrade every collection on it. `-l` needs no grant of its own.
-//
-// -n is not optional either way: a password prompt on a non-interactive session
-// hangs.
+// SudoCheck asks sudo what this user may run without a password. `sudo -n true`
+// would be wrong: `true` is not in the deliberately narrow sudoers grant this
+// product documents, while `-l` needs no grant of its own.
 func SudoCheck() Command {
 	return Command{ID: CmdSudoCheck, Line: "sudo -n -l", TolerateExit: true}
 }
@@ -248,8 +244,12 @@ func GetentHosts(name string) Command {
 // transferred: only these fields come back.
 func X509(path string, sudo bool) Command {
 	return Command{ID: CmdX509, Sudo: sudo, TolerateExit: true,
+		// -pubkey prints the public key as PEM, which is what tells an operator
+		// "RSA 2048" or "ECDSA 256". Without it the certificate list had a Key
+		// column that was empty on every row, because nothing populated it. It is
+		// the public half only: no private key material is ever read (ADR-0009).
 		Line: "openssl x509 -noout -subject -issuer -serial -dates " +
-			"-fingerprint -sha256 -ext subjectAltName -in " + q(path)}
+			"-fingerprint -sha256 -ext subjectAltName -pubkey -in " + q(path)}
 }
 
 func LogTail(path string, bytes int64, sudo bool) Command {

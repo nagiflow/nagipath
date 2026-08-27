@@ -9,7 +9,7 @@
 
 Three related things, documented together because they are one security story:
 
-- **Credential** — a stored SSH identity, encrypted at rest, that nagipath authenticates to Nodes with.
+- **Credential** — a stored SSH identity or enterprise-auth reference. Private keys and passwords are encrypted at rest; a CyberArk profile holds an account reference, not a copied vault secret.
 - **Host Key Approval** — the operator's explicit acceptance of a Node's SSH host key. Until given, nagipath runs no command on that Node.
 - **Master Key** — the secret, held **outside** the database, that every stored Credential is encrypted with.
 
@@ -22,11 +22,11 @@ This is the highest-consequence surface in the product. nagipath holds SSH acces
 
 ## 2. Why in-process SSH
 
-Credentials are entered in the web UI and stored encrypted, so SSH runs in-process via `golang.org/x/crypto/ssh`.
+Credentials are entered in the web UI and stored encrypted, so SSH runs in-process via `golang.org/x/crypto/ssh`. SSH private keys, certificates and username/password are usable now; LDAP-backed SSH passwords use the same method. For password-backed SSH credentials only, the same sealed password is passed to `sudo -S -p ''` over SSH stdin when a read needs elevation. Key and certificate credentials remain `sudo -n` / NOPASSWD-only. Kerberos and CyberArk profiles are provider-gated references, never silently treated as SSH passwords.
 
 Shelling out to the system `ssh` binary was seriously considered. It would inherit `~/.ssh/config`, `ProxyJump`, `known_hosts` policy and GSSAPI/Kerberos for free — genuinely attractive. It was rejected because with UI-managed Credentials it would require **materialising private keys to disk on every connection**, which defeats encrypting them at all. Neither `ssh_config` inheritance nor Kerberos matters once Credentials come from the UI, and host-key approval as a UI action is better operator experience than editing `known_hosts` on a fleet tool's server (ADR-0011).
 
-Password authentication is not supported, in any form. There is no column for it (`auth_kind IN ('private_key','ssh_certificate')`), so adding it requires a migration and a review.
+Password authentication is sealed under distinct row-and-column AAD (`credential:password:<id>`), just like private key material. The schema explicitly distinguishes `username_password`, `ldap`, `kerberos`, and `cyberark`; only the first two are accepted by the current SSH connector.
 
 ---
 

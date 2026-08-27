@@ -63,6 +63,7 @@ type AuditEvent struct {
 	TargetLabel string
 	Outcome     string
 	Detail      string
+	SourceIP    string
 }
 
 func (db *DB) AuditEvents(ctx context.Context, limit int) ([]AuditEvent, error) {

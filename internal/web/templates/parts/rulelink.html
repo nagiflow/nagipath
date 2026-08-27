@@ -1,6 +1,0 @@
-{{/* rulelink takes a *trace.Rule and renders the directive as a link to its own
-     bytes in the snapshot's file. It replaced the trace screen's provenance panel:
-     the panel quoted the directive and then linked here anyway. */}}
-{{define "rulelink"}}{{if .FileID}}<a class="mono small" href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}"
-  title="{{.Path}}{{if .ByteStart}} @{{.ByteStart}}{{end}}">{{.Directive}} {{.Args}} ↗</a>{{else}}<span
-  class="mono small">{{.Directive}} {{.Args}}</span>{{end}}{{end}}

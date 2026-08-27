@@ -1,10 +1,16 @@
-{{/* head and foot are partials rather than a base template with overridable
-     blocks: Go's template inheritance needs one parse set per page to do that,
-     and two partials cost nothing to read.
+{{/* The app shell.
 
-     head opens the app shell and the main column; each page then opens its own
-     toolbar and body — see parts/toolbar.html. The shared pieces every page
-     reaches for live one per file under templates/parts. */}}
+     head and foot are an open/close pair rather than a base template with
+     overridable blocks: Go's template inheritance needs one parse set per page
+     to do that, and two partials cost nothing to read.
+
+     head opens the shell — header, sidebar, main column — and each page then
+     opens its own title bar and body. The shared pieces every page reaches for
+     live one per file under templates/parts.
+
+     Order inside .main is fixed by the design: .ptitle, then an optional .tabs
+     or .qbar, then .bd. Only .bd scrolls. */}}
+
 {{define "head"}}<!doctype html>
 <html lang="en">
 <head>
@@ -12,54 +18,65 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} — nagipath</title>
 <link rel="stylesheet" href="/static/app.css">
+<link rel="preload" href="/static/fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+{{/* htmx for filters, sorting, live progress and detail panels; app.js is
+     keyboard shortcuts and nothing else. Both are vendored and embedded —
+     there is no CDN anywhere in this product, because an air-gapped install
+     must render identically to a connected one. */}}
+<script src="/static/htmx.min.js" defer></script>
+<script src="/static/app.js" defer></script>
 </head>
 <body>
-{{if .LicenseNotice}}<p class="license-banner" role="status"><span>{{.LicenseNotice}}</span> <a href="/license">View license</a></p>{{end}}
 {{if .User.ID}}
 <div class="app">
-<nav class="sb">
-  <a class="brand" href="/">nagipath</a>
-  <div class="sub">{{if eq .Path "/onboarding"}}setup{{else}}read-only{{end}} ·
-    {{if .User.IsAdmin}}admin{{else}}viewer{{end}}</div>
-  <a class="nv {{on .Path "/"}}" href="/">Dashboard</a>
-  <a class="nv {{on .Path "/trace"}}" href="/trace">Trace</a>
-  <a class="nv {{on .Path "/rules"}}" href="/rules">Rule lookup</a>
-  <a class="nv {{on .Path "/fleet" "/nodes" "/instances"}}" href="/fleet">Fleet</a>
-  <a class="nv {{on .Path "/drift"}}" href="/drift">Drift</a>
-  <a class="nv {{on .Path "/certificates"}}" href="/certificates">Certificates</a>
-  <a class="nv {{on .Path "/search"}}" href="/search">Search</a>
-  <span class="spacer"></span>
-  {{if .Pending}}
-  <a class="nv warn" href="/onboarding">{{.Pending}} host key{{if ne .Pending 1}}s{{end}} to approve</a>
-  {{end}}
-  <a class="nv {{on .Path "/collections"}}" href="/collections">Collections</a>
-  {{if .User.IsAdmin}}
-  <a class="nv {{on .Path "/onboarding"}}" href="/onboarding">Connect fleet</a>
-  <a class="nv {{on .Path "/credentials"}}" href="/credentials">Credentials</a>
-  <a class="nv {{on .Path "/users"}}" href="/users">Users</a>
-  <a class="nv {{on .Path "/audit"}}" href="/audit">Audit</a>
-  <a class="nv {{on .Path "/diagnostics"}}" href="/diagnostics">Diagnostics</a>
-  {{end}}
-  <a class="nv {{on .Path "/license"}}" href="/license">License</a>
-  <a class="nv {{on .Path "/password"}}" href="/password">{{.User.Username}}</a>
-  <form method="post" action="/logout">
-    {{template "csrf" .CSRF}}
-    <button type="submit" class="link">Sign out</button>
+<header class="hdr">
+  <a class="lg" href="/">nagipath</a>
+  {{/* Group / section / this page, all three from nav.go. The leaf is Title,
+       so an instance detail page reads "Inventory / Instances / app-nginx-042"
+       without writing a breadcrumb anywhere. */}}
+  <nav class="crumb" aria-label="Breadcrumb">
+    {{if and .Section (not (and (eq .Section "Explore") (eq .Title "Dashboard")))}}<span>{{.Section}}</span><span aria-hidden="true">/</span>{{end}}
+    {{if and .Item (ne .Item .Title)}}<a class="crumb" href="{{.ItemHref}}">{{.Item}}</a><span aria-hidden="true">/</span>{{end}}
+    <b>{{.Title}}</b>
+  </nav>
+  <div class="flex-1"></div>
+  {{if .Demo}}<span class="bdg deg" title="Probes are disabled and Credentials and Users are read-only on this instance.">DEMO</span>{{end}}
+  <form class="flex items-center" action="/search" method="get" role="search">
+    <label class="gsearch">
+      <span class="sr-only">Search hosts, rules and certificates</span>
+      <input id="gsearch" class="in bg-transparent border-0 outline-0 min-w-0 flex-1 text-body"
+             type="search" name="q" placeholder="Search hosts, rules, certificates" autocomplete="off">
+      <span class="kbd" aria-hidden="true">⌘K</span>
+    </label>
   </form>
-</nav>
-<main class="mn">
-{{if .Flash}}<p class="flash ok toast" role="status">{{.Flash}}</p>{{end}}
-{{if .Error}}<p class="flash err toast" role="alert">{{.Error}}</p>{{end}}
+  <a class="av" href="/password" title="{{.User.Username}} · {{if .User.IsAdmin}}admin{{else}}viewer{{end}}">{{.Initials}}</a>
+</header>
+{{if .LicenseNotice}}<p class="banner" role="status"><span>{{.LicenseNotice}}</span> <a href="/settings/license">View license</a></p>{{end}}
+<div class="wrap">
+  <nav class="nav" aria-label="Sections">
+  {{range .Nav}}
+    {{if .Foot}}<div class="flex-1"></div>{{end}}
+    {{with .Label}}<div class="ngrp">{{.}}</div>{{end}}
+    {{range .Items}}
+    <a class="ni{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{ic .Icon}}{{.Label}}{{if .Count}}<span class="ct{{if .Warn}} warn{{end}}">{{num .Count}}</span>{{end}}</a>
+    {{end}}
+  {{end}}
+  </nav>
+  <main class="main">
 {{else}}
+{{/* Signed out: login, setup and the first-run password change. No shell,
+     because there is no fleet to navigate yet. */}}
 <main>
-{{if .Flash}}<p class="flash ok toast" role="status">{{.Flash}}</p>{{end}}
-{{if .Error}}<p class="flash err toast" role="alert">{{.Error}}</p>{{end}}
 {{end}}
 {{end}}
 
 {{define "foot"}}
+{{/* Toasts last, so they sit above the page without being in its flow. Errors
+     keep role=alert and do not self-dismiss; a confirmation may. */}}
+{{if .Flash}}<p class="toast ok" role="status">{{.Flash}}</p>{{end}}
+{{if .Error}}<p class="toast err" role="alert">{{.Error}}</p>{{end}}
 </main>
-{{if .User.ID}}</div>{{end}}
+{{if .User.ID}}</div></div>{{end}}
 </body>
 </html>
 {{end}}

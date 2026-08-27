@@ -52,13 +52,10 @@ func TestProbedHops(t *testing.T) {
 	if got[1].After != "verified" || got[1].LogPath == "" {
 		t.Errorf("hop 1 = %+v, want verified with its log path", got[1])
 	}
-	if names := stillInferred(got); len(names) != 1 || names[0] != "lb01" {
-		t.Errorf("stillInferred() = %v, want [lb01]", names)
-	}
 }
 
 // The two component constructors that make a decision rather than just carrying
-// values: a width read off a spec, and a card dropped because it has nothing to
+// values: a width read off a spec, and a stat dropped because it has nothing to
 // report.
 func TestComponentConstructors(t *testing.T) {
 	got := cols("node", "vendor:6rem", ":1.4rem")
@@ -69,14 +66,54 @@ func TestComponentConstructors(t *testing.T) {
 		}
 	}
 
-	list := cards(
-		card(0, "nodes", "/nodes", ""),
-		cardif(false, 0, "host keys to approve", "/onboarding", "warn"),
+	list := stats(
+		stat(0, "nodes", "/nodes", ""),
+		statif(false, 0, "host keys to approve", "/onboarding", "warn"),
 	)
 	if len(list) != 1 || list[0].Label != "nodes" {
-		t.Fatalf("cards() = %+v, want the zero-count card kept and the cardif dropped", list)
+		t.Fatalf("stats() = %+v, want the zero-count stat kept and the statif dropped", list)
 	}
 	if tone := warnif(0); tone != "" {
 		t.Errorf("warnif(0) = %q, want no tone", tone)
+	}
+}
+
+// A confidence value the walker grows tomorrow must not silently read as "fine":
+// an unmapped state is unstyled, and every mapped one still spells its word.
+func TestBadgeClass(t *testing.T) {
+	for state, want := range map[string]string{
+		"verified": "ok", "inferred": "inf", "observed_effect": "deg",
+		"disproved": "err", "external_hop": "ext", "something_new": "none",
+	} {
+		if got := badgeClass(state); got != want {
+			t.Errorf("badgeClass(%q) = %q, want %q", state, got, want)
+		}
+	}
+	if got := badgeLabel("observed_effect"); got != "OBSERVED EFFECT" {
+		t.Errorf("badgeLabel() = %q, want the words spelled out", got)
+	}
+	if badgeWhy("verified") == "" {
+		t.Error("badgeWhy(verified) is empty — a badge with no hover reason is a bare colour")
+	}
+}
+
+// The provenance column is narrow and every path in one instance shares a long
+// prefix, so it shortens from the left. Two segments, because "…/default" would be
+// the same string for nginx's sites-enabled/default and conf.d/default.
+func TestTailPath(t *testing.T) {
+	for in, want := range map[string]string{
+		"/usr/local/etc/haproxy/haproxy.cfg": "…/haproxy/haproxy.cfg",
+		"/etc/nginx/sites-enabled/shop.conf": "…/sites-enabled/shop.conf",
+		// Too long for both: the file name is what identifies the row, so the
+		// directory is what goes, rather than letting the column cut the end off.
+		"/etc/nginx/sites-enabled/20-shop.example.com.conf": "…/20-shop.example.com.conf",
+		"/etc/nginx/nginx.conf":                             "…/nginx/nginx.conf",
+		"nginx.conf":                                        "nginx.conf",
+		"/nginx.conf":                                       "/nginx.conf",
+		"":                                                  "",
+	} {
+		if got := tailPath(in); got != want {
+			t.Errorf("tailPath(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

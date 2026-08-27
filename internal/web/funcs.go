@@ -13,39 +13,102 @@ import (
 )
 
 var funcs = template.FuncMap{
-	"bytes":         humanBytes,
-	"join":          join,
-	"reason":        reasonText,
-	"sudoers":       func() string { return sudoersGrant },
-	"expiry":        expiry,
-	"uncovered":     uncovered,
-	"on":            navOn,
-	"windows":       certWindows,
-	"has":           has,
-	"csv":           csv,
-	"bar":           bar,
-	"hl":            highlight,
-	"routing":       routingRules,
-	"levels":        hopLevels,
-	"hoplabels":     hopLabels,
-	"stillinferred": stillInferred,
-	"probed":        probed,
-	"globals":       globalRules,
-	"nexturl":       nextURL,
-	"reasons":       endingReasons,
-	"sitekind":      siteKind,
-	"matched":       matchedBy,
-	"routekind":     routeKind,
-	"toolbar":       toolbar,
-	"card":          card,
-	"cardif":        cardif,
-	"cards":         cards,
-	"warnif":        warnif,
-	"cols":          cols,
-	"add":           func(a, b int) int { return a + b },
-	"sub":           func(a, b int) int { return a - b },
-	"notglobal":     notGlobal,
-	"globalonly":    globalOnly,
+	"bytes":       humanBytes,
+	"join":        join,
+	"reason":      reasonText,
+	"sudoers":     func() string { return sudoersGrant },
+	"expiry":      expiry,
+	"expclass":    expclass,
+	"ts":          tsHTML,
+	"when":        when,
+	"date":        dateOnly,
+	"clock":       clock,
+	"uncovered":   uncovered,
+	"on":          navOn,
+	"windows":     certWindows,
+	"certWindows": certWindows,
+	"has":         has,
+	"csv":         csv,
+	"bar":         bar,
+	"hl":          highlight,
+	"routing":     routingRules,
+	"levels":      hopLevels,
+	"hoplabels":   hopLabels,
+	"probed":      probed,
+	"globals":     globalRules,
+	"fired":       fired,
+	"firedcount":  firedCount,
+	"scopecount":  scopeCount,
+	"collapsed":   collapsedCount,
+	"nexturl":     nextURL,
+	"reasons":     endingReasons,
+	"sitekind":    siteKind,
+	"matched":     matchedBy,
+	"routekind":   routeKind,
+	"ports":       sitePorts,
+	"upcount":     siteUpstreams,
+	"target":      routeTarget,
+	"prov1":       firstProv,
+	"toolbar":     toolbar,
+	"stat":        stat,
+	"statif":      statif,
+	"stats":       stats,
+	"note":        note,
+	"warnif":      warnif,
+	"cols":        cols,
+	"settingsNav": settingsNav,
+	"outcome":     collectionOutcome,
+	"tone":        attentionTone,
+	// The same predicate /nodes, the node page and the dashboard all decide the
+	// quarantine badge with. Inlined as `ge .Failures .Threshold` it read a missing
+	// threshold as zero and stamped QUARANTINED on a fleet that was fine.
+	"quarantined": store.Quarantined,
+	// What a directive does, in a sentence, for the operator who has never seen
+	// it. Unknown directives come back verbatim rather than guessed at.
+	"rulesummary": store.RuleSummaryText,
+	// The three halves of a badge: its tone, its word, and why it says that.
+	"bdg":        badgeClass,
+	"ic":         icon,
+	"label":      badgeLabel,
+	"why":        badgeWhy,
+	"num":        num,
+	"shortid":    shortid,
+	"nodecount":  nodeCount,
+	"plural":     plural,
+	"add":        func(a, b int) int { return a + b },
+	"sub":        func(a, b int) int { return a - b },
+	"mod":        func(a, b int) int { return a % b },
+	"notglobal":  notGlobal,
+	"globalonly": globalOnly,
+	"split":      strings.Split,
+	"tail":       tailPath,
+}
+
+// tailPath shortens a config path to its last two segments. Provenance columns are
+// narrow and every path in one instance shares a long prefix, so the cell rendered
+// "/usr/local/etc/haprox…" on every row — the identifying half, the file name, is
+// the half that got cut. The full path stays in the link's title.
+//
+// Two segments rather than one because a bare base name is ambiguous exactly where
+// it matters: nginx keeps a "default" in both sites-enabled and conf.d — and that
+// ambiguity only arises for short names, which is why the length rule below can
+// drop the directory without reintroducing it.
+func tailPath(p string) string {
+	cut := strings.LastIndexByte(p, '/')
+	if cut <= 0 {
+		return p
+	}
+	i := strings.LastIndexByte(p[:cut], '/')
+	if i <= 0 {
+		return p
+	}
+	// The file name wins when both do not fit. "…/sites-enabled/20-shop.example.com.conf"
+	// is wider than the column, and the browser cuts the end — so keeping the
+	// directory cost the operator the one segment that identifies the file.
+	if len(p)-i > 30 {
+		return "…" + p[cut:]
+	}
+	return "…" + p[i:]
 }
 
 // hopLevel is one rank of the trace: every instance the request could be at
@@ -213,19 +276,6 @@ func probed(hops []*trace.Hop, last *probe.Past) []probedHop {
 	return out
 }
 
-// stillInferred names the hops a probe could not raise. A screen that reports only its
-// successes is the confident wrong Verified this product refuses, so the honest
-// outcome gets a sentence of its own.
-func stillInferred(hops []probedHop) []string {
-	var out []string
-	for _, h := range hops {
-		if h.After == "inferred" {
-			out = append(out, h.Label)
-		}
-	}
-	return out
-}
-
 // instLabel is the host a hop runs on, falling back to the instance name when the
 // node is unknown.
 func instLabel(i *trace.Inst) string {
@@ -313,6 +363,76 @@ func routeKind(matchType string) string {
 	return strings.ReplaceAll(strings.TrimPrefix(matchType, "haproxy_"), "_", " ")
 }
 
+// sitePorts is the listener ports a Site answers on ("443 ssl · 80"). A Site
+// holds listener ids and the Listener rows hang off the Inst, so the join lives
+// here rather than as three nested loops and an `index` in the template.
+func sitePorts(inst *trace.Inst, s *trace.Site) string {
+	if inst == nil || s == nil {
+		return ""
+	}
+	var out []string
+	for _, id := range s.ListenerIDs {
+		l := inst.Listeners[id]
+		if l == nil {
+			continue
+		}
+		p := strconv.Itoa(l.Port)
+		if l.TLS {
+			p += " ssl"
+		}
+		out = append(out, p)
+	}
+	return strings.Join(out, " · ")
+}
+
+// siteUpstreams is how many distinct pools a site's routes proxy to. Distinct,
+// because ten locations pointing at one pool is one upstream to keep alive, not
+// ten. Routes that resolve to no pool (a file root, a redirect) count for nothing.
+func siteUpstreams(s *trace.Site) int {
+	if s == nil {
+		return 0
+	}
+	seen := map[int64]bool{}
+	for _, r := range s.Routes {
+		if r.UpstreamID.Valid {
+			seen[r.UpstreamID.Int64] = true
+		}
+	}
+	return len(seen)
+}
+
+// routeTarget is where a Route sends the request, in one phrase: the upstream
+// pool it proxies to, or whatever the vendor wrote if it resolves to no pool.
+// An unresolvable target says so — "—" would read as "nothing configured",
+// which is a different fact from "configured, and we cannot follow it".
+func routeTarget(inst *trace.Inst, r *trace.Route) string {
+	if r == nil {
+		return ""
+	}
+	if r.UpstreamID.Valid && inst != nil {
+		if up := inst.Upstreams[r.UpstreamID.Int64]; up != nil {
+			return "proxy → " + up.Name
+		}
+	}
+	if r.TargetRaw != "" {
+		return r.TargetRaw
+	}
+	return "not determinable from configuration"
+}
+
+// firstProv is the provenance of the first rule that has any, so a row can carry
+// one file:byte link without the template looping and breaking out of the loop.
+// nil when nothing in the group recorded a file — the caller renders no link
+// rather than a link to nowhere.
+func firstProv(rules []*trace.Rule) *trace.Rule {
+	for _, r := range rules {
+		if r != nil && r.FileID != 0 {
+			return r
+		}
+	}
+	return nil
+}
+
 // matchedBy is the match phrase without the hostname the page already prints
 // beside it: "exact name shop.example.com" next to shop.example.com is one fact
 // twice. A catch-all, a wildcard or a regex keeps its own words.
@@ -343,6 +463,46 @@ func globalRules(rules []trace.HopRule) []trace.HopRule {
 		}
 	}
 	return out
+}
+
+// fired is what the Trace page's "Rules fired" table lists: the rules that
+// decided this request, in the order they were walked, with global-scope tuning
+// directives left out. Same reasoning as notGlobal on Rule lookup (f56ba21), and
+// it matters more here: on the lab's haproxy, hop 0 listed 80 "rules fired" and
+// 75 of them were log format, thread count, stats socket and cipher lists. The
+// panel footer states the count it left out, so nothing is silently dropped.
+func fired(rules []trace.HopRule) []trace.HopRule {
+	var out []trace.HopRule
+	for _, hr := range rules {
+		if hr.Scope != "global" {
+			out = append(out, hr)
+		}
+	}
+	return out
+}
+
+// firedOf is the summary line's "11 of 31 rules fired": the routing rules that
+// decided the request, out of every rule that was in scope at these hops. The
+// difference is global directives, which apply to every request identically, and
+// shadowed rules, which an inner directive discarded — neither is a decision
+// about this request, and counting them as ones fired would overstate the answer.
+func firedOf(hops []*trace.Hop) (int, int) {
+	var f, total int
+	for _, h := range hops {
+		f += len(fired(h.Rules))
+		total += len(h.Rules) + len(h.Shadowed)
+	}
+	return f, total
+}
+
+func firedCount(hops []*trace.Hop) int { f, _ := firedOf(hops); return f }
+func scopeCount(hops []*trace.Hop) int { _, n := firedOf(hops); return n }
+
+// collapsedCount is the rules the table does not show, which its footer names:
+// global tuning directives plus rules an inner scope shadowed.
+func collapsedCount(hops []*trace.Hop) int {
+	f, total := firedOf(hops)
+	return total - f
 }
 
 // notGlobal and globalOnly are routingRules/globalRules for Rule Lookup's flat,
@@ -462,9 +622,18 @@ func highlight(snippet, query string) template.HTML {
 // certWindows counts the certificate list into the expiry buckets the page leads
 // with. Plain counts, no score and no grade: the operator reads the finding, not
 // a number invented to summarise it.
-func certWindows(list []store.CertificateView) []Card {
-	var expired, d7, d30, d90 int
+// The windows are cumulative, because that is what the labels say: a certificate
+// with six days left is also one with under thirty. Exclusive buckets printed
+// "≤ 7 days 1" beside "≤ 30 days 1" on a fleet holding two expiring certificates,
+// so the tile an operator escalates on undercounted the problem.
+//
+// The sub-line is the binding count, because "9" is nine certificates and the
+// number that matters when one expires is how many sites stop working.
+func certWindows(list []store.CertificateView) []Stat {
+	var expired, d7, d30 int
+	var expiredB, d7B, d30B, bindings int
 	for _, c := range list {
+		bindings += c.Bindings
 		t, err := time.Parse(time.RFC3339, c.NotAfter)
 		if err != nil {
 			continue
@@ -472,23 +641,52 @@ func certWindows(list []store.CertificateView) []Card {
 		days := int(time.Until(t).Hours() / 24)
 		switch {
 		case days < 0:
-			expired++
+			expired, expiredB = expired+1, expiredB+c.Bindings
 		case days <= 7:
-			d7++
+			d7, d7B = d7+1, d7B+c.Bindings
+			d30, d30B = d30+1, d30B+c.Bindings
 		case days <= 30:
-			d30++
-		case days <= 90:
-			d90++
+			d30, d30B = d30+1, d30B+c.Bindings
 		}
 	}
-	return []Card{
-		// Soonest first: the list is read top-left to bottom-right, and what is
-		// already expired is history next to what expires this week.
-		{N: d7, Label: "≤ 7 days", Tone: warnif(d7)},
-		{N: d30, Label: "≤ 30 days", Tone: warnif(d30)},
-		{N: d90, Label: "≤ 90 days"},
-		{N: expired, Label: "expired", Tone: warnif(expired)},
+	return []Stat{
+		// Worst first: what has already stopped working outranks what will.
+		{N: expired, Label: "expired", Tone: warnif(expired), Note: plural(expiredB, "binding")},
+		{N: d7, Label: "≤ 7 days", Tone: warnif(d7), Note: plural(d7B, "binding")},
+		{N: d30, Label: "≤ 30 days", Tone: warnif(d30), Note: plural(d30B, "binding")},
+		{N: len(list), Label: "total distinct", Note: "by fingerprint"},
 	}
+}
+
+// plural is "1 binding" / "3 bindings", which is the whole of what the sub-lines
+// on a stat row need.
+func plural(n int, word string) string {
+	if n == 1 {
+		return "1 " + word
+	}
+	return num(n) + " " + word + "s"
+}
+
+// shortid is the first six characters of a correlation token, which is what
+// identifies a probe on screen without being 32 characters of the row's width.
+// Not `slice .Token 0 6` in the template: that is a render error on any token
+// shorter than six, and the whole page dies with it.
+func shortid(s string) string {
+	if len(s) <= 6 {
+		return s
+	}
+	return s[:6]
+}
+
+// nodeCount turns the store's comma-joined list of node display names into the
+// count the certificates table wants under its bindings number. The template
+// used to print the list itself followed by the word "hosts", which read
+// "app01 hosts".
+func nodeCount(hosts string) string {
+	if hosts == "" {
+		return "unbound"
+	}
+	return plural(strings.Count(hosts, ",")+1, "node")
 }
 
 // navOn marks the nav item that owns the current path. "/nodes" stays lit on
@@ -522,6 +720,97 @@ func expiry(notAfter string) string {
 	default:
 		return fmt.Sprintf("%d days left", days)
 	}
+}
+
+// expclass grades a NotAfter into a badge tone, using the same 30-day window the
+// stats row above the list counts with so the badge and the figure agree. It
+// exists because `lt (expiry .NotAfter) 0` compares a sentence to a number — a
+// template error raised at render time, which is how it reached a browser.
+func expclass(notAfter string) string {
+	t, err := time.Parse(time.RFC3339, notAfter)
+	if err != nil {
+		return "inf"
+	}
+	switch days := int(time.Until(t).Hours() / 24); {
+	case days < 0:
+		return "err"
+	case days <= 30:
+		return "deg"
+	default:
+		// A certificate with months left is a fact, not a warning.
+		return "none"
+	}
+}
+
+// when is a timestamp in the words that answer "is this current?" without making
+// the reader do arithmetic. Under a week it is relative, older than that it is a
+// date: "6 days ago" is useful and "63 days ago" is not.
+func when(ts string) string {
+	t, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		// Not a timestamp we recognise. Printing it unchanged is honest; printing
+		// nothing would hide a stored value from the operator.
+		return ts
+	}
+	d := time.Since(t)
+	switch {
+	// A future timestamp is a clock difference between here and the node, not an
+	// event that has not happened, so it is not phrased as one.
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	case d < 7*24*time.Hour:
+		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	default:
+		return t.UTC().Format("2 Jan 2006 15:04Z")
+	}
+}
+
+// dateOnly is for the timestamps `when` would misread: a certificate's validity
+// runs into the future, where "ago" is nonsense, and the day is what an operator
+// puts in a calendar. To the second is a machine's answer to "when does this
+// expire?"; the distance in words is what the expiry badge beside it is for.
+func dateOnly(ts string) string {
+	t, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		return ts
+	}
+	return t.UTC().Format("2 Jan 2006")
+}
+
+// clock is the wall-clock form the wireframe uses wherever a cell says when a
+// collection last ran — "04:12Z", not "3h ago". The two are not interchangeable:
+// a relative distance answers "is this fresh?", which a freshness badge beside it
+// already answers, while an operator comparing four clusters in one table needs
+// the times to line up, and "3h ago" on rows rendered a minute apart does not.
+//
+// Always UTC and always stamped Z, because a fleet spans zones and a bare 04:12
+// in a ticket is a question rather than a fact. The date appears only when the
+// timestamp is not from today, so the common case stays five characters wide.
+func clock(ts string) string {
+	t, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		return ts
+	}
+	t = t.UTC()
+	if now := time.Now().UTC(); t.YearDay() == now.YearDay() && t.Year() == now.Year() {
+		return t.Format("15:04Z")
+	}
+	return t.Format("2 Jan 15:04Z")
+}
+
+// tsHTML is how every screen prints a stored time: the short form in the text and
+// the exact value on hover. Twenty-one places were printing raw RFC3339, which is
+// a timestamp only a machine reads at a glance.
+func tsHTML(ts string) template.HTML {
+	if ts == "" {
+		return ""
+	}
+	return template.HTML(`<span title="` + template.HTMLEscapeString(ts) + `">` +
+		template.HTMLEscapeString(when(ts)) + `</span>`)
 }
 
 // uncovered lists the hostnames a certificate is serving but does not identify.

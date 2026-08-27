@@ -1,0 +1,105 @@
+{{template "head" .}}
+{{with .Data}}
+{{template "ptitle" toolbar "Snapshots" ""}}
+  {{/* Both of these lied. The window was typed as 90 regardless of the setting,
+       and it was a <span> styled as a button — a control that does nothing. The
+       export said "selection" and exported everything, because it dropped the
+       filter bar's parameters on the way out. */}}
+  <a class="btn s sm" href="/settings/retention">Retention: {{.RetentionDays}} days</a>
+  <a class="btn sm" href="/snapshots?export=csv&amp;q={{.Query}}&amp;range={{.Range}}&amp;changes={{.Changes}}&amp;trigger={{.Trigger}}">Export these {{num .Filtered}}</a>
+{{template "ptitle-end"}}
+
+<div class="qbar">
+  <form method="get" action="/snapshots" style="display:contents">
+    <input class="fld f" type="search" name="q" value="{{.Query}}" placeholder="filter by instance, node or cluster">
+    <select class="sel" name="range">
+      <option value="24h" {{if eq .Range "24h"}}selected{{end}}>Range: 24h</option>
+      <option value="7d" {{if eq .Range "7d"}}selected{{end}}>Range: 7 days</option>
+      <option value="30d" {{if eq .Range "30d"}}selected{{end}}>Range: 30 days</option>
+      <option value="90d" {{if eq .Range "90d"}}selected{{end}}>Range: 90 days</option>
+    </select>
+    <select class="sel" name="changes">
+      <option value="" {{if eq .Changes ""}}selected{{end}}>Changes: any</option>
+      <option value="yes" {{if eq .Changes "yes"}}selected{{end}}>Changes: with changes</option>
+      <option value="no" {{if eq .Changes "no"}}selected{{end}}>Changes: no changes</option>
+    </select>
+    <select class="sel" name="trigger">
+      <option value="" {{if eq .Trigger ""}}selected{{end}}>Trigger: any</option>
+      <option value="manual" {{if eq .Trigger "manual"}}selected{{end}}>Trigger: manual</option>
+      {{/* The stored values are exactly these three (schema CHECK): "schedule"
+           matched nothing, so narrowing to scheduled captures always emptied the
+           table, and first_contact runs could not be picked out at all. */}}
+      <option value="scheduled" {{if eq .Trigger "scheduled"}}selected{{end}}>Trigger: scheduled</option>
+      <option value="first_contact" {{if eq .Trigger "first_contact"}}selected{{end}}>Trigger: first contact</option>
+    </select>
+    <button class="btn p" type="submit">Filter</button>
+  </form>
+</div>
+
+{{template "bd"}}
+  {{if .Empty}}
+  {{template "empty" "No snapshots yet"}}
+    <p>Snapshots appear here once a collection has captured configuration from an instance.
+    <a href="/onboarding">Connect the fleet</a> and collect.</p>
+  {{template "empty-end"}}
+  {{else}}
+  <div class="row" style="flex:none">
+    {{/* The retention window is a setting, so it is read, not typed: it said
+         "90-day window" regardless of what Settings · Retention was set to. */}}
+    {{/* Labelled by the range select, because that is what it counts. It read
+         "Snapshots stored · 90-day window" while showing the 24h total. */}}
+    <div class="stat"><span class="lbl">Captures · {{.Range}}</span><span class="num">{{num .Total}}</span><span class="m mus">kept for <a href="/settings/retention">{{.RetentionDays}} days</a></span></div>
+    <div class="stat"><span class="lbl">Storage</span><span class="num">{{bytes .TotalBytes}}</span><span class="m mus">deduped blobs</span></div>
+    <div class="stat"><span class="lbl">With changes · {{.Range}}</span><span class="num">{{.Changed}}</span><span class="m mus">of {{num .Filtered}}</span></div>
+    <div class="stat{{if .Degraded}} warn{{end}}"><span class="lbl">Degraded captures</span><span class="num">{{.Degraded}}</span><span class="m mus">parsed files only</span></div>
+  </div>
+
+{{/* flex:1 0 auto — grows to fill a short page, never shrinks below its own rows.
+       At flex:1 the shrink factor crushed the panel to the leftover height and the
+       rows past it were drawn outside it: 25 captures in 349px of panel. */}}
+  <div class="pnl z" style="flex:1 0 auto">
+    <div class="phd">
+      <span class="ph2">Recent captures</span>
+      <div class="flex-1"></div>
+      {{/* The order is stated, not offered: cursor pagination walks captured
+           desc, and a permanently disabled <select> is a control that lies
+           about what the screen can do. So was the selection column below —
+           there is no bulk action to select rows for. */}}
+      <span class="m mus">newest capture first</span>
+    </div>
+    <table class="t">
+      {{template "cols" cols "captured:9.5rem" "instance" "node:9rem" "cluster:8rem" "trigger:6rem" "changes:5rem" "size:5.5rem" "state:6rem"}}
+      {{range .List}}
+      <tr>
+        <td class="m">{{ts .CapturedAt}}</td>
+        <td class="m mu"><a href="/instances/{{.InstanceID}}">{{.Instance}}</a></td>
+        {{/* The node, because an instance display name is vendor + config basename:
+             without it every host running stock nginx produced an identical row. */}}
+        <td class="m mu">{{.Node}}</td>
+        <td class="m mu">{{if .Cluster}}{{.Cluster}}{{else}}<span class="mus">—</span>{{end}}</td>
+        <td class="m mu">{{.Trigger}}</td>
+        {{/* Changed is whether this capture's content digest differs from the
+             instance's previous one — a fact, not a count of what differs, which
+             is what the Drift screen is for. */}}
+        <td class="m">{{if .Changed}}<span class="bdg inf">changed</span>{{else}}<span class="mus">same</span>{{end}}</td>
+        <td class="m mu">{{bytes .BytesRaw}}</td>
+        <td>{{template "confidence" .State}}</td>
+      </tr>
+      {{end}}
+    </table>
+    {{if .HasMore}}
+    <div class="pft">
+      <span class="m mus">{{.From}}–{{.To}} of {{num .Filtered}}</span>
+      <div class="flex-1"></div>
+      <a class="btn sm" href="/snapshots?q={{.Query}}&range={{.Range}}&changes={{.Changes}}&trigger={{.Trigger}}&cursor={{.NextCursor}}">Load more</a>
+    </div>
+    {{else if gt (len .List) 0}}
+    <div class="pft">
+      <span class="m mus">{{.From}}–{{.To}} of {{num .Filtered}}</span>
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+{{template "bd-end"}}
+{{end}}
+{{template "foot" .}}

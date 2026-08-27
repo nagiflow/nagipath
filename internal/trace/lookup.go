@@ -96,6 +96,14 @@ func Lookup(top *Topology, q LookupQuery) []LookupResult {
 			continue
 		}
 
+		// No hostname: the caller is asking "what serves this path anywhere in
+		// the fleet" rather than "what serves this request", so there is no host
+		// to pick one site with. Every site on the instance is checked instead.
+		if q.Hostname == "" {
+			out = append(out, pathOnlyResults(in, q, classes)...)
+			continue
+		}
+
 		listener, site, matchedBy := selectSite(in, q.Hostname, q.Port, tls)
 		res.Listener, res.Site, res.MatchedBy = listener, site, matchedBy
 		if site == nil {
@@ -144,6 +152,45 @@ func Lookup(top *Topology, q LookupQuery) []LookupResult {
 	sort.SliceStable(out, func(i, j int) bool {
 		return len(out[i].Rules) > 0 && len(out[j].Rules) == 0
 	})
+	return out
+}
+
+// pathOnlyResults answers a path with no host: every site on the instance is a
+// candidate, since there is no hostname left to pick one with. A site is only
+// reported when an explicit route claims the path — a site with no matching
+// route falls through to serving it from the document root under every
+// vendor's default behaviour, and every site does that, so counting it as a
+// match would turn "what serves /api/v2" into "every site in the fleet".
+func pathOnlyResults(in *Inst, q LookupQuery, classes map[string]bool) []LookupResult {
+	var out []LookupResult
+	for _, site := range in.Sites {
+		route, precedence, branches := selectRoute(in.Vendor, site, q.Path)
+		if route == nil {
+			continue
+		}
+		res := LookupResult{Inst: in, Site: site, Route: route, Precedence: precedence, Undetermined: branches}
+		applied, shadowed := effectiveRules(in, site, route)
+		n := 0
+		for _, hr := range applied {
+			if len(classes) > 0 && !classes[hr.Rule.ActionClass] {
+				continue
+			}
+			n++
+			res.Rules = append(res.Rules, LookupRule{
+				Ordinal: n, Rule: hr.Rule, Scope: hr.Scope, Inherited: hr.Inherited,
+			})
+		}
+		for _, hr := range shadowed {
+			if len(classes) > 0 && !classes[hr.Rule.ActionClass] {
+				continue
+			}
+			res.Rules = append(res.Rules, LookupRule{
+				Rule: hr.Rule, Scope: hr.Scope, Inherited: hr.Inherited,
+				Shadowed: true, ShadowedBy: hr.Rule.ShadowedBy,
+			})
+		}
+		out = append(out, res)
+	}
 	return out
 }
 

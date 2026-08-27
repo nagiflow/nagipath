@@ -1,0 +1,27 @@
+# Local development only. The source tree is bind-mounted and Air restarts the
+# server after Go, template, static-asset or migration changes.
+name: nagipath-dev
+
+services:
+  nagipath:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "127.0.0.1:${NAGIPATH_DEV_PORT:-8080}:8080"
+    volumes:
+      - .:/workspace
+      - nagipath-dev-data:/data
+      - nagipath-go-mod:/go/pkg/mod
+      - nagipath-go-build:/root/.cache/go-build
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        go run ./cmd/nagipath keygen -data /data || true
+        exec air -c .air.toml
+
+volumes:
+  nagipath-dev-data:
+  nagipath-go-mod:
+  nagipath-go-build:

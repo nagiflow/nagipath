@@ -1,0 +1,15 @@
+{{template "head" .}}
+{{template "ptitle" toolbar "Not found" ""}}
+{{template "ptitle-end"}}
+
+{{template "bd"}}
+{{/* The path, verbatim: a wrong id and a mistyped URL are the two ways here, and
+     an operator cannot tell which without seeing what was asked for. It is also
+     the one thing a support ticket needs to be actionable. */}}
+{{template "empty" "This page does not exist"}}
+  <p><code class="m">{{.Path}}</code> is not a page this server serves — or the
+  node, instance or snapshot it names has since been removed.</p>
+  <p><a href="/">Go to the Dashboard</a>, or pick a screen from the sidebar.</p>
+{{template "empty-end"}}
+{{template "bd-end"}}
+{{template "foot" .}}

@@ -34,6 +34,8 @@ type Instance struct {
 	NodeAddress     string
 	NodeDisplayName string
 	SiteCount       int
+	RouteCount      int
+	CertCount       int
 	LastCaptured    sql.NullString
 	ClusterName     string
 	Degraded        bool
@@ -131,6 +133,11 @@ func (db *DB) Instances(ctx context.Context) ([]Instance, error) {
 		n.address, n.display_name,
 		(SELECT COUNT(*) FROM site s JOIN snapshot sn ON sn.id = s.snapshot_id
 		   WHERE s.instance_id = i.id AND sn.is_current = 1),
+		(SELECT COUNT(*) FROM route r JOIN snapshot sn ON sn.id = r.snapshot_id
+		   WHERE r.instance_id = i.id AND sn.is_current = 1),
+		(SELECT COUNT(DISTINCT b.certificate_id) FROM certificate_binding b
+		   JOIN snapshot sn ON sn.id = b.snapshot_id
+		   WHERE b.instance_id = i.id AND sn.is_current = 1),
 		(SELECT MAX(captured_at) FROM snapshot sn WHERE sn.instance_id = i.id),
 		COALESCE(c.name, ''),
 		COALESCE((SELECT sn.degraded FROM snapshot sn
@@ -156,6 +163,7 @@ func (db *DB) Instances(ctx context.Context) ([]Instance, error) {
 			&in.DisplayName, &in.Version, &in.BinaryPath, &in.ConfigRoot, &in.MainConfigPath,
 			&in.ServiceManager, &in.UnitName, &in.DetectedPID, &logs, &in.FirstSeenAt,
 			&in.LastSeenAt, &in.RetiredAt, &in.NodeAddress, &in.NodeDisplayName, &in.SiteCount,
+			&in.RouteCount, &in.CertCount,
 			&in.LastCaptured, &in.ClusterName, &in.Degraded, &in.ParseState,
 			&in.Ports); err != nil {
 			return nil, err
@@ -274,10 +282,21 @@ func (db *DB) CollectionDurationStats(ctx context.Context) (sum int64, count int
 }
 
 func (db *DB) Collections(ctx context.Context, limit int) ([]Collection, error) {
+	return db.collections(ctx, `ORDER BY c.started_at DESC, c.id DESC LIMIT ?`, limit)
+}
+
+// CollectionsSince is every run at or after `since`, newest first. The list screen
+// used to read the newest 10,000 runs and then drop the ones outside its window,
+// which silently loses the tail of a 90-day window on a fleet that collects daily:
+// 1,000 nodes reach that cap in ten days.
+func (db *DB) CollectionsSince(ctx context.Context, since string) ([]Collection, error) {
+	return db.collections(ctx, `WHERE c.started_at >= ? ORDER BY c.started_at DESC, c.id DESC`, since)
+}
+
+func (db *DB) collections(ctx context.Context, tail string, arg any) ([]Collection, error) {
 	rows, err := db.R.QueryContext(ctx, `SELECT c.id, c.node_id, n.display_name, c.trigger,
 		c.started_at, c.finished_at, c.status, c.error, c.instances_seen, c.bytes_stored,
-		c.duration_ms FROM collection c JOIN node n ON n.id = c.node_id
-		ORDER BY c.started_at DESC, c.id DESC LIMIT ?`, limit)
+		c.duration_ms FROM collection c JOIN node n ON n.id = c.node_id `+tail, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -474,6 +493,67 @@ func (db *DB) SnapshotFiles(ctx context.Context, snapshotID int64) ([]FileRef, e
 			return nil, err
 		}
 		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
+// SnapshotRow is one row of the fleet-wide snapshot list: a capture with the
+// instance, cluster and trigger already joined, and whether its content differs
+// from the instance's previous capture.
+type SnapshotRow struct {
+	ID         int64
+	InstanceID int64
+	Instance   string
+	// Node, because an instance display name is vendor + config basename: every
+	// host running stock nginx reads "nginx nginx.conf", and a fleet-wide list of
+	// captures that cannot say which host it captured from is not actionable.
+	Node       string
+	Cluster    string
+	CapturedAt string
+	Trigger    string
+	BytesRaw   int64
+	Degraded   bool
+	ParseState string
+	Changed    bool
+}
+
+// SnapshotsSince is every capture at or after `since`, newest first. One query
+// rather than a Snapshots() call per instance with a limit: that loop silently
+// capped the fleet-wide list at 20 rows per instance, so both the total and the
+// storage figure above it were wrong on any install with real history.
+//
+// Changed compares content_sha256 with the instance's previous capture. That
+// digest is computed over the file set precisely so an unchanged configuration
+// yields an identical one, so this is a lookup rather than a diff. The oldest
+// capture of an instance has nothing to compare against and is not a change.
+func (db *DB) SnapshotsSince(ctx context.Context, since string) ([]SnapshotRow, error) {
+	rows, err := db.R.QueryContext(ctx, `SELECT s.id, s.instance_id, i.display_name,
+		n.display_name, COALESCE(cl.name, ''), s.captured_at, COALESCE(c.trigger, ''), s.bytes_raw,
+		s.degraded, s.parse_state,
+		s.content_sha256 <> COALESCE(
+			LAG(s.content_sha256) OVER (PARTITION BY s.instance_id ORDER BY s.captured_at),
+			s.content_sha256)
+		FROM snapshot s
+		JOIN instance i ON i.id = s.instance_id
+		JOIN node n ON n.id = i.node_id
+		LEFT JOIN cluster cl ON cl.id = i.cluster_id
+		LEFT JOIN collection c ON c.id = s.collection_id
+		WHERE s.captured_at >= ?
+		ORDER BY s.captured_at DESC`, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []SnapshotRow
+	for rows.Next() {
+		var r SnapshotRow
+		var degraded, changed int
+		if err := rows.Scan(&r.ID, &r.InstanceID, &r.Instance, &r.Node, &r.Cluster, &r.CapturedAt,
+			&r.Trigger, &r.BytesRaw, &degraded, &r.ParseState, &changed); err != nil {
+			return nil, err
+		}
+		r.Degraded, r.Changed = degraded == 1, changed == 1
+		out = append(out, r)
 	}
 	return out, rows.Err()
 }

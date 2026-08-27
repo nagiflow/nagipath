@@ -95,26 +95,30 @@ type CertificateView struct {
 // certificate panel needs this: "expires in 12 days" is only actionable next to
 // the list of things that stop working when it does.
 type CertBinding struct {
-	InstanceID int64
-	Instance   string
-	Node       string
-	SnapshotID int64
-	FileID     int64
-	FilePath   string
-	SiteNames  string
-	Port       int
+	InstanceID  int64
+	Instance    string
+	Node        string
+	ClusterName string
+	SnapshotID  int64
+	FileID      int64
+	FilePath    string
+	SiteNames   string
+	Port        int
+	CombinedPEM bool
 }
 
 func (db *DB) CertBindings(ctx context.Context, certID int64) ([]CertBinding, error) {
 	rows, err := db.R.QueryContext(ctx, `SELECT b.instance_id, i.display_name,
-		n.display_name, b.snapshot_id, COALESCE(b.prov_file_id, 0), b.file_path,
+		n.display_name, COALESCE(c.name, ''), b.snapshot_id, COALESCE(b.prov_file_id, 0), b.file_path,
 		COALESCE((SELECT group_concat(DISTINCT sn.name) FROM site_name sn
 		   WHERE sn.site_id = b.site_id), ''),
-		COALESCE((SELECT l.port FROM listener l WHERE l.id = b.listener_id), 0)
+		COALESCE((SELECT l.port FROM listener l WHERE l.id = b.listener_id), 0),
+		b.combined_pem
 		FROM certificate_binding b
 		JOIN snapshot s ON s.id = b.snapshot_id AND s.is_current = 1
 		JOIN instance i ON i.id = b.instance_id
 		JOIN node n ON n.id = i.node_id
+		LEFT JOIN cluster c ON c.id = i.cluster_id
 		WHERE b.certificate_id = ?
 		ORDER BY i.display_name, b.file_path`, certID)
 	if err != nil {
@@ -124,8 +128,8 @@ func (db *DB) CertBindings(ctx context.Context, certID int64) ([]CertBinding, er
 	var out []CertBinding
 	for rows.Next() {
 		var b CertBinding
-		if err := rows.Scan(&b.InstanceID, &b.Instance, &b.Node, &b.SnapshotID, &b.FileID,
-			&b.FilePath, &b.SiteNames, &b.Port); err != nil {
+		if err := rows.Scan(&b.InstanceID, &b.Instance, &b.Node, &b.ClusterName, &b.SnapshotID, &b.FileID,
+			&b.FilePath, &b.SiteNames, &b.Port, &b.CombinedPEM); err != nil {
 			return nil, err
 		}
 		out = append(out, b)
@@ -133,9 +137,27 @@ func (db *DB) CertBindings(ctx context.Context, certID int64) ([]CertBinding, er
 	return out, rows.Err()
 }
 
+func (db *DB) CertificateByID(ctx context.Context, id int64) (Certificate, error) {
+	var c Certificate
+	var sans string
+	err := db.R.QueryRowContext(ctx, `SELECT id, fingerprint_sha256, subject_cn, subject_dn,
+		sans, issuer_dn, serial, not_before, not_after, key_algorithm, key_bits,
+		signature_algorithm, is_self_signed, is_ca, first_seen_at, last_seen_at
+		FROM certificate WHERE id = ?`, id).Scan(&c.ID, &c.Fingerprint, &c.SubjectCN,
+		&c.SubjectDN, &sans, &c.IssuerDN, &c.Serial, &c.NotBefore, &c.NotAfter,
+		&c.KeyAlgorithm, &c.KeyBits, &c.SigAlgorithm, &c.SelfSigned, &c.IsCA,
+		&c.FirstSeenAt, &c.LastSeenAt)
+	if err != nil {
+		return Certificate{}, err
+	}
+	json.Unmarshal([]byte(sans), &c.SANs)
+	return c, nil
+}
+
 func (db *DB) Certificates(ctx context.Context) ([]CertificateView, error) {
 	rows, err := db.R.QueryContext(ctx, `SELECT c.id, c.fingerprint_sha256, c.subject_cn,
 		c.sans, c.issuer_dn, c.not_before, c.not_after, c.is_self_signed, c.last_seen_at,
+		c.key_algorithm, c.key_bits,
 		(SELECT COUNT(*) FROM certificate_binding b
 		   JOIN snapshot s ON s.id = b.snapshot_id
 		   WHERE b.certificate_id = c.id AND s.is_current = 1),
@@ -158,8 +180,11 @@ func (db *DB) Certificates(ctx context.Context) ([]CertificateView, error) {
 	for rows.Next() {
 		var v CertificateView
 		var sans, serves string
+		// The key columns were stored and never read back, so the list's Key column
+		// was blank on every row of a real install.
 		if err := rows.Scan(&v.ID, &v.Fingerprint, &v.SubjectCN, &sans, &v.IssuerDN,
 			&v.NotBefore, &v.NotAfter, &v.SelfSigned, &v.LastSeenAt,
+			&v.KeyAlgorithm, &v.KeyBits,
 			&v.Bindings, &v.Hosts, &serves); err != nil {
 			return nil, err
 		}

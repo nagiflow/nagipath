@@ -1,7 +1,12 @@
 {{/* An empty state, open/close so its prose stays prose: the sentence usually
-     carries a link or two and reads better written inline than passed in as a
-     string. The wrapper is here so all thirteen of them change together. */}}
-{{define "empty"}}<section class="empty">
-  <h2>{{.}}</h2>{{end}}
+     carries a link or two and reads better written inline than passed in.
 
-{{define "empty-end"}}</section>{{end}}
+     Never a bare "No results". Always three things: what would be here, why it
+     is not, and the action that fixes it — and the three cases stay distinct,
+     because "nothing collected yet", "filtered to nothing" and "the collection
+     failed" are very different situations that one generic message conflates. */}}
+
+{{define "empty"}}<div class="empty">
+  <b>{{.}}</b>{{end}}
+
+{{define "empty-end"}}</div>{{end}}

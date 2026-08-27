@@ -2,7 +2,12 @@ package collect
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rsa"
+	"crypto/x509"
 	"database/sql"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"path"
@@ -681,8 +686,22 @@ func (c *Collector) certificates(ctx context.Context, ex sshx.Executor, instance
 // since the fingerprint is its identity.
 func parseX509(out string) (store.Certificate, bool) {
 	c := store.Certificate{}
+	var pubkey []string
+	inPubkey := false
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
+		// The -pubkey PEM block is collected whole and parsed below rather than
+		// scanned line by line, because base64 means nothing on its own.
+		if strings.HasPrefix(line, "-----BEGIN PUBLIC KEY") {
+			inPubkey = true
+		}
+		if inPubkey {
+			pubkey = append(pubkey, line)
+			if strings.HasPrefix(line, "-----END PUBLIC KEY") {
+				inPubkey = false
+			}
+			continue
+		}
 		switch {
 		case strings.HasPrefix(line, "subject="):
 			c.SubjectDN = strings.TrimSpace(strings.TrimPrefix(line, "subject="))
@@ -710,8 +729,35 @@ func parseX509(out string) (store.Certificate, bool) {
 	if c.Fingerprint == "" || c.NotAfter == "" {
 		return c, false
 	}
+	c.KeyAlgorithm, c.KeyBits = publicKeyStrength(strings.Join(pubkey, "\n"))
 	c.SelfSigned = c.SubjectDN != "" && c.SubjectDN == c.IssuerDN
 	return c, true
+}
+
+// publicKeyStrength names the key an operator has to judge: "RSA" with its
+// modulus size, or "ECDSA"/"Ed25519" with the curve's. An openssl too old for
+// -pubkey, or a key type crypto/x509 does not know, leaves both empty — the
+// certificates list distinguishes "not collected" from a weak key, so guessing
+// here would be worse than the blank it replaces.
+func publicKeyStrength(pemText string) (string, sql.NullInt64) {
+	block, _ := pem.Decode([]byte(pemText))
+	if block == nil {
+		return "", sql.NullInt64{}
+	}
+	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return "", sql.NullInt64{}
+	}
+	bits := func(n int) sql.NullInt64 { return sql.NullInt64{Int64: int64(n), Valid: true} }
+	switch k := key.(type) {
+	case *rsa.PublicKey:
+		return "RSA", bits(k.N.BitLen())
+	case *ecdsa.PublicKey:
+		return "ECDSA", bits(k.Curve.Params().BitSize)
+	case ed25519.PublicKey:
+		return "Ed25519", bits(len(k) * 8)
+	}
+	return "", sql.NullInt64{}
 }
 
 // asnTime converts openssl's `Jan  2 15:04:05 2006 GMT` to the store's sortable

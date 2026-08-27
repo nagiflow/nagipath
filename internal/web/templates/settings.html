@@ -1,0 +1,71 @@
+{{template "head" .}}
+{{template "ptitle" toolbar "Settings" ""}}
+{{template "ptitle-end"}}
+
+{{template "bd" "row"}}
+<div class="col" style="flex:0 0 210px">
+  {{template "sidelist" (settingsNav .Path $.User)}}
+</div>
+
+<div class="col" style="flex:1">
+  {{with .Data}}
+  <div class="pnl z">
+    <div class="phd">
+      <span class="ph2">Users & roles</span>
+      <div class="flex-1"></div>
+    </div>
+    {{if .Users}}
+    <table class="t">
+      {{template "cols" cols "User:200px" "Role:120px" "Last active:130px"}}
+      {{range .Users}}
+      <tr{{if .Disabled}} style="opacity:0.6"{{end}}>
+        <td class="m">{{.Username}}</td>
+        <td class="m mu">{{.Role}}</td>
+        <td class="m mu">{{if .LastLoginAt.Valid}}{{clock .LastLoginAt.String}}{{else}}never{{end}}</td>
+      </tr>
+      {{end}}
+    </table>
+    <div class="pft">
+      <div style="flex:1">
+        <div class="lbl" style="margin-bottom:5px">Role capabilities</div>
+        <div style="display:flex;flex-direction:column;gap:3px;font-size:12px">
+          <div style="display:flex;gap:10px"><span class="m mu" style="width:74px">Viewer</span><span class="m">reads everything: inventory, traces, rules, drift, audit</span></div>
+          <div style="display:flex;gap:10px"><span class="m mu" style="width:74px">Admin</span><span class="m">+ collections, probes, credentials, users, host keys, retention</span></div>
+        </div>
+      </div>
+    </div>
+    {{else}}
+    <div style="padding:20px 12px">
+      {{template "empty" "No users yet"}}
+        <p>This should not happen — the signed-in account is itself a user.</p>
+      {{template "empty-end"}}
+    </div>
+    {{end}}
+  </div>
+
+  <div class="row" style="flex:1;min-height:0">
+    <div class="pnl" style="flex:1;padding:11px 12px">
+      <div class="lbl" style="margin-bottom:7px">Retention</div>
+      <div class="kv m">
+        <span class="mus">snapshots</span><span>{{.SnapshotDays}} days</span>
+        <span class="mus">job logs</span><span>{{.JobLogDays}} days</span>
+        <span class="mus">probe records</span><span>{{.ProbeDays}} days</span>
+        <span class="mus">audit log</span><span>{{.AuditDays}} days</span>
+      </div>
+      <a class="btn s sm" style="margin-top:9px" href="/settings/retention">Edit retention</a>
+    </div>
+    <div class="pnl" style="flex:1;padding:11px 12px">
+      <div class="lbl" style="margin-bottom:7px">Collection defaults</div>
+      <div class="kv m">
+        <span class="mus">interval</span><span>{{.CollectionIntervalMinutes}} minutes</span>
+        <span class="mus">concurrency</span><span>{{.SSHWorkers}} SSH workers</span>
+        <span class="mus">timeout</span><span>{{.CommandTimeout}} seconds</span>
+        {{if .DefaultCredentialName}}<span class="mus">credential</span><span>{{.DefaultCredentialName}}</span>{{end}}
+      </div>
+      <a class="btn s sm" style="margin-top:9px" href="/settings/collection-defaults">Edit defaults</a>
+    </div>
+  </div>
+  {{end}}
+</div>
+{{template "bd-end"}}
+{{template "foot" .}}

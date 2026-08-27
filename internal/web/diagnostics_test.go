@@ -13,7 +13,7 @@ func TestDiagnosticsPageRequiresAuth(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	w := c.get("/diagnostics")
+	w := c.get("/settings/system")
 	if w.Code != http.StatusSeeOther || !strings.HasPrefix(w.Header().Get("Location"), "/login") {
 		t.Errorf("GET /diagnostics while signed out = %d -> %q", w.Code, w.Header().Get("Location"))
 	}
@@ -30,10 +30,10 @@ func TestViewerCannotReachDiagnostics(t *testing.T) {
 		t.Fatal("viewer could not sign in")
 	}
 
-	if got := c.get("/diagnostics").Code; got != http.StatusForbidden {
+	if got := c.get("/settings/system").Code; got != http.StatusForbidden {
 		t.Errorf("GET /diagnostics as a viewer = %d, want 403", got)
 	}
-	if got := c.get("/diagnostics/bundle").Code; got != http.StatusForbidden {
+	if got := c.get("/settings/system/bundle").Code; got != http.StatusForbidden {
 		t.Errorf("GET /diagnostics/bundle as a viewer = %d, want 403", got)
 	}
 }
@@ -46,7 +46,7 @@ func TestAdminSeesDiagnosticsPanel(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.get("/diagnostics")
+	w := c.get("/settings/system")
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET /diagnostics as an admin = %d, want 200: %s", w.Code, w.Body.String())
 	}
@@ -70,7 +70,7 @@ func TestDiagnosticsBundleDownloadsAsAttachment(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.get("/diagnostics/bundle")
+	w := c.get("/settings/system/bundle")
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET /diagnostics/bundle as an admin = %d, want 200: %s", w.Code, w.Body.String())
 	}

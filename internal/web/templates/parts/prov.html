@@ -1,5 +1,33 @@
-{{/* prov takes a *trace.Rule and renders the one thing every claim owes the
-     reader: the file and byte offset it came from, as a link. */}}
-{{define "prov"}}{{if .FileID}}<a class="mono tiny" href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}"
-  >{{.Path}}{{if .ByteStart}}&nbsp;@{{.ByteStart}}{{end}}&nbsp;↗</a>{{else}}<span
-  class="mono tiny dim">{{.Path}}</span>{{end}}{{end}}
+{{/* Provenance: the file and byte offset a claim was parsed from, as a link to
+     the snapshot file scrolled to that range.
+
+     This is the product's trust mechanism, so it is present on every Rule,
+     Route, Site, Listener, Upstream, Certificate Binding and Drift finding
+     without exception. An operator who does not believe an answer clicks
+     through and reads the directive. A screen that shows a derived fact with no
+     way to check it is an incomplete screen.
+
+     Takes a *trace.Rule (or anything with the same four fields). */}}
+
+{{/* The tooltip names the affordance rather than repeating the visible text:
+     the link already reads `path:byte`, so a title saying the same thing tells
+     a screen reader nothing about what following it does. */}}
+{{/* ?b= is the byte offset the server highlights on; #hl is the anchor it puts on
+     whichever line that turned out to be, which is the only half that scrolls —
+     a browser never sends the fragment, and the offset does not land on a line
+     boundary, so linking to #b<offset> scrolled to nothing. */}}
+{{/* @{{.ByteStart}}, not :{{.ByteStart}} — a colon apes the file:line convention
+     and reads as a promise that the number is a line, when what nagipath stored
+     is a byte offset. Turning that into a line means reading the file back for
+     every provenance link on the page, which the two screens that actually show
+     a line (the file viewer and the trace Provenance panel) each do once, for
+     the one link they're rendering — not something a list of hundreds affords. */}}
+{{define "prov"}}{{if .FileID}}<a class="m mus" href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}{{if .ByteStart}}?b={{.ByteStart}}#hl{{end}}"
+  title="jump to file · {{.Path}}{{if .ByteStart}} @{{.ByteStart}}{{end}}">{{tail .Path}}{{if .ByteStart}} @{{.ByteStart}}{{end}} ↗</a>{{else}}<span
+  class="m mus" title="parsed before file provenance was recorded · {{.Path}}">{{tail .Path}}</span>{{end}}{{end}}
+
+{{/* The directive itself as the link, for tables where the rule text is the
+     row and a separate provenance column would just repeat the path. */}}
+{{define "rulelink"}}{{if .FileID}}<a class="m" href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}{{if .ByteStart}}?b={{.ByteStart}}#hl{{end}}"
+  title="jump to file · {{.Path}}{{if .ByteStart}} @{{.ByteStart}}{{end}}">{{.Directive}} {{.Args}}</a>{{else}}<span
+  class="m">{{.Directive}} {{.Args}}</span>{{end}}{{end}}

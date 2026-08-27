@@ -468,6 +468,35 @@ func TestSaveRoundTrips(t *testing.T) {
 	if recent[0].TerminalReason != tr.TerminalReason {
 		t.Errorf("stored terminal reason = %q", recent[0].TerminalReason)
 	}
+
+	// The same URL traced again is the same entry point, and the list is one row per
+	// entry point showing the newest run. Both the Dashboard panel and the Trace
+	// screen's history read this, and both were printing one URL over and over.
+	again, err := Save(ctx, db, Walk(load(t, db),
+		Query{Scheme: "https", Hostname: "shop.example.com", Path: "/api/v2/charge"}), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recent, err = Recent(ctx, db, 10); err != nil {
+		t.Fatal(err)
+	}
+	if len(recent) != 1 {
+		t.Fatalf("tracing one URL twice listed %d entry points", len(recent))
+	}
+	if recent[0].ID != again {
+		t.Errorf("the listed run is trace %d, not the newest one (%d)", recent[0].ID, again)
+	}
+	// A different path is a different entry point and gets its own row.
+	if _, err := Save(ctx, db, Walk(load(t, db),
+		Query{Scheme: "https", Hostname: "shop.example.com", Path: "/static/app.js"}), nil); err != nil {
+		t.Fatal(err)
+	}
+	if recent, err = Recent(ctx, db, 10); err != nil {
+		t.Fatal(err)
+	}
+	if len(recent) != 2 {
+		t.Errorf("two different entry points listed %d rows", len(recent))
+	}
 }
 
 func TestWalkWithEmptyFleetSaysSo(t *testing.T) {

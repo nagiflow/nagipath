@@ -1,8 +1,0 @@
-{{/* The figures a page leads with. A card with a href is a way in; one without
-     is a fact with nowhere to go, and reads differently on purpose. */}}
-{{define "cards"}}<div class="cards">
-  {{range .}}
-  {{if .Href}}<a class="card{{with .Tone}} {{.}}{{end}}" href="{{.Href}}"><b>{{.N}}</b><span>{{.Label}}</span></a>
-  {{else}}<span class="card{{with .Tone}} {{.}}{{end}}"><b>{{.N}}</b><span>{{.Label}}</span></span>{{end}}
-  {{end}}
-</div>{{end}}

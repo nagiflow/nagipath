@@ -293,8 +293,17 @@ func (db *DB) reindexSnapshotText(ctx context.Context, instanceID, snapshotID in
 	if err != nil {
 		return err
 	}
+	// Config files are the index. The vendor dump is indexed only when there are no
+	// config files at all: it is the same directives again, so indexing both would
+	// return every hit twice — but an instance nagipath could only read through
+	// `nginx -T` would otherwise have no text index, and the search page tells the
+	// operator a miss means "the words are genuinely absent".
+	kind := "config_file"
+	if !hasKind(files, kind) {
+		kind = "vendor_dump"
+	}
 	for _, f := range files {
-		if f.Kind != "config_file" {
+		if f.Kind != kind {
 			continue
 		}
 		body, err := db.Blob(ctx, f.Digest)
@@ -317,6 +326,15 @@ func (db *DB) reindexSnapshotText(ctx context.Context, instanceID, snapshotID in
 		}
 	}
 	return tx.Commit()
+}
+
+func hasKind(files []FileRef, kind string) bool {
+	for _, f := range files {
+		if f.Kind == kind {
+			return true
+		}
+	}
+	return false
 }
 
 func nullZero(n int) any {

@@ -3,9 +3,11 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Drift compares parsed objects, never file text: two Instances that say the same
@@ -51,6 +53,114 @@ func (db *DB) Clusters(ctx context.Context) ([]Cluster, error) {
 			return nil, err
 		}
 		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+// ClusterAggregate is the three numbers the cluster list needs beside a name:
+// how many members diverge, how many of their certificates are inside the expiry
+// horizon, and when the group was last read.
+type ClusterAggregate struct {
+	DriftCount       int
+	CertsExpiring30d int
+	LastCollected    sql.NullString
+}
+
+// ClusterAggregates is one row per cluster, keyed by id. One query with three
+// correlated subqueries rather than three queries merged in Go: the numbers are
+// per cluster, so the grouping belongs to the database.
+//
+// The certificate count uses the same window as the rest of the product — at or
+// before the horizon, which includes certificates that have already expired. A
+// column headed "Certs ≤30d" that quietly omitted the expired ones would hide the
+// worse case behind the milder one. Bound certificates only: one nobody serves is
+// not an exposure.
+//
+// ponytail: latest drift run is MAX(id) per instance, matching NavCounts and
+// /drift. Split by baseline_kind if previous-snapshot and golden-peer comparisons
+// ever need separate columns.
+func (db *DB) ClusterAggregates(ctx context.Context) (map[int64]ClusterAggregate, error) {
+	rows, err := db.R.QueryContext(ctx, `SELECT cl.id,
+		(SELECT COUNT(DISTINCT r.instance_id) FROM drift_run r
+		   JOIN (SELECT instance_id, MAX(id) AS id FROM drift_run GROUP BY instance_id) latest
+		     ON latest.id = r.id
+		   JOIN drift_finding f ON f.drift_run_id = r.id AND f.ignored_by_rule_id IS NULL
+		   JOIN instance i ON i.id = r.instance_id
+		   WHERE i.cluster_id = cl.id AND i.retired_at IS NULL),
+		(SELECT COUNT(DISTINCT c.id) FROM certificate c
+		   JOIN certificate_binding b ON b.certificate_id = c.id
+		   JOIN snapshot s ON s.id = b.snapshot_id AND s.is_current = 1
+		   JOIN instance i ON i.id = s.instance_id
+		   WHERE i.cluster_id = cl.id AND i.retired_at IS NULL AND c.not_after <= ?),
+		(SELECT MAX(s.captured_at) FROM snapshot s
+		   JOIN instance i ON i.id = s.instance_id
+		   WHERE i.cluster_id = cl.id AND i.retired_at IS NULL)
+		FROM cluster cl`,
+		time.Now().UTC().Add(CertHorizon).Format("2006-01-02T15:04:05Z"))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]ClusterAggregate{}
+	for rows.Next() {
+		var id int64
+		var a ClusterAggregate
+		if err := rows.Scan(&id, &a.DriftCount, &a.CertsExpiring30d, &a.LastCollected); err != nil {
+			return nil, err
+		}
+		out[id] = a
+	}
+	return out, rows.Err()
+}
+
+// ClusterMember is one instance in a cluster with how far it has diverged.
+//
+// Divergence is invalid when no drift run exists for that instance: nothing was
+// compared, which is a different answer from "nothing differs" and has to read
+// differently on screen. A COUNT(*) of zero cannot say that, so the query returns
+// NULL and this carries it.
+type ClusterMember struct {
+	Instance
+	Divergence sql.NullInt64
+}
+
+// ClusterMembers is every non-retired instance in a cluster, with the number of
+// unignored findings from its most recent drift run.
+func (db *DB) ClusterMembers(ctx context.Context, clusterID int64) ([]ClusterMember, error) {
+	rows, err := db.R.QueryContext(ctx, `
+		SELECT i.id, i.node_id, i.cluster_id, i.vendor, i.natural_key, i.display_name,
+		  i.version, i.binary_path, i.config_root, i.main_config_path, i.build_flags,
+		  i.service_manager, i.unit_name, i.detected_pid, i.access_log_paths,
+		  i.first_seen_at, i.last_seen_at, i.retired_at,
+		  n.display_name,
+		  -- Not an aggregate at the top level, deliberately: with no drift run the
+		  -- subquery selects no row and yields NULL, where COUNT(*) would yield a
+		  -- zero indistinguishable from "compared, and identical".
+		  (SELECT (SELECT COUNT(*) FROM drift_finding f
+		             WHERE f.drift_run_id = r.id AND f.ignored_by_rule_id IS NULL)
+		     FROM drift_run r WHERE r.instance_id = i.id ORDER BY r.id DESC LIMIT 1)
+		FROM instance i
+		INNER JOIN node n ON n.id = i.node_id
+		WHERE i.cluster_id = ?
+		  AND i.retired_at IS NULL
+		ORDER BY i.display_name`, clusterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ClusterMember
+	for rows.Next() {
+		var m ClusterMember
+		var logs string
+		if err := rows.Scan(&m.ID, &m.NodeID, &m.ClusterID, &m.Vendor, &m.NaturalKey,
+			&m.DisplayName, &m.Version, &m.BinaryPath, &m.ConfigRoot, &m.MainConfigPath,
+			&m.BuildFlags, &m.ServiceManager, &m.UnitName, &m.DetectedPID, &logs,
+			&m.FirstSeenAt, &m.LastSeenAt, &m.RetiredAt,
+			&m.NodeDisplayName, &m.Divergence); err != nil {
+			return nil, err
+		}
+		json.Unmarshal([]byte(logs), &m.AccessLogPaths)
+		out = append(out, m)
 	}
 	return out, rows.Err()
 }
@@ -170,6 +280,10 @@ type DriftFinding struct {
 	RunID        int64
 	InstanceID   int64
 	InstanceName string
+	// NodeName, because an instance display name is vendor + config basename: every
+	// host running stock nginx reads "nginx nginx.conf", and a finding that says
+	// "1 of 5 instances" without naming which one cannot be acted on.
+	NodeName     string
 	ObjectKind   string
 	NaturalKey   string
 	Change       string
@@ -183,6 +297,25 @@ type DriftFinding struct {
 	ByteEnd      sql.NullInt64
 	IgnoredBy    sql.NullInt64
 	IgnoreReason string
+	// Path is the config file the diverging object was parsed from. Provenance is
+	// the product's trust mechanism, so a finding has to be checkable like every
+	// other derived fact — and the shared "prov" template needs the path, which
+	// this row never carried.
+	Path string
+}
+
+// Prov is the finding's provenance in the plain shape the shared "prov" template
+// reads. The template cannot use the NullInt64 fields directly: a struct is always
+// truthy in a Go template, so {{if .FileID}} was true even for a finding with no
+// file and the link rendered with the struct printed into the URL.
+func (f DriftFinding) Prov() struct {
+	Path                          string
+	FileID, SnapshotID, ByteStart int64
+} {
+	return struct {
+		Path                          string
+		FileID, SnapshotID, ByteStart int64
+	}{f.Path, f.FileID.Int64, f.SnapshotID.Int64, f.ByteStart.Int64}
 }
 
 // BaselineLabels are the words for the three baselines, in priority order.
@@ -248,13 +381,14 @@ func (db *DB) DriftFindings(ctx context.Context, runIDs []int64) ([]DriftFinding
 		args[i] = id
 	}
 	rows, err := db.R.QueryContext(ctx, `SELECT f.id, f.drift_run_id, r.instance_id,
-		i.display_name, f.object_kind, f.natural_key, f.change, f.field,
+		i.display_name, n.display_name, f.object_kind, f.natural_key, f.change, f.field,
 		f.baseline_text, f.subject_text, f.action_class,
 		f.prov_file_id, sf.snapshot_id, f.prov_byte_start, f.prov_byte_end,
-		f.ignored_by_rule_id, COALESCE(ir.reason, '')
+		f.ignored_by_rule_id, COALESCE(ir.reason, ''), COALESCE(sf.path, '')
 		FROM drift_finding f
 		JOIN drift_run r ON r.id = f.drift_run_id
 		JOIN instance i ON i.id = r.instance_id
+		JOIN node n ON n.id = i.node_id
 		LEFT JOIN snapshot_file sf ON sf.id = f.prov_file_id
 		LEFT JOIN drift_ignore_rule ir ON ir.id = f.ignored_by_rule_id
 		WHERE f.drift_run_id IN (`+holes+`)
@@ -266,10 +400,10 @@ func (db *DB) DriftFindings(ctx context.Context, runIDs []int64) ([]DriftFinding
 	var out []DriftFinding
 	for rows.Next() {
 		var f DriftFinding
-		if err := rows.Scan(&f.ID, &f.RunID, &f.InstanceID, &f.InstanceName, &f.ObjectKind,
+		if err := rows.Scan(&f.ID, &f.RunID, &f.InstanceID, &f.InstanceName, &f.NodeName, &f.ObjectKind,
 			&f.NaturalKey, &f.Change, &f.Field, &f.BaselineText, &f.SubjectText,
 			&f.ActionClass, &f.FileID, &f.SnapshotID, &f.ByteStart, &f.ByteEnd,
-			&f.IgnoredBy, &f.IgnoreReason); err != nil {
+			&f.IgnoredBy, &f.IgnoreReason, &f.Path); err != nil {
 			return nil, err
 		}
 		out = append(out, f)

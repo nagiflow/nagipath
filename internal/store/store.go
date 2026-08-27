@@ -213,17 +213,22 @@ var settingDefaults = map[string]string{
 	"collection_jitter_seconds":           "300",
 	"snapshot_retention_days":             "90",
 	"snapshot_retention_min_per_instance": "10",
-	"probe_max_redirects":                 "5",
-	"probe_log_lookback_seconds":          "120",
-	"probe_rate_limit_max":                "5",
-	"probe_rate_limit_window_seconds":     "300",
-	"login_rate_limit_max":                "5",
-	"login_rate_limit_window_seconds":     "300",
-	"ssh_command_timeout_seconds":         "30",
-	"readfile_max_bytes":                  "8388608",
-	"snapshot_max_files":                  "2000",
-	"quarantine_after_failures":           "10",
-	"ssh_workers":                         "8",
+	// The other three retention windows, in the same table and editable from
+	// Settings · Retention. 0 in any of them means keep forever — see Prune.
+	"job_log_retention_days":          "30",
+	"probe_retention_days":            "90",
+	"audit_retention_days":            "400",
+	"probe_max_redirects":             "5",
+	"probe_log_lookback_seconds":      "120",
+	"probe_rate_limit_max":            "5",
+	"probe_rate_limit_window_seconds": "300",
+	"login_rate_limit_max":            "5",
+	"login_rate_limit_window_seconds": "300",
+	"ssh_command_timeout_seconds":     "30",
+	"readfile_max_bytes":              "8388608",
+	"snapshot_max_files":              "2000",
+	"quarantine_after_failures":       "10",
+	"ssh_workers":                     "8",
 }
 
 func (db *DB) Setting(ctx context.Context, key string) string {

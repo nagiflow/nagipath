@@ -1,132 +1,168 @@
 {{template "head" .}}
 {{with .Data}}
-<div class="tb">
-  <h1>Search</h1>
-  <span class="crumb small">full-text across every instance's config — not scoped to one request</span>
-  <form method="get" action="/search" id="search" class="trace-form">
-    <input name="q" value="{{.Query}}" placeholder="proxy_pass, X-Frame-Options, 10.90.4.*"
-           size="44" autofocus>
-    <button type="submit">Search</button>
-  </form>
+{{template "ptitle" toolbar "Config search" ""}}
+{{template "ptitle-end"}}
+
+<form id="search" method="get" action="/search" class="qbar">
+  <input class="fld f m" name="q" value="{{.Query}}" placeholder="proxy_pass, X-Frame-Options, 10.90.4.*"
+    autofocus spellcheck="false" aria-label="Search configuration text">
+  <select class="sel" name="match" aria-label="Match mode">
+    <option value="substring"{{if eq .MatchMode "substring"}} selected{{end}}>Match: substring</option>
+    <option value="regex"{{if eq .MatchMode "regex"}} selected{{end}}>Match: regex</option>
+  </select>
+  <select class="sel" name="scope" aria-label="Search scope">
+    <option value="current"{{if eq .Scope "current"}} selected{{end}}>Scope: current config</option>
+    <option value="all"{{if eq .Scope "all"}} selected{{end}}>Scope: all snapshots</option>
+  </select>
+  <button class="btn p" type="submit">Search</button>
+</form>
+
+{{if .RegexErr}}
+<div style="padding:7px 16px;display:flex;align-items:center;border-bottom:1px solid var(--color-line);background:var(--color-err-bg)">
+  <span class="m mu" style="color:var(--color-err)">{{.RegexErr}}</span>
 </div>
+{{else if .Query}}
+{{/* note attaches to the stat, not to the list: piped onto stats it handed a
+     []Stat to a func expecting one. */}}
+{{template "stats" stats (stat .Matches "matches" "" "") (stat .FilesHit "files" "" "") (stat .NodesHit "nodes" "" "" | note .Duration)}}
+{{end}}
 
-<div class="row center" style="padding:.4rem .9rem;border-bottom:1px dashed var(--border)">
-  {{if .Query}}
-  <span class="small"><b>{{.Matches}}</b> match{{if ne .Matches 1}}es{{end}} ·
-    {{len .Rules}} modelled directive{{if ne (len .Rules) 1}}s{{end}} ·
-    {{len .Configs}} file{{if ne (len .Configs) 1}}s{{end}} ·
-    {{.Instances}} instance{{if ne .Instances 1}}s{{end}}</span>
-  {{end}}
-  <span class="spacer"></span>
-  <span class="cal">scope: the current configuration of every instance — retired snapshots are
-  browsable, not indexed</span>
+{{template "bd" "row"}}
+
+{{if .Err}}
+<div class="pnl">
+  <div class="empty">
+    <b>Search failed</b>
+    <p>{{.Err}}</p>
+  </div>
 </div>
-
-<div class="bd">
-{{if .Err}}<p class="flash err">{{.Err}}</p>{{end}}
-
-{{if not .Query}}
-<div class="bx dash">
-  <span class="lbl">two indexes</span>
-  <p class="note">Modelled directives — what nagipath parsed and understood — and the verbatim
-  text of every current configuration file. Both are scoped to current snapshots: a hit in a
-  retired one is history, not a finding.</p>
+{{else if .RegexErr}}
+<div class="pnl" style="flex:1 0 auto">
+  <div class="empty">
+    <b>Invalid regular expression</b>
+    <p>{{.RegexErr}}</p>
+    <p style="margin-top:8px">Regular expressions use Go's RE2 syntax. Common patterns: <code class="m">proxy_pass.*https</code> matches "proxy_pass" followed by "https", <code class="m">^listen 443</code> matches lines starting with "listen 443".</p>
+  </div>
+</div>
+{{else if not .Query}}
+<div class="pnl" style="flex:1 0 auto">
+  <div class="empty">
+    <b>Search configuration text</b>
+    <p>Searches across every current snapshot. Modelled directives — what nagipath parsed and understood — and the verbatim text of every configuration file. A directive nagipath does not model is still in the text index, so a miss means the words are genuinely absent.</p>
+  </div>
 </div>
 {{else}}
 
-<div class="split" style="--l:160px">
-
-<div class="col">
-  {{/* The checkboxes sit outside the toolbar form and submit with it through the
-       HTML form= attribute: no script, and the query survives every narrowing. */}}
-  <div class="bx col">
-    <span class="lbl">narrow by</span>
-    <span class="lbl">vendor</span>
+<div class="col" style="flex:0 0 13rem">
+  <div class="pnl" style="padding:10px">
+    <div class="lbl" style="margin-bottom:6px">Vendor</div>
     {{range .Vendors}}
-    <label class="facet"><input type="checkbox" form="search" name="vendor" value="{{.Value}}"
-      {{if has $.Data.SelVend .Value}}checked{{end}}>
-      {{.Value}} <span class="spacer"></span><span class="mono tiny dim">{{.Count}}</span></label>
+    <label class="fct"><input type="checkbox" class="cb" form="search" name="vendor" value="{{.Value}}"
+      {{if has $.Data.SelVend .Value}}checked{{end}}> <span class="m">{{.Value}}</span> <span class="c">{{.Count}}</span></label>
     {{end}}
 
-    <span class="lbl">cluster</span>
+    <div class="lbl" style="margin:12px 0 6px">Cluster</div>
     {{range .Clusters}}
-    <label class="facet"><input type="checkbox" form="search" name="cluster" value="{{.Value}}"
-      {{if has $.Data.SelClust .Value}}checked{{end}}>
-      {{.Value}} <span class="spacer"></span><span class="mono tiny dim">{{.Count}}</span></label>
+    <label class="fct"><input type="checkbox" class="cb" form="search" name="cluster" value="{{.Value}}"
+      {{if has $.Data.SelClust .Value}}checked{{end}}> <span class="m">{{.Value}}</span> <span class="c">{{.Count}}</span></label>
     {{end}}
 
-    <span class="lbl">file</span>
+    {{if .SnapshotAge}}
+    <div class="lbl" style="margin:12px 0 6px">Snapshot age</div>
+    {{range .SnapshotAge}}
+    <label class="fct"><input type="checkbox" class="cb" form="search" name="age" value="{{.Value}}"
+      {{if has $.Data.SelAge .Value}}checked{{end}}> <span class="m">{{.Value}}</span> <span class="c">{{.Count}}</span></label>
+    {{end}}
+    {{end}}
+
+    <div class="lbl" style="margin:12px 0 6px">File</div>
     {{range .Files}}
-    <label class="facet"><input type="checkbox" form="search" name="file" value="{{.Value}}"
-      {{if has $.Data.SelFile .Value}}checked{{end}}>
-      <span class="mono tiny" style="overflow-wrap:break-word">{{.Value}}</span>
-      <span class="spacer"></span><span class="mono tiny dim">{{.Count}}</span></label>
+    <label class="fct"><input type="checkbox" class="cb" form="search" name="file" value="{{.Value}}"
+      {{if has $.Data.SelFile .Value}}checked{{end}}> <span class="m" style="overflow-wrap:break-word">{{.Value}}</span> <span class="c">{{.Count}}</span></label>
     {{end}}
 
-    <button type="submit" form="search">Narrow</button>
-    <p class="tiny dim">Nothing ticked means everything, which is not the same as every box
-    being ticked. Counts are over the whole result set, so narrowing is always reversible.</p>
+    <button class="btn p" type="submit" form="search" style="margin-top:10px;width:100%">Narrow</button>
+    <p class="m mus" style="font-size:10.5px;margin-top:8px">Nothing ticked means everything. Counts are over the whole result set, so narrowing is always reversible.</p>
   </div>
 </div>
 
-<div class="col">
+<div class="col" style="flex:1;min-width:0">
   {{if not .Groups}}
-  <div class="bx col">
-    <span class="lbl">no hits</span>
-    <p class="note">Nothing in the current configuration of any instance matched
-    <span class="mono">{{.Query}}</span>{{if or .SelVend .SelFile .SelClust}} under the
-    filters on the left — untick them to widen{{end}}. A directive nagipath does not model
-    is still in the text index, so a miss here means the words are genuinely absent.</p>
-  </div>
-  {{end}}
-
-  {{range .Groups}}
-  <div class="bx col">
-    <div class="row center">
-      <b>{{.Instance}}</b>
-      <span class="badge">{{.Vendor}}</span>
-      <span class="spacer"></span>
-      <a class="small" href="/instances/{{.InstanceID}}">Open in instance ↗</a>
+  <div class="pnl">
+    <div class="empty">
+      <b>No matches</b>
+      <p>Nothing in the current configuration of any instance matched <span class="m">{{.Query}}</span>{{if or .SelVend .SelFile .SelClust .SelAge}} under the filters on the left — untick them to widen{{end}}. A directive nagipath does not model is still in the text index, so a miss here means the words are genuinely absent.</p>
     </div>
-    <a class="mono tiny" href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}"
-      style="overflow-wrap:break-word">{{.Path}} ↗</a>
+  </div>
+  {{else}}
+  {{range .Groups}}
+  {{/* flex:none, because these cards sit in a flex column: without it every card
+       below the first shrank to an empty outline. The gap comes from the column,
+       so there is no margin here to double it. */}}
+  <div class="pnl z" style="flex:none;overflow:hidden">
+    <div class="phd">
+      <span class="m" style="font-weight:600">{{.Instance}}</span>
+      {{/* The node, because an instance display name is vendor + config basename:
+           three nodes running stock nginx all read "nginx nginx.conf", and three
+           identical cards cannot be acted on. */}}
+      {{if .Node}}<span class="m mu">on {{.Node}}</span>{{end}}
+      <span class="m mu">{{.Path}}</span>
+      <div class="flex-1"></div>
+      <span class="m mus">{{add (len .Rules) (len .Texts)}} match{{if ne (add (len .Rules) (len .Texts)) 1}}es{{end}}</span>
+      <a class="btn s sm" href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}">Open</a>
+    </div>
 
     {{if .Rules}}
-    <table>
-  {{template "cols" cols "directive:11rem" "arguments" "class:7rem" "at:5rem"}}
+    <table class="t">
+      <tr><th style="width:11rem">Directive</th><th>Arguments</th><th style="width:7rem">Class</th><th style="width:5rem">At</th></tr>
       {{range .Rules}}
-      <tr class="{{if .Shadowed}}row-warn{{end}}">
-        <td class="mono">{{.Directive}}
-          {{if .Shadowed}}<br><span class="badge c-disproved">shadowed</span>{{end}}</td>
-        <td><span class="mono small">{{hl .Args $.Data.Query}}</span></td>
-        <td class="tiny">{{.ActionClass}}</td>
-        <td><a class="mono tiny"
-          href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}">@{{.ByteStart}}</a></td>
+      <tr{{if .Shadowed}} class="zz"{{end}}>
+        <td class="m">{{.Directive}}
+          {{if .Shadowed}}<div class="bdg err">shadowed</div>{{end}}</td>
+        <td class="m">{{hl .Args $.Data.Query}}</td>
+        <td class="m mu">{{.ActionClass}}</td>
+        <td><a class="m mus" href="/snapshots/{{.SnapshotID}}/file/{{.FileID}}#b{{.ByteStart}}">@{{.ByteStart}}</a></td>
       </tr>
       {{end}}
     </table>
     {{end}}
 
-    {{range .Texts}}
-    <pre class="config">{{hl .Snippet $.Data.Query}}</pre>
+    {{/* No line-number gutter: the text index stores one row per file and answers
+         with an FTS snippet, so there is no line to number — this read .LineNum,
+         which store.TextHit does not have, and any query that matched raw text
+         returned a 500. "Open" in the header above is the provenance link. */}}
+    {{if .Texts}}
+    <div class="code" style="border:0;border-radius:0">
+      {{range .Texts}}
+      <div class="cl"><span class="no" title="matched the file text, not a directive nagipath models">text</span><span>{{hl .Snippet $.Data.Query}}</span></div>
+      {{end}}
+    </div>
     {{end}}
   </div>
   {{end}}
 
   {{if .Instances}}
-  <div class="pager">
-    <button type="submit" form="search" name="page" value="{{sub .Page 1}}"
-      {{if le .Page 1}}disabled{{end}}>‹</button>
-    <span>{{.From}}–{{.To}} of {{.Instances}} instance{{if ne .Instances 1}}s{{end}}</span>
-    <button type="submit" form="search" name="page" value="{{add .Page 1}}"
-      {{if ge .Page .Pages}}disabled{{end}}>›</button>
-    <span class="spacer"></span>
-    <span class="tiny">grouped by file — twenty hits in one file is one finding</span>
+  <div style="display:flex;align-items:center;gap:10px;padding:7px 0">
+    <span class="m mus">{{.From}}–{{.To}} of {{.Instances}} instance{{if ne .Instances 1}}s{{end}}</span>
+    <div class="flex-1"></div>
+    <form method="get" action="/search" style="display:flex;gap:7px">
+      <input type="hidden" name="q" value="{{.Query}}">
+      <input type="hidden" name="match" value="{{.MatchMode}}">
+      <input type="hidden" name="scope" value="{{.Scope}}">
+      {{range .SelVend}}<input type="hidden" name="vendor" value="{{.}}">{{end}}
+      {{range .SelFile}}<input type="hidden" name="file" value="{{.}}">{{end}}
+      {{range .SelClust}}<input type="hidden" name="cluster" value="{{.}}">{{end}}
+      {{range .SelAge}}<input type="hidden" name="age" value="{{.}}">{{end}}
+      <button class="pgb" type="submit" name="page" value="{{sub .Page 1}}" {{if le .Page 1}}disabled{{end}}>‹</button>
+      <span class="pgb on">{{.Page}}</span>
+      <button class="pgb" type="submit" name="page" value="{{add .Page 1}}" {{if ge .Page .Pages}}disabled{{end}}>›</button>
+    </form>
   </div>
   {{end}}
+  {{end}}
 </div>
-</div>
+
 {{end}}
+{{template "bd-end"}}
 {{end}}
-</div>
 {{template "foot" .}}

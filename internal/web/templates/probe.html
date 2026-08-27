@@ -1,0 +1,183 @@
+{{template "head" .}}
+{{with .Data}}
+{{template "ptitle" toolbar "Probe" ""}}
+  <span class="bdg note">manual · audited</span>
+  <div class="flex-1"></div>
+  {{if .Probe}}<a class="btn s sm" href="/trace/history?url={{.Probe.URL | urlquery}}">Probe history · {{.Probe.ProbeID}}</a>{{end}}
+  {{if and .Probe .Probe.TraceID.Valid}}<a class="btn sm" href="/trace?url={{.Probe.URL | urlquery}}">Back to trace</a>{{end}}
+{{template "ptitle-end"}}
+
+{{template "bd" "row"}}
+
+{{/* Left column: Request form */}}
+<div class="col" style="flex:0 0 380px">
+  <form method="post" action="/trace/probe" id="probe-form">
+    {{template "csrf" $.CSRF}}
+    {{/* Request panel is the form inputs */}}
+    <div class="pnl" style="padding:11px 12px">
+      <div class="lbl" style="margin-bottom:7px">Request</div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;gap:7px">
+          <select class="sel" name="method" aria-label="HTTP method">
+            <option value="GET" {{if or (not .Probe) (eq .Probe.Method "GET")}}selected{{end}}>GET</option>
+            <option value="HEAD" {{if and .Probe (eq .Probe.Method "HEAD")}}selected{{end}}>HEAD</option>
+          </select>
+          <label class="fld f">
+            <span class="sr-only">URL to probe</span>
+            <input class="in m" name="url" value="{{if .Probe}}{{.Probe.URL}}{{end}}"
+                   placeholder="https://payments.corp.example/api/v2/charge" required
+                   autofocus spellcheck="false" autocapitalize="off">
+          </label>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" class="cb" name="send_correlation_header" value="1"
+                 {{if or (not .Probe) .Probe.CorrelationToken}}checked{{end}}>
+          <span class="m">Send correlation header</span>
+          {{if .Probe}}<span class="m mus">{{slice .Probe.CorrelationToken 0 8}}…</span>{{end}}
+        </label>
+      </div>
+    </div>
+
+    {{/* Run probe button */}}
+    <div style="padding:0 11px 11px">
+      <button class="btn p" type="submit" style="width:100%">Run probe</button>
+    </div>
+  </form>
+
+  {{/* Audit panel - only when showing results */}}
+  {{if .Probe}}
+  <div class="pnl" style="padding:11px 12px">
+    <div class="lbl" style="margin-bottom:7px">Audit</div>
+    <div class="kv m" style="display:grid;grid-template-columns:82px 1fr;gap:4px 8px">
+      <span class="mus">actor</span><span>{{.Probe.ActorUsername}}</span>
+      <span class="mus">probe id</span><span>{{slice .Probe.CorrelationToken 0 8}}</span>
+      <span class="mus">started</span><span>{{clock .Probe.RequestedAt}}</span>
+      <span class="mus">retention</span><span>{{.Probe.RetentionDays}} days</span>
+    </div>
+  </div>
+
+  {{/* Log format gap panel - one per gap */}}
+  {{range .Gaps}}
+  <div class="pnl" style="padding:11px 12px;flex:1;min-height:0">
+    <div class="lbl" style="margin-bottom:7px">Log format gap · {{.NodeName}}</div>
+    {{if .GapNote}}<p class="m mu" style="margin-bottom:7px;font-size:11px">{{.GapNote}}</p>{{end}}
+    {{if .GapDirective}}
+    <div class="code" style="font-size:11px">
+      {{range $i, $line := split .GapDirective "\n"}}<div class="cl"><span class="no">{{if $line}}+{{end}}</span><span>{{$line}}</span></div>{{end}}
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <button class="btn s sm" type="button" data-copy=".code">Copy directive</button>
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+  {{end}}
+</div>
+
+{{/* Right column: Results (only when a probe has been run) */}}
+<div class="col" style="flex:1">
+  {{if not .Probe}}
+  {{/* Empty state when no probe has been run */}}
+  {{template "empty" "No probe has been run yet"}}
+    <p>Fill in the URL above and click <b>Run probe</b> to send one request and read
+    the access logs on each hop, turning INFERRED confidence into VERIFIED.</p>
+  {{template "empty-end"}}
+  {{else}}
+  {{/* Three stat panels in a row */}}
+  <div class="row" style="flex:none">
+    {{/* Response stat */}}
+    <div class="pnl" style="flex:1;padding:10px 12px">
+      <div class="lbl">Response</div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-top:3px">
+        <span style="font:700 20px Inter;{{if and (ge .Probe.Status 200) (lt .Probe.Status 300)}}color:#00726b{{else if ge .Probe.Status 400}}color:#c13434{{else}}color:#9ca3af{{end}}">{{if .Probe.Status}}{{.Probe.Status}}{{else}}—{{end}}</span>
+        <span class="m mu">{{.Probe.DurationMS}} ms{{if gt .Probe.RedirectCount 0}} · {{.Probe.RedirectCount}} {{if eq .Probe.RedirectCount 1}}redirect{{else}}redirects{{end}}{{end}}</span>
+      </div>
+      {{if or .Probe.ServerHeader .Probe.ViaHeader}}
+      <div class="m mus" style="margin-top:3px">
+        {{if .Probe.ServerHeader}}server: {{.Probe.ServerHeader}}{{end}}
+        {{if and .Probe.ServerHeader .Probe.ViaHeader}} · {{end}}
+        {{if .Probe.ViaHeader}}via: {{.Probe.ViaHeader}}{{end}}
+      </div>
+      {{end}}
+    </div>
+
+    {{/* Hops confirmed stat */}}
+    <div class="pnl" style="flex:1;padding:10px 12px">
+      <div class="lbl">Hops confirmed</div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-top:3px">
+        <span style="font:700 20px Inter">{{.Probe.VerifiedCount}}</span>
+        <span class="m mu">of {{.Probe.LogCapableCount}} log-capable</span>
+      </div>
+      {{if gt .Probe.LogCapableCount 0}}
+      <div style="margin-top:6px">
+        <div class="bar"><i style="width:{{bar .Probe.VerifiedCount .Probe.LogCapableCount}}%"></i></div>
+      </div>
+      {{end}}
+    </div>
+
+    {{/* State changes stat */}}
+    <div class="pnl" style="flex:1;padding:10px 12px">
+      <div class="lbl">State changes</div>
+      {{if gt .StateChanges 0}}
+      <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
+        <span class="bdg inf">INFERRED</span>
+        <span class="m mus">→</span>
+        <span class="bdg ok">VERIFIED</span>
+        <span class="m mu">× {{.StateChanges}}</span>
+      </div>
+      {{end}}
+      {{if gt .Probe.StillInferred 0}}
+      <div class="m mus" style="margin-top:4px">{{.Probe.StillInferred}} unchanged</div>
+      {{end}}
+    </div>
+  </div>
+
+  {{/* Hop evidence table */}}
+  {{if .Hops}}
+  <div class="pnl z">
+    <div class="phd">
+      <span class="ph2">Hop evidence</span>
+      <div class="flex-1"></div>
+    </div>
+    <table class="t">
+      {{template "cols" cols "Hop:38px" "Node:190px" "Vendor:88px" "Evidence" "Before:88px" "After:96px"}}
+      {{range .Hops}}
+      <tr{{if eq .After "inferred"}} class="zz"{{end}}>
+        <td class="m mu">{{if ge .HopOrdinal 0}}{{.HopOrdinal}}{{else}}—{{end}}</td>
+        <td class="m">{{.NodeName}}</td>
+        <td class="m mu">{{.Vendor}}</td>
+        <td class="m mu">{{.Evidence}}</td>
+        <td>{{template "confidence" .Before}}</td>
+        <td>{{template "confidence" .After}}</td>
+      </tr>
+      {{end}}
+    </table>
+  </div>
+  {{end}}
+
+  {{/* Matched log lines panel */}}
+  {{if .LogLines}}
+  <div class="pnl z" style="flex:1">
+    <div class="phd">
+      <span class="ph2">Matched log lines</span>
+      <div class="flex-1"></div>
+      <span class="m mus">verbatim from access logs</span>
+    </div>
+    <div style="padding:8px 12px;flex:1;min-height:0;overflow:auto">
+      <div class="code" style="height:100%">
+        {{range $i, $line := .LogLines}}
+        <div class="cl"><span class="no">{{add $i 1}}</span><span>{{$line.RawLine}}</span></div>
+        {{end}}
+      </div>
+    </div>
+    <div class="pft">
+      <span class="m mus">{{len .LogLines}} {{if eq (len .LogLines) 1}}line{{else}}lines{{end}} from {{len .LogLines}} {{if eq (len .LogLines) 1}}node{{else}}nodes{{end}} · tail window 512 KiB</span>
+    </div>
+  </div>
+  {{end}}
+  {{end}}
+</div>
+
+{{template "bd-end"}}
+{{end}}{{/* end .Data */}}
+{{template "foot" .}}

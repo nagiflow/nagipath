@@ -934,24 +934,34 @@ type Past struct {
 	Evidence []EvidenceRow
 }
 
-// Record is one past Probe, for the collapsed list under the graph. Every probe ever
-// sent at a URL is in it, including the failures: a request that went out and is not
-// recorded is the one thing an audit trail cannot tolerate.
+// Record is one past Probe, for the Probe history table. Every probe ever sent is in
+// it, including the failures: a request that went out and is not recorded is the one
+// thing an audit trail cannot tolerate.
+//
+// Status is 0 when the request never got a response, which the screen renders as an
+// em dash rather than as "0" — a sql.NullInt64 here read as a struct in the template,
+// and a struct is always truthy, so every row claimed a status it did not have.
 type Record struct {
-	ID          int64
+	ProbeID     int64
+	Token       string
 	Method      string
 	URL         string
-	Status      sql.NullInt64
+	Status      int
 	Result      string
-	Actor       string
+	Err         string
+	ActorLabel  string
 	OriginHost  string
 	RequestedAt string
 	Evidence    int
 	Verified    int
+	// Changes is what this probe proved, one line per prior-to-granted pair, e.g.
+	// "2 inferred → verified". Raised is the hops those lines cover.
+	Changes []string
+	Raised  int
 }
 
 // RateLimited enforces the per-user, per-Entry-Point guardrail (probe.md §2). An
-// Entry Point is matched the same way Recent matches history — by the stored url,
+// Entry Point is matched the same way List matches history — by the stored url,
 // which is scheme+host+path with no query — so this is a query against the rows a
 // Probe already writes, not a new table.
 //
@@ -973,28 +983,304 @@ func RateLimited(ctx context.Context, db *store.DB, actorID int64, url string) (
 	return n >= limit, nil
 }
 
-// Recent lists probes sent at a URL, newest first.
-func Recent(ctx context.Context, db *store.DB, url string, limit int) ([]Record, error) {
-	rows, err := db.R.QueryContext(ctx, `SELECT p.id, p.method, p.url, p.status_code,
-		p.result, COALESCE(u.username, ''), p.origin_host, p.requested_at,
+// Filter is the Probe history screen's query. An empty URL lists every probe ever
+// sent rather than none: a Probe is an outbound request this product made on an
+// operator's behalf, so the fleet-wide list is the audit record for that, and the
+// screen reached from the nav rather than from one trace is where it is read.
+type Filter struct {
+	URL     string // exact entry point, when the page was reached from a trace
+	Q       string // free text over entry point, actor and correlation token
+	Actor   string // exact username
+	Outcome string // running | completed | failed | blocked
+	Days    int    // window; 0 means every probe on record
+	Limit   int
+}
+
+// List lists probes newest first, with the state changes each one granted.
+//
+// ponytail: LIKE over three columns, not FTS. One row per operator-triggered
+// request with a rate limit in front of it keeps this table small for years.
+func List(ctx context.Context, db *store.DB, f Filter) ([]Record, error) {
+	if f.Limit <= 0 {
+		f.Limit = 100
+	}
+	where := []string{"1 = 1"}
+	var args []any
+	if f.URL != "" {
+		where = append(where, "p.url = ?")
+		args = append(args, f.URL)
+	}
+	if f.Days > 0 {
+		where = append(where, "p.requested_at >= ?")
+		args = append(args, time.Now().UTC().AddDate(0, 0, -f.Days).Format("2006-01-02T15:04:05Z"))
+	}
+	if f.Actor != "" {
+		where = append(where, "COALESCE(u.username, '') = ?")
+		args = append(args, f.Actor)
+	}
+	if f.Outcome != "" {
+		where = append(where, "p.result = ?")
+		args = append(args, f.Outcome)
+	}
+	if q := strings.TrimSpace(f.Q); q != "" {
+		where = append(where, `(p.url LIKE ? OR COALESCE(u.username, '') LIKE ?
+			OR p.correlation_token LIKE ?)`)
+		like := "%" + q + "%"
+		args = append(args, like, like, like)
+	}
+	args = append(args, f.Limit)
+	rows, err := db.R.QueryContext(ctx, `SELECT p.id, p.correlation_token, p.method,
+		p.url, COALESCE(p.status_code, 0), p.result, p.error, COALESCE(u.username, ''),
+		p.origin_host, p.requested_at,
 		(SELECT COUNT(*) FROM probe_evidence e WHERE e.probe_id = p.id),
 		(SELECT COUNT(*) FROM probe_evidence e WHERE e.probe_id = p.id AND e.grants = 'verified')
 		FROM probe p LEFT JOIN app_user u ON u.id = p.actor_user_id
-		WHERE p.url = ? ORDER BY p.requested_at DESC, p.id DESC LIMIT ?`, url, limit)
+		WHERE `+strings.Join(where, " AND ")+`
+		ORDER BY p.requested_at DESC, p.id DESC LIMIT ?`, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []Record
+	at := map[int64]int{}
 	for rows.Next() {
 		var r Record
-		if err := rows.Scan(&r.ID, &r.Method, &r.URL, &r.Status, &r.Result, &r.Actor,
-			&r.OriginHost, &r.RequestedAt, &r.Evidence, &r.Verified); err != nil {
+		if err := rows.Scan(&r.ProbeID, &r.Token, &r.Method, &r.URL, &r.Status, &r.Result,
+			&r.Err, &r.ActorLabel, &r.OriginHost, &r.RequestedAt, &r.Evidence,
+			&r.Verified); err != nil {
 			return nil, err
 		}
+		at[r.ProbeID] = len(out)
 		out = append(out, r)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	return out, changeSummaries(ctx, db, out, at)
+}
+
+// changeSummaries fills each Record's Changes with lines like "2 inferred →
+// verified". Two things it has to get right, both of which the first version did not:
+//
+// The prior matters — a host that went degraded → verified is a different result from
+// one that went inferred → verified, and rendering both as "2 verified" answers a
+// question nobody asked.
+//
+// The unit is the host, not the evidence row. A Probe writes a row per rule it
+// checked, so counting rows turned one verified host into "9 changes".
+//
+// ponytail: one query over the listed probes, collapsed in Go. A probe touches a
+// handful of hosts, so this returns tens of rows per probe, not thousands.
+func changeSummaries(ctx context.Context, db *store.DB, out []Record, at map[int64]int) error {
+	ids := make([]string, 0, len(out))
+	args := make([]any, 0, len(out))
+	for i := range out {
+		ids = append(ids, "?")
+		args = append(args, out[i].ProbeID)
+	}
+	rows, err := db.R.QueryContext(ctx, `SELECT e.probe_id,
+		COALESCE(n.display_name, i.display_name, ''),
+		COALESCE(json_extract(e.parsed_fields, '$.prior_confidence'), ''), e.grants
+		FROM probe_evidence e
+		LEFT JOIN instance i ON i.id = e.instance_id
+		LEFT JOIN node n ON n.id = i.node_id
+		WHERE e.probe_id IN (`+strings.Join(ids, ",")+`)
+		ORDER BY e.probe_id, e.id`, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	// Best grant per probe and host, then counted by prior→granted pair.
+	best := map[int64]map[string][2]string{}
+	for rows.Next() {
+		var id int64
+		var host, prior, grants string
+		if err := rows.Scan(&id, &host, &prior, &grants); err != nil {
+			return err
+		}
+		if _, ok := at[id]; !ok {
+			continue
+		}
+		// A row written before nagipath recorded the prior is reported as inferred,
+		// which understates what was known rather than overstating what was proved.
+		if prior == "" {
+			prior = "inferred"
+		}
+		if best[id] == nil {
+			best[id] = map[string][2]string{}
+		}
+		if cur, ok := best[id][host]; !ok || grantRank(grants) > grantRank(cur[1]) {
+			best[id][host] = [2]string{prior, grants}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for id, hosts := range best {
+		counts := map[string]int{}
+		for _, pg := range hosts {
+			c := HopChange{Prior: pg[0], Grants: pg[1]}
+			if to := c.To(); to != "" {
+				counts[pg[0]+" → "+to]++
+			}
+		}
+		pairs := make([]string, 0, len(counts))
+		for k := range counts {
+			pairs = append(pairs, k)
+		}
+		// Sorted, so the same probe reads the same way on every load.
+		sort.Strings(pairs)
+		i := at[id]
+		for _, k := range pairs {
+			out[i].Changes = append(out[i].Changes, strconv.Itoa(counts[k])+" "+k)
+			out[i].Raised += counts[k]
+		}
+	}
+	return nil
+}
+
+// Count is how many probes have ever been sent at one URL, which the trace page puts
+// on its "Probe history" button. Without it the button is a promise: an operator
+// clicks through to find out there is nothing there.
+func Count(ctx context.Context, db *store.DB, url string) int {
+	if url == "" {
+		return 0
+	}
+	var n int
+	db.R.QueryRowContext(ctx, `SELECT COUNT(*) FROM probe WHERE url = ?`, url).Scan(&n)
+	return n
+}
+
+// Actors are the usernames that have sent a probe, for the history screen's actor
+// select. Only the ones actually on record: a select listing every user in the
+// installation offers filters that match nothing.
+func Actors(ctx context.Context, db *store.DB) ([]string, error) {
+	rows, err := db.R.QueryContext(ctx, `SELECT DISTINCT COALESCE(u.username, '')
+		FROM probe p LEFT JOIN app_user u ON u.id = p.actor_user_id
+		WHERE COALESCE(u.username, '') <> '' ORDER BY 1`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
 	return out, rows.Err()
+}
+
+// LogReads is the access-log reads this Probe made, in the words the detail panel
+// states them: how many hosts, and how much of each log was read. Reading a log on a
+// fleet host is an action an operator should see recorded, not only its result.
+//
+// The design's mock reads "60s tail". The prober tails by bytes, so this says bytes:
+// a screen that describes a window the code does not use is a wrong answer told
+// confidently, which is the one thing this product refuses.
+func (p *Past) LogReads() string {
+	seen := map[string]bool{}
+	for _, e := range p.Evidence {
+		if e.LogPath != "" {
+			seen[e.Node+"|"+e.Instance] = true
+		}
+	}
+	if len(seen) == 0 {
+		return ""
+	}
+	word := " nodes"
+	if len(seen) == 1 {
+		word = " node"
+	}
+	return strconv.Itoa(len(seen)) + word + " · last " + bytesWord(logTailBytes)
+}
+
+// HopChange is what one Probe proved about one host: its best evidence there, not
+// every row it wrote.
+//
+// A Probe writes an evidence row per rule it checked, so a host it verified also has
+// four "that header was absent" rows beside it. Listing them all put "web02 →
+// VERIFIED" and "web02 unchanged" next to each other on the lab's real data — two
+// answers to one question, and the weaker one is not a fact about the host, it is a
+// fact about one rule.
+type HopChange struct {
+	Host    string
+	Prior   string
+	Grants  string // verified | observed_effect | "" when nothing was proved
+	Kind    string
+	LogPath string
+}
+
+// To is the confidence this Probe raised the host to, or empty when it raised none.
+func (c HopChange) To() string {
+	switch c.Grants {
+	case "verified":
+		return "verified"
+	case "observed_effect":
+		return "observed"
+	}
+	return ""
+}
+
+func grantRank(g string) int {
+	switch g {
+	case "verified":
+		return 2
+	case "observed_effect":
+		return 1
+	}
+	return 0
+}
+
+// Changes collapses this Probe's evidence to one line per host, in the order the
+// hops were walked. A host it could prove nothing about is still listed: that is why
+// the hop is still inferred, and dropping it makes the probe look like it found less
+// than it did.
+func (p *Past) Changes() []HopChange {
+	var out []HopChange
+	at := map[string]int{}
+	for _, e := range p.Evidence {
+		host := e.Node
+		if host == "" {
+			host = e.Instance
+		}
+		prior := e.Prior
+		if prior == "" {
+			prior = "inferred"
+		}
+		i, ok := at[host]
+		if !ok {
+			at[host] = len(out)
+			out = append(out, HopChange{Host: host, Prior: prior, Kind: e.Kind, LogPath: e.LogPath})
+			i = len(out) - 1
+		}
+		if grantRank(e.Grants) > grantRank(out[i].Grants) {
+			out[i].Grants, out[i].Kind = e.Grants, e.Kind
+			if e.LogPath != "" {
+				out[i].LogPath = e.LogPath
+			}
+		}
+	}
+	return out
+}
+
+// ChangeCount is how many hosts this Probe moved off their prior confidence, which
+// is the count beside "State changes". Hosts, not evidence rows: fifteen rows about
+// four hosts is four answers. (Raised, without the suffix, is the per-hop question
+// the trace graph asks.)
+func (p *Past) ChangeCount() int {
+	var n int
+	for _, c := range p.Changes() {
+		if c.Grants != "" {
+			n++
+		}
+	}
+	return n
 }
 
 // Verified reports whether this Probe proved that hop handled the request, so a
@@ -1028,6 +1314,21 @@ func Last(ctx context.Context, db *store.DB, url string) (*Past, error) {
 	if url == "" {
 		return nil, nil
 	}
+	return read(ctx, db, "p.url = ? ORDER BY p.requested_at DESC, p.id DESC", url)
+}
+
+// Load reads one stored Probe back by its id, which is how the Probe history screen
+// selects a row. Selecting by token prefix against whichever probe was newest at
+// that URL — what it did before — showed the wrong probe's evidence, or none, for
+// every row but the first.
+func Load(ctx context.Context, db *store.DB, id int64) (*Past, error) {
+	if id <= 0 {
+		return nil, nil
+	}
+	return read(ctx, db, "p.id = ?", id)
+}
+
+func read(ctx context.Context, db *store.DB, where string, args ...any) (*Past, error) {
 	var p Past
 	var hj, rj string
 	err := db.R.QueryRowContext(ctx, `SELECT p.id, p.method, p.url,
@@ -1035,7 +1336,7 @@ func Last(ctx context.Context, db *store.DB, url string) (*Past, error) {
 		COALESCE(p.duration_ms, 0), p.result, p.error, p.redirect_chain, p.response_headers,
 		COALESCE(u.username, '')
 		FROM probe p LEFT JOIN app_user u ON u.id = p.actor_user_id
-		WHERE p.url = ? ORDER BY p.requested_at DESC, p.id DESC LIMIT 1`, url).
+		WHERE `+where+` LIMIT 1`, args...).
 		Scan(&p.ProbeID, &p.Method, &p.URL, &p.Status, &p.Token, &p.OriginHost,
 			&p.RequestedAt, &p.DurationMS, &p.Outcome, &p.Err, &rj, &hj, &p.ActorLabel)
 	if err == sql.ErrNoRows {

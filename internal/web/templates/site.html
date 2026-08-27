@@ -1,0 +1,179 @@
+{{/* One table, two homes: the Overview carries a "Nodes serving this site" panel
+     and the Nodes tab is the same rows unabridged. Defined once so the two cannot
+     drift apart. */}}
+{{define "sitenodes"}}
+<table class="t">
+  {{template "cols" cols "Node:16rem" "Cluster:10rem" "Variant:7rem" "Listener:12rem" "Certificate:14rem" "Last collected:11rem" "State:10rem"}}
+  {{range $i, $n := .}}
+  <tr{{if eq (mod $i 2) 1}} class="zz"{{end}}>
+    <td class="m"><a href="/nodes/{{$n.NodeID}}">{{$n.NodeName}}</a></td>
+    <td class="m mu">{{if $n.Cluster}}{{$n.Cluster}}{{else}}<span class="mus">—</span>{{end}}</td>
+    <td class="m mu">{{$n.Variant}}</td>
+    <td class="m mu">{{$n.Listener}}</td>
+    <td class="m mu">{{$n.Certificate}}</td>
+    <td class="m mu">{{clock $n.LastColl}}</td>
+    <td>{{template "confidence" $n.State}}</td>
+  </tr>
+  {{end}}
+</table>
+{{end}}
+
+{{template "head" .}}
+{{with .Data}}
+<div class="ptitle">
+  <h1 class="h1">{{.Name}}</h1>
+  {{if .Overview}}{{if gt .Overview.Variants 1}}<span class="bdg deg">{{.Overview.Variants}} VARIANTS</span>{{end}}{{end}}
+  {{if .Overview}}<span class="m mu">{{.Overview.Nodes}} {{if eq .Overview.Nodes 1}}node{{else}}nodes{{end}} · {{len .Overview.Clusters}} {{if eq (len .Overview.Clusters) 1}}cluster{{else}}clusters{{end}}{{if .Overview.Aliases}} · aliases {{join .Overview.Aliases}}{{end}}</span>{{end}}
+  <div class="flex-1"></div>
+  {{if .Overview}}{{if gt .Overview.Variants 1}}
+  <form method="get" style="display:contents">
+    <label class="sr-only" for="variant">Variant</label>
+    <select class="sel" name="variant" id="variant">
+      {{range .VariantOpts}}<option value="{{.Key}}"{{if .On}} selected{{end}}>Variant {{.Key}}</option>{{end}}
+    </select>
+    <button class="btn p sm" type="submit">Filter</button>
+  </form>
+  {{end}}{{end}}
+  <a class="btn sm" href="/trace?scheme=https&amp;hostname={{urlquery .Name}}&amp;path=/&amp;port=443">Trace</a>
+</div>
+
+{{template "tabs" .Tabs}}
+
+{{if eq .Tab "overview"}}
+{{template "bd" "row"}}
+<div class="col" style="flex:0 0 300px">
+  {{if .Overview}}
+  <div class="pnl" style="padding:10px 12px">
+    <div class="lbl" style="margin-bottom:6px">Serving</div>
+    <div class="kv m" style="display:grid;grid-template-columns:88px 1fr;gap:4px 8px">
+      <span class="mus">listener</span><span>{{.Overview.ListenerSummary}}{{if .Overview.ListenerFlags}} {{.Overview.ListenerFlags}}{{end}}</span>
+      <span class="mus">aliases</span><span>{{if .Overview.Aliases}}{{join .Overview.Aliases}}{{else}}none{{end}}</span>
+      <span class="mus">clusters</span><span>{{range $i, $c := .Overview.Clusters}}{{if $i}}, {{end}}{{$c.Name}} {{$c.Nodes}}{{end}}</span>
+    </div>
+  </div>
+  {{if .Overview.CertSubject}}
+  <div class="pnl" style="padding:10px 12px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span class="lbl">Certificate</span>
+      {{if lt .Overview.CertExpiryDays 0}}<span class="bdg err">EXPIRED</span>
+      {{else if le .Overview.CertExpiryDays 30}}<span class="bdg deg">{{.Overview.CertExpiryDays}}d</span>{{end}}
+    </div>
+    <div class="kv m" style="display:grid;grid-template-columns:88px 1fr;gap:4px 8px">
+      <span class="mus">subject</span><span>{{.Overview.CertSubject}}</span>
+      <span class="mus">issuer</span><span>{{.Overview.CertIssuer}}</span>
+      <span class="mus">expires</span><span>{{date .Overview.CertExpiry}}</span>
+      <span class="mus">bindings</span><span>{{.Overview.CertBindings}} on this site</span>
+    </div>
+    {{if .Overview.CertUncovered}}
+    <div class="m mus" style="margin-top:7px">Certificate does not cover {{join .Overview.CertUncovered}} <span class="bdg err">UNCOVERED</span></div>
+    {{end}}
+  </div>
+  {{end}}
+  <div class="pnl" style="padding:10px 12px;flex:1;min-height:0">
+    <div class="lbl" style="margin-bottom:6px">Upstreams reached</div>
+    {{range .Overview.Upstreams}}
+    <div class="fct"><span class="m">{{.Name}}</span><span class="c">{{.Members}} {{if eq .Members 1}}member{{else}}members{{end}}{{if .Variant}} · variant {{.Variant}}{{end}}</span></div>
+    {{end}}
+  </div>
+  {{end}}
+</div>
+<div class="col" style="flex:1">
+  {{if .Overview}}
+  <div class="row" style="flex:none">
+    {{template "stats" stats (stat .Overview.Stats.Nodes "Nodes" "" "") (stat .Overview.Stats.Routes "Routes" "" "") (statif (gt .Overview.Stats.Variants 1) .Overview.Stats.Variants "Variants" "" "warn") (stat .Overview.Stats.Upstreams "Upstreams" "" "") (statif (le .Overview.Stats.CertDays 30) .Overview.Stats.CertDays "Cert" "" "warn" | note .Overview.Stats.CertSubject)}}
+  </div>
+  <div class="pnl z" style="flex:1.15">
+    <div class="phd"><span class="ph2">Routes</span><span class="m mus">{{if .Variant}}variant {{.Variant}} · {{end}}match order</span></div>
+    {{if .Overview.Routes}}
+    <table class="t">
+      {{template "cols" cols "#:34px" "Match:200px" "Action:150px" "Sends it to" "Also does:130px" "Variant:78px"}}
+      {{range $i, $route := .Overview.Routes}}
+      <tr{{if eq (mod $i 2) 1}} class="zz"{{end}}>
+        <td class="m mus">{{$route.Ordinal}}</td>
+        <td class="m">{{$route.Pattern}}</td>
+        <td class="m mu">{{$route.Action}}</td>
+        <td class="m">{{$route.Target}}</td>
+        <td class="m mus">{{if $route.AlsoDoes}}{{$route.AlsoDoes}}{{else}}—{{end}}</td>
+        <td class="m mus">{{$route.Variant}}</td>
+      </tr>
+      {{end}}
+    </table>
+    {{else}}
+    {{template "empty" "No routes for this variant"}}{{template "empty-end"}}
+    {{end}}
+  </div>
+  <div class="pnl z" style="flex:1">
+    {{/* Every variant, not just the selected one: the variant picker narrows the
+         routes table, but "who serves this host" is the whole list or it is
+         misleading. */}}
+    <div class="phd"><span class="ph2">Nodes serving this site</span><span class="m mus">all variants</span><div class="flex-1"></div><a class="btn s sm" href="/sites/{{.Name}}?tab=nodes">Full list</a></div>
+    {{if .Nodes}}{{template "sitenodes" .Nodes}}
+    {{else}}{{template "empty" "No nodes serve this site"}}{{template "empty-end"}}{{end}}
+  </div>
+  {{end}}
+</div>
+{{template "bd-end"}}
+
+{{else if eq .Tab "nodes"}}
+{{template "bd"}}
+<div class="pnl z">
+  <div class="phd"><span class="ph2">Nodes serving this site</span></div>
+  {{if .Nodes}}{{template "sitenodes" .Nodes}}
+  {{else}}
+  {{template "empty" "No nodes serve this site"}}{{template "empty-end"}}
+  {{end}}
+</div>
+{{template "bd-end"}}
+
+{{else if eq .Tab "upstreams"}}
+{{template "bd"}}
+<div class="pnl z">
+  <div class="phd"><span class="ph2">Upstream members</span></div>
+  {{if .Upstreams}}
+  <table class="t">
+    {{template "cols" cols "Upstream:14rem" "Host:18rem" "Port:5rem" "Scheme:7rem" "Weight:7rem" "Flags:10rem" "Resolves to:14rem"}}
+    {{range $i, $m := .Upstreams}}
+    <tr{{if eq (mod $i 2) 1}} class="zz"{{end}}>
+      <td class="m">{{$m.Upstream}}</td>
+      <td class="m">{{$m.Host}}</td>
+      <td class="m">{{if $m.Port}}{{$m.Port}}{{else}}<span class="mus">default</span>{{end}}</td>
+      <td class="m mu">{{if $m.Scheme}}{{$m.Scheme}}{{else}}<span class="mus">—</span>{{end}}</td>
+      <td class="m">{{if $m.Weight}}{{$m.Weight}}{{else}}<span class="mus">—</span>{{end}}</td>
+      <td class="m mu">{{if $m.Flags}}{{$m.Flags}}{{else}}<span class="mus">—</span>{{end}}</td>
+      <td class="m mu">{{if $m.NodeName}}{{$m.NodeName}}{{else}}<span class="mus">external</span>{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  {{template "empty" "No upstreams"}}{{template "empty-end"}}
+  {{end}}
+</div>
+{{template "bd-end"}}
+
+{{else if eq .Tab "certificates"}}
+{{template "bd"}}
+<div class="pnl z">
+  <div class="phd"><span class="ph2">Certificates bound to this site</span></div>
+  {{if .Certs}}
+  <table class="t">
+    {{template "cols" cols "Subject:20rem" "Issuer:16rem" "Expiry:12rem" "Bindings:8rem" "Coverage"}}
+    {{range $i, $c := .Certs}}
+    <tr{{if eq (mod $i 2) 1}} class="zz"{{end}}>
+      <td class="m">{{$c.Subject}}</td>
+      <td class="m mu">{{$c.Issuer}}</td>
+      <td class="m mu">{{expiry $c.NotAfter}} <span class="mus">({{date $c.NotAfter}})</span></td>
+      <td class="m">{{$c.Bindings}}</td>
+      <td>{{if $c.Uncovered}}<span class="bdg err">UNCOVERED</span> {{join $c.Uncovered}}{{else}}<span class="bdg ok">COVERED</span>{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  {{template "empty" "No certificates bound to this site"}}{{template "empty-end"}}
+  {{end}}
+</div>
+{{template "bd-end"}}
+
+{{end}}
+
+{{end}}
+{{template "foot" .}}

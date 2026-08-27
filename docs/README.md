@@ -59,6 +59,7 @@ Each records a decision that is hard to reverse, surprising without context, and
 | [`infra/customer_deployment.md`](infra/customer_deployment.md) | Install, systemd, TLS, backup, upgrade, sizing, observability, the security-review answer sheet, failure modes |
 | [`infra/release_and_demo.md`](infra/release_and_demo.md) | Build pipeline, signing and SBOMs, the hosted demo, offline licence issuance, what we deliberately do not build |
 | [`infra/test_lab.md`](infra/test_lab.md) | The fixture corpus, the container lab, differential testing against vendor tooling, non-functional tests |
+| [`infra/development.md`](infra/development.md) | Local Docker development with Air hot reload |
 
 ---
 

@@ -122,7 +122,9 @@ func (db *DB) SetNodeFacts(ctx context.Context, id int64, osFamily string, sudo 
 // it (see schema.md and CONTEXT.md's treatment of Drift for the same
 // posture: surfaced honestly, never acted on autonomously).
 func Quarantined(consecutiveFailures, threshold int) bool {
-	return consecutiveFailures >= threshold
+	// A threshold of zero is a missing setting, not a fleet where every node is
+	// quarantined the moment it is added.
+	return threshold > 0 && consecutiveFailures >= threshold
 }
 
 // QuarantinedNodeCount is the number of non-retired Nodes whose consecutive
