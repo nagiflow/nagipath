@@ -63,6 +63,26 @@
       </div>
     </div>
 
+    {{if $.User.IsAdmin}}
+    <div class="pnl" style="padding:10px 12px">
+      <div class="lbl" style="margin-bottom:6px">Access</div>
+      <form method="post" action="/nodes/{{.Node.ID}}/credential" style="display:flex;flex-direction:column;gap:7px">
+        {{template "csrf" $.CSRF}}
+        <label class="fld f"><span class="lbl" style="margin-right:6px">Credential</span>
+          <select class="sel" name="credential_id" required style="flex:1;min-width:0;width:0">
+            <option value="">Select a stored credential</option>
+            {{range $credential := .Credentials}}<option value="{{$credential.ID}}"{{if and $.Data.Node.CredentialID.Valid (eq $.Data.Node.CredentialID.Int64 $credential.ID)}} selected{{end}}>{{$credential.Name}} · {{$credential.Username}} · {{$credential.AuthKind}}</option>{{end}}
+          </select>
+        </label>
+        <button type="submit" class="btn p sm">Change credential</button>
+      </form>
+      <form method="post" action="/nodes/{{.Node.ID}}/delete" style="margin-top:10px" data-confirm="Remove this node and its collected history?">
+        {{template "csrf" $.CSRF}}
+        <button type="submit" class="btn s sm">Remove node</button>
+      </form>
+    </div>
+    {{end}}
+
     {{if .Snapshot.CapturedAt}}
     <div class="pnl" style="padding:10px 12px">
       <div class="lbl" style="margin-bottom:6px">Current snapshot</div>

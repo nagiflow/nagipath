@@ -68,7 +68,7 @@ func TestComponentConstructors(t *testing.T) {
 
 	list := stats(
 		stat(0, "nodes", "/nodes", ""),
-		statif(false, 0, "host keys to approve", "/onboarding", "warn"),
+		statif(false, 0, "host keys to approve", "/settings/hostkeys", "warn"),
 	)
 	if len(list) != 1 || list[0].Label != "nodes" {
 		t.Fatalf("stats() = %+v, want the zero-count stat kept and the statif dropped", list)

@@ -19,6 +19,7 @@ const (
 	CmdUname       ID = "os.uname"
 	CmdSudoCheck   ID = "os.sudo_check"
 	CmdProcList    ID = "proc.list"
+	CmdSocketList  ID = "socket.list"
 	CmdSystemdList ID = "systemd.units"
 	CmdWhich       ID = "os.which"
 
@@ -44,7 +45,7 @@ const (
 )
 
 var allowed = map[ID]bool{
-	CmdOSRelease: true, CmdUname: true, CmdSudoCheck: true, CmdProcList: true,
+	CmdOSRelease: true, CmdUname: true, CmdSudoCheck: true, CmdProcList: true, CmdSocketList: true,
 	CmdSystemdList: true, CmdWhich: true,
 	CmdNginxVersion: true, CmdNginxDump: true, CmdNginxTest: true,
 	CmdHTTPDVersion: true, CmdHTTPDVhosts: true, CmdHTTPDModules: true, CmdHTTPDIncludes: true,
@@ -117,6 +118,13 @@ func ProcList() Command {
 	return Command{ID: CmdProcList, TolerateExit: true, Line: `for p in /proc/[0-9]*; do ` +
 		`[ -r "$p/cmdline" ] || continue; ` +
 		`printf '%s\t' "${p#/proc/}"; tr '\0' ' ' < "$p/cmdline"; echo; done`}
+}
+
+// SocketList reports listening TCP sockets and owning PIDs when ss can see them.
+// It is intentionally best-effort: some systems hide process ownership from an
+// unprivileged SSH user, in which case discovery keeps its existing behavior.
+func SocketList() Command {
+	return Command{ID: CmdSocketList, TolerateExit: true, Line: "ss -ltnpH"}
 }
 
 func SystemdUnits() Command {

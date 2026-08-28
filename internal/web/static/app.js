@@ -76,6 +76,11 @@
     });
   });
 
+  document.addEventListener("submit", function (e) {
+    var form = e.target.closest && e.target.closest("form[data-confirm]");
+    if (form && !window.confirm(form.getAttribute("data-confirm"))) e.preventDefault();
+  });
+
   // Credential types share one form. Toggling fields here keeps the normal
   // POST endpoint simple and leaves the non-JavaScript fallback understandable.
   var credentialForm = document.querySelector("[data-credential-form]");

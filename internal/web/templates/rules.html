@@ -18,7 +18,7 @@
 
 {{if .Empty}}
 {{template "empty" "Nothing is collected yet"}}
-  <p>Rule lookup reads collected configuration, and there is none. <a href="/onboarding">Connect the fleet</a> first.</p>
+  <p>Rule lookup reads collected configuration, and there is none. <a href="/nodes/import">Import inventory</a> first.</p>
 {{template "empty-end"}}
 {{else if not .Asked}}
 <div class="pnl" style="flex:1">

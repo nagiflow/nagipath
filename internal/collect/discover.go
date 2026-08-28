@@ -10,6 +10,7 @@ package collect
 import (
 	"context"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,7 @@ type Found struct {
 	PID         int
 	Unit        string
 	Evidence    string // process | unit | path
+	Active      bool   // process owns a socket reported by ss
 }
 
 // NaturalKey identifies an Instance across restarts and PID changes. The config
@@ -57,8 +59,23 @@ func Discover(ctx context.Context, ex sshx.Executor) ([]Found, error) {
 		bins = uniqueLines(res.Stdout)
 	}
 
+	var processes []Found
 	if res, err := ex.Run(ctx, sshx.ProcList()); err == nil {
-		for _, f := range fromProcesses(res.Stdout) {
+		processes = fromProcesses(res.Stdout)
+		activePIDs := activeSocketPIDs(ctx, ex)
+		activeVendors := map[string]bool{}
+		for i := range processes {
+			if activePIDs[processes[i].PID] {
+				processes[i].Active = true
+				activeVendors[processes[i].Vendor] = true
+			}
+		}
+		for _, f := range processes {
+			// Once ss identifies a serving process for a vendor, an additional
+			// process record is a stopped or non-listening configuration.
+			if len(activePIDs) > 0 && activeVendors[f.Vendor] && !f.Active {
+				continue
+			}
 			f.Binary = absBinary(f.Binary, bins)
 			add(f)
 		}
@@ -92,6 +109,23 @@ func Discover(ctx context.Context, ex sshx.Executor) ([]Found, error) {
 		add(Found{Vendor: v, Binary: bin, Evidence: "path"})
 	}
 	return found, nil
+}
+
+var socketPIDPattern = regexp.MustCompile(`pid=(\d+)`)
+
+func activeSocketPIDs(ctx context.Context, ex sshx.Executor) map[int]bool {
+	res, err := ex.Run(ctx, sshx.SocketList())
+	if err != nil {
+		return nil
+	}
+	active := map[int]bool{}
+	for _, match := range socketPIDPattern.FindAllStringSubmatch(res.Stdout, -1) {
+		pid, err := strconv.Atoi(match[1])
+		if err == nil && pid > 0 {
+			active[pid] = true
+		}
+	}
+	return active
 }
 
 // absBinary turns the bare name in a process title into the path we can actually

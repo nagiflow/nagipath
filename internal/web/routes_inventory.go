@@ -12,10 +12,13 @@ func (s *Server) routesInventory(m *http.ServeMux) {
 	// a process picker in the title bar. The /instances hierarchy is gone; its
 	// URLs redirect here.
 	m.HandleFunc("GET /nodes", s.auth(s.nodes))
+	m.HandleFunc("GET /nodes/import", s.admin(s.importNodesPage))
+	m.HandleFunc("POST /nodes/import", s.admin(s.importNodes))
 	m.HandleFunc("POST /nodes", s.admin(s.addNode))
 	m.HandleFunc("GET /nodes/{id}", s.auth(s.nodeDetail))
 	m.HandleFunc("GET /nodes/{id}/{tab}", s.auth(s.nodeDetail))
 	m.HandleFunc("POST /nodes/{id}/collect", s.admin(s.collectNode))
+	m.HandleFunc("POST /nodes/{id}/credential", s.admin(s.changeNodeCredential))
 	m.HandleFunc("POST /nodes/{id}/delete", s.admin(s.deleteNode))
 
 	// /instances redirects to /nodes. The old /instances/{id} URLs redirect to

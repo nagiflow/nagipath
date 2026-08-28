@@ -280,7 +280,7 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 			Kind:    "HOST KEY",
 			Text:    fmt.Sprintf("%d host key(s) waiting", d.Pending),
 			Note:    "",
-			Link:    "/onboarding",
+			Link:    "/settings/hostkeys",
 			Cluster: "",
 			Since:   "",
 		})
