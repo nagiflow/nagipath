@@ -1,8 +1,7 @@
 {{template "head" .}}
 {{with .Data}}
 {{template "ptitle" toolbar "Nodes" ""}}
-  {{if $.User.IsAdmin}}<a class="btn sm" href="/onboarding">Import inventory</a>{{end}}
-  {{if $.User.IsAdmin}}<a class="btn p sm" href="/onboarding">Add nodes</a>{{end}}
+  {{if $.User.IsAdmin}}<a class="btn p sm" href="/nodes/import">Import inventory</a>{{end}}
 {{template "ptitle-end"}}
 
 <form method="get" class="qbar">
@@ -61,7 +60,7 @@
 {{else}}
 {{template "empty" "No nodes yet"}}
   <p>Add a node or import inventory, then approve its host key to collect.</p>
-  {{if $.User.IsAdmin}}<a class="btn p" href="/onboarding">Add nodes</a>{{end}}
+  {{if $.User.IsAdmin}}<a class="btn p" href="/nodes/import">Import inventory</a>{{end}}
 {{template "empty-end"}}
 {{end}}
 {{template "bd-end"}}

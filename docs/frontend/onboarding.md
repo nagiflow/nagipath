@@ -124,7 +124,10 @@ File upload or paste. INI and YAML.
   Skipped         1   localhost (loopback)
 ```
 
-Each row expandable to the mapped fields. `ansible_host` → address, `ansible_port` → port, `ansible_user` → default username.
+Each row expandable to the mapped fields. Select a stored credential when adding the
+nodes; its username and authentication method are used for collection. An explicit
+`user@host` entry still overrides the credential username for that host. `ansible_host`
+→ address, `ansible_port` → port, `ansible_user` → per-host username.
 
 Three reconciliation rules are stated on screen because they surprise people:
 

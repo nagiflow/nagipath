@@ -2,7 +2,7 @@ package web
 
 import "net/http"
 
-// Collections, the onboarding wizard, and Settings.
+// Collections and Settings.
 //
 // Settings is a page per section rather than tabs on one, because Users and the
 // Audit log are two very different queries and a single screen holding both
@@ -10,12 +10,8 @@ import "net/http"
 func (s *Server) routesOps(m *http.ServeMux) {
 	m.HandleFunc("GET /collections", s.auth(s.collections))
 
-	m.HandleFunc("GET /onboarding", s.admin(s.onboarding))
-	m.HandleFunc("POST /onboarding/nodes", s.admin(s.onboardNodes))
-
 	// Host key approval is the gate on running any command on a Node, so it is
-	// its own action with its own audit entry, reachable from onboarding and
-	// from Settings both.
+	// its own action with its own audit entry, reachable from Settings.
 	m.HandleFunc("POST /hostkeys/{id}/decide", s.admin(s.decideHostKey))
 	m.HandleFunc("POST /hostkeys/approve", s.admin(s.approveHostKeys))
 

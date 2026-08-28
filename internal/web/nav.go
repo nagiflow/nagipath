@@ -57,7 +57,7 @@ func nav(path string, u store.User, c store.NavCount) []navGroup {
 			{Label: "Certificates", Href: "/certificates", Count: c.Certificates, Warn: c.Certificates > 0, Icon: "certificates"},
 		}},
 		{Foot: true, Items: []navItem{
-			{Label: "Settings", Href: "/settings", Icon: "settings", Under: []string{"/settings/", "/collections", "/onboarding", "/password"}},
+			{Label: "Settings", Href: "/settings", Icon: "settings", Under: []string{"/settings/", "/collections", "/password"}},
 		}},
 	}
 	out := make([]navGroup, 0, len(groups))

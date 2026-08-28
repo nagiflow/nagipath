@@ -193,6 +193,26 @@ func TestCollectNginxEndToEnd(t *testing.T) {
 	}
 }
 
+func TestDiscoverFiltersInactiveSameVendorProcess(t *testing.T) {
+	host := &fakeHost{out: map[sshx.ID]string{
+		sshx.CmdWhich:       "/usr/sbin/apache2\n",
+		sshx.CmdProcList:    "101\t/usr/sbin/apache2 -f /etc/apache2/active.conf\n" + "202\t/usr/sbin/apache2 -f /etc/apache2/stopped.conf\n",
+		sshx.CmdSocketList:  "LISTEN 0 511 0.0.0.0:80 0.0.0.0:* users:((\"apache2\",pid=101,fd=4))\n",
+		sshx.CmdSystemdList: "",
+	}}
+
+	found, err := Discover(context.Background(), host)
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	if len(found) != 1 {
+		t.Fatalf("found %d instances, want 1: %+v", len(found), found)
+	}
+	if found[0].PID != 101 || !found[0].Active {
+		t.Fatalf("found %+v, want active PID 101", found[0])
+	}
+}
+
 // A dump that arrived on the other stream used to be indistinguishable from a
 // host with no configuration: the collector read stdout, found it empty, and
 // quietly replaced the authoritative dump with a filesystem walk.

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type Node struct {
@@ -146,6 +147,30 @@ func (db *DB) NodeFailure(ctx context.Context, id int64, failed bool) error {
 	}
 	_, err := db.W.ExecContext(ctx, `UPDATE node SET consecutive_failures = 0 WHERE id = ?`, id)
 	return err
+}
+
+func (db *DB) SetNodeCredential(ctx context.Context, id, credentialID int64, by *int64) error {
+	tx, err := db.W.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var address string
+	if err := tx.QueryRowContext(ctx, `SELECT address FROM node WHERE id = ?`, id).Scan(&address); err != nil {
+		return err
+	}
+	var name string
+	if err := tx.QueryRowContext(ctx, `SELECT name FROM credential WHERE id = ?`, credentialID).Scan(&name); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE node SET credential_id = ? WHERE id = ?`, credentialID, id); err != nil {
+		return err
+	}
+	if err := auditTx(ctx, tx, by, "node.credential_changed", "node", &id,
+		fmt.Sprintf("%s: %s", address, name)); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (db *DB) DeleteNode(ctx context.Context, id int64, by *int64) error {

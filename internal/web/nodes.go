@@ -131,6 +131,7 @@ func (s *Server) addNode(w http.ResponseWriter, r *http.Request) {
 
 type nodeDetailData struct {
 	Node        store.Node
+	Credentials []store.Credential
 	Instances   []store.Instance
 	Selected    *store.Instance
 	HostKeys    []store.HostKey
@@ -206,6 +207,9 @@ func (s *Server) nodeDetail(w http.ResponseWriter, r *http.Request) {
 		Node:      n,
 		Tab:       tab,
 		Threshold: s.DB.SettingInt(ctx, "quarantine_after_failures"),
+	}
+	if userOf(r).IsAdmin() {
+		d.Credentials, _ = s.DB.Credentials(ctx)
 	}
 
 	d.HostKeys, _ = s.DB.HostKeys(ctx, nodeID)
@@ -574,6 +578,20 @@ func (s *Server) deleteNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	redirect(w, r, "/nodes", "node removed", "")
+}
+
+func (s *Server) changeNodeCredential(w http.ResponseWriter, r *http.Request) {
+	id, u := idOf(r, "id"), userOf(r)
+	credentialID, err := strconv.ParseInt(r.FormValue("credential_id"), 10, 64)
+	if err != nil || credentialID <= 0 {
+		redirect(w, r, fmt.Sprintf("/nodes/%d", id), "", "select a credential")
+		return
+	}
+	if err := s.DB.SetNodeCredential(r.Context(), id, credentialID, &u.ID); err != nil {
+		redirect(w, r, fmt.Sprintf("/nodes/%d", id), "", err.Error())
+		return
+	}
+	redirect(w, r, fmt.Sprintf("/nodes/%d", id), "credential updated", "")
 }
 
 // ---------------------------------------------------------------- helpers

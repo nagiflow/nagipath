@@ -1,0 +1,29 @@
+{{template "head" .}}
+{{with .Data}}
+{{template "ptitle" toolbar "Import inventory" "Add hosts from a list or Ansible inventory"}}
+  <a class="btn s sm" href="/nodes">Back to nodes</a>
+{{template "ptitle-end"}}
+
+{{template "bd"}}
+<div class="pnl" style="max-width:760px">
+  <div class="lbl" style="margin-bottom:8px">Inventory source</div>
+  <form method="post" action="/nodes/import">
+    {{template "csrf" $.CSRF}}
+    <label class="fld f">
+      <textarea name="inventory" rows="12" required style="display:block;width:100%;min-width:0;resize:vertical" placeholder="edge-01.eu.example.com&#10;edge-02.eu.example.com:2222&#10;nagipath@edge-03.eu.example.com&#10;&#10;# or an Ansible inventory"></textarea>
+    </label>
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:end">
+      <label class="fld f"><span class="lbl" style="margin-right:6px">Credential</span>
+        <select class="sel" name="credential_id" required>
+          <option value="">Select a stored credential</option>
+          {{range .Credentials}}<option value="{{.ID}}">{{.Name}} · {{.Username}} · {{.AuthKind}}</option>{{end}}
+        </select>
+      </label>
+      <button type="submit" class="btn p">Import nodes</button>
+    </div>
+    <p class="m mus" style="margin-top:8px;font-size:11.5px">Paste one host per line or an Ansible INI/YAML inventory. nagipath never scans a network or CIDR range.</p>
+  </form>
+</div>
+{{template "bd-end"}}
+{{end}}
+{{template "foot" .}}

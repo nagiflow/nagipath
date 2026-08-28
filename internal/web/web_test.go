@@ -149,7 +149,7 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 		"/certificates", "/certificates?cert=1", "/search",
 		"/search?q=proxy_pass", "/search?q=proxy_pass&vendor=nginx&page=2", "/trace",
 		"/trace/history", "/snapshots",
-		"/rules", "/rules?hostname=shop.example.com&path=/api", "/drift", "/onboarding",
+		"/rules", "/rules?hostname=shop.example.com&path=/api", "/drift", "/nodes/import",
 		"/settings/credentials", "/settings/users", "/settings/audit",
 		"/settings/hostkeys", "/settings/masterkey", "/settings/retention",
 		"/settings/license", "/settings/system",
@@ -173,17 +173,6 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 		}
 	}
 
-	// The sudoers grant is a file the operator copies onto every node verbatim, so
-	// it is the one piece of page content whose exact text matters. It rendered as
-	// a single blank line for a while: `sudoers | split "\n"` passes the arguments
-	// to strings.Split the other way round, and a wrong-but-plausible pipeline
-	// fails silently in a template.
-	body := c.get("/onboarding").Body.String()
-	for _, want := range []string{"Cmnd_Alias NAGIPATH_DUMP", "NOPASSWD:", "!requiretty"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("the onboarding sudoers block is missing %q", want)
-		}
-	}
 }
 
 // The Content-Security-Policy sets script-src 'self' with no 'unsafe-inline', so
@@ -1029,7 +1018,7 @@ func TestPagesRenderOverAParsedSnapshot(t *testing.T) {
 		"/trace?scheme=https&hostname=shop.example.com&path=/api/v2&port=443",
 		// The static route: `root` ends the walk, and the hop panel renders it.
 		"/trace?scheme=https&hostname=shop.example.com&path=/&port=443",
-		"/drift", "/onboarding", "/certificates", "/certificates?cert=1", "/certificates?cert=2",
+		"/drift", "/nodes/import", "/certificates", "/certificates?cert=1", "/certificates?cert=2",
 		// The every-instance scope, which hides the golden-peer and ignore controls
 		// and so takes a different set of branches from the cluster scope.
 		"/drift?cluster=all", "/drift?cluster=all&group=instance",
