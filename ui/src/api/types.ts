@@ -118,6 +118,153 @@ export interface ClustersResponse {
   selected?: ClusterDetail
 }
 
+export interface SiteListRow {
+  Name: string
+  AliasCount: number
+  Aliases: string[]
+  Nodes: number
+  ListenerSummary: string
+  CertSubject: string
+  Routes: number
+  Variants: number
+  State: string
+  StateReason: string
+}
+
+export interface SiteStats {
+  Hostnames: number
+  Nodes: number
+  VariantHosts: number
+  TLSTerminated: number
+  Plaintext: number
+  ExpiringCerts: number
+  ExpiringBindings: number
+}
+
+export interface SiteVariant {
+  Key: string
+  RawText: string
+  Nodes: number
+  NodeNames: string[]
+  Routes: unknown[]
+}
+
+export interface SitesListResponse {
+  Rows: SiteListRow[]
+  Query: string
+  Total: number
+  Stats: SiteStats
+  Sel: string
+  Variants: SiteVariant[]
+}
+
+export interface SiteTabItem {
+  Label: string
+  Href: string
+  Count: number
+  On: boolean
+}
+
+export interface SiteVariantOpt {
+  Key: string
+  Label: string
+  On: boolean
+}
+
+export interface ClusterCount {
+  Name: string
+  Nodes: number
+}
+
+export interface UpstreamSummary {
+  Name: string
+  Members: number
+  Variant: string
+}
+
+export interface SiteDetailRoute {
+  Ordinal: number
+  Pattern: string
+  MatchType: string
+  Action: string
+  Target: string
+  AlsoDoes: string
+  Variant: string
+}
+
+export interface SiteDetailStats {
+  Nodes: number
+  Routes: number
+  Variants: number
+  Upstreams: number
+  CertDays: number
+  CertSubject: string
+}
+
+export interface SiteOverview {
+  Name: string
+  Aliases: string[]
+  Variants: number
+  VariantKey: string
+  Nodes: number
+  Clusters: ClusterCount[]
+  ListenerSummary: string
+  ListenerFlags: string
+  CertSubject: string
+  CertIssuer: string
+  CertExpiry: string
+  CertExpiryDays: number
+  CertBindings: number
+  CertUncovered: string[]
+  Upstreams: UpstreamSummary[]
+  Routes: SiteDetailRoute[]
+  Stats: SiteDetailStats
+}
+
+export interface SiteNodeRow {
+  NodeID: number
+  NodeName: string
+  Cluster: string
+  Variant: string
+  Listener: string
+  Certificate: string
+  LastColl: string
+  State: string
+  StateReason: string
+}
+
+export interface SiteUpstreamMember {
+  Upstream: string
+  Host: string
+  Port: number
+  Scheme: string
+  Weight: number
+  Flags: string
+  NodeName: string
+}
+
+export interface SiteCertBinding {
+  Subject: string
+  SANs: string[]
+  Issuer: string
+  NotAfter: string
+  ExpiryDays: number
+  Bindings: number
+  Uncovered: string[]
+}
+
+export interface SiteDetailResponse {
+  Name: string
+  Tab: string
+  Variant: string
+  Overview?: SiteOverview
+  Nodes?: SiteNodeRow[]
+  Upstreams?: SiteUpstreamMember[]
+  Certs?: SiteCertBinding[]
+  Tabs: SiteTabItem[]
+  VariantOpts: SiteVariantOpt[]
+}
+
 export interface SessionResponse {
   user: SessionUser
   csrf_token: string

@@ -32,13 +32,13 @@ type clusterMemberItem struct {
 }
 
 type clusterDetailResponse struct {
-	ID             int64                `json:"id"`
-	Name           string               `json:"name"`
-	Members        int                  `json:"members"`
-	Vendor         string               `json:"vendor,omitempty"`
-	GoldenPeerName string               `json:"golden_peer_name,omitempty"`
-	LastCollected  string               `json:"last_collected,omitempty"`
-	MemberList     []clusterMemberItem  `json:"member_list"`
+	ID             int64               `json:"id"`
+	Name           string              `json:"name"`
+	Members        int                 `json:"members"`
+	Vendor         string              `json:"vendor,omitempty"`
+	GoldenPeerName string              `json:"golden_peer_name,omitempty"`
+	LastCollected  string              `json:"last_collected,omitempty"`
+	MemberList     []clusterMemberItem `json:"member_list"`
 }
 
 type clustersResponse struct {

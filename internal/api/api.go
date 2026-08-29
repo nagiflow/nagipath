@@ -37,6 +37,8 @@ func New(db *store.DB, licenseStatus func(context.Context) (license.Status, stri
 	m.HandleFunc("GET /dashboard", s.requireAuth(s.getDashboard))
 	m.HandleFunc("GET /clusters", s.requireAuth(s.getClusters))
 	m.HandleFunc("POST /clusters/rename", s.requireAdmin(s.postRenameCluster))
+	m.HandleFunc("GET /sites", s.requireAuth(s.getSites))
+	m.HandleFunc("GET /sites/{name}", s.requireAuth(s.getSite))
 	s.mux = m
 	return s
 }

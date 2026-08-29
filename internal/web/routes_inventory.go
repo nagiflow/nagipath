@@ -5,8 +5,10 @@ import "net/http"
 // The Inventory group: Nodes, Instances and Clusters — what is out there, at the
 // three levels the product names things at.
 func (s *Server) routesInventory(m *http.ServeMux) {
-	m.HandleFunc("GET /sites", s.auth(s.sites))
-	m.HandleFunc("GET /sites/{name}", s.auth(s.site))
+	// Sites is the SPA now (docs/adr/0017): GET /api/ui/sites and
+	// GET /api/ui/sites/{name} (internal/api/sites.go).
+	m.HandleFunc("GET /sites", s.auth(s.serveSPA))
+	m.HandleFunc("GET /sites/{name}", s.auth(s.serveSPA))
 
 	// Nodes are the addressable inventory unit. Every tab hangs off a node with
 	// a process picker in the title bar. The /instances hierarchy is gone; its

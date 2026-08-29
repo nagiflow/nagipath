@@ -145,11 +145,11 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 	// be executed by something — and an empty fleet is the state every install
 	// starts in.
 	// /instances removed: it redirects to /nodes, which is already tested.
-	// "/" and "/clusters" removed: both serve the React SPA shell now
-	// (TestDashboardServesSPAShell, TestClustersServesSPAShell), not a
-	// server-rendered page with the class="pnl"/class="empty" chrome below.
+	// "/", "/clusters" and "/sites" removed: all three serve the React SPA
+	// shell now (TestDashboardServesSPAShell, TestClustersServesSPAShell,
+	// TestSitesServesSPAShell), not a server-rendered page with the
+	// class="pnl"/class="empty" chrome below.
 	for _, path := range []string{"/nodes", "/collections",
-		"/sites",
 		"/certificates", "/certificates?cert=1", "/search",
 		"/search?q=proxy_pass", "/search?q=proxy_pass&vendor=nginx&page=2", "/trace",
 		"/trace/history", "/snapshots",
@@ -1049,10 +1049,12 @@ func TestPagesRenderOverAParsedSnapshot(t *testing.T) {
 		}
 	}
 
-	if w := c.get("/sites?export=csv"); w.Code != http.StatusOK ||
+	// Sites is the SPA now (docs/adr/0017); the CSV export moved with it to
+	// GET /api/ui/sites?export=csv (internal/api/sites.go).
+	if w := c.get("/api/ui/sites?export=csv"); w.Code != http.StatusOK ||
 		!strings.Contains(w.Header().Get("Content-Type"), "text/csv") ||
 		!strings.Contains(w.Body.String(), "shop.example.com") {
-		t.Errorf("GET /sites?export=csv did not return the filtered site export: %d %q", w.Code, w.Body.String())
+		t.Errorf("GET /api/ui/sites?export=csv did not return the filtered site export: %d %q", w.Code, w.Body.String())
 	}
 
 	// The raw-text index answers separately from the rule index, and its rows only

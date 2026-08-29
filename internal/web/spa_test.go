@@ -60,3 +60,24 @@ func TestClustersServesSPAShell(t *testing.T) {
 		t.Errorf("GET /clusters did not return the SPA shell:\n%s", body)
 	}
 }
+
+// TestSitesServesSPAShell mirrors TestDashboardServesSPAShell for the Sites
+// routes cut over to the SPA (docs/adr/0017, Phase 2).
+func TestSitesServesSPAShell(t *testing.T) {
+	s, _ := newTestServer(t)
+	c := &client{t: t, s: s}
+	c.post("/setup", url.Values{
+		"username": {"admin"}, "password": {"a good long password"},
+		"confirm": {"a good long password"},
+	})
+
+	for _, path := range []string{"/sites", "/sites/shop.example.com"} {
+		w := c.get(path)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d", path, w.Code)
+		}
+		if body := w.Body.String(); !strings.Contains(body, `id="root"`) {
+			t.Errorf("GET %s did not return the SPA shell:\n%s", path, body)
+		}
+	}
+}

@@ -2,6 +2,8 @@ import { Route, Routes } from 'react-router-dom'
 import { AppShell } from '../components/layout/AppShell'
 import { Dashboard } from '../pages/dashboard/Dashboard'
 import { ClustersPage } from '../pages/clusters/ClustersPage'
+import { SitesListPage } from '../pages/sites/SitesListPage'
+import { SiteDetailPage } from '../pages/sites/SiteDetailPage'
 
 // Every other nav link in AppShell still points at an internal/web
 // server-rendered page — a plain <a href>, a normal full-page navigation
@@ -22,6 +24,22 @@ export function AppRoutes() {
         element={
           <AppShell>
             <ClustersPage />
+          </AppShell>
+        }
+      />
+      <Route
+        path="/sites"
+        element={
+          <AppShell>
+            <SitesListPage />
+          </AppShell>
+        }
+      />
+      <Route
+        path="/sites/:name"
+        element={
+          <AppShell>
+            <SiteDetailPage />
           </AppShell>
         }
       />
