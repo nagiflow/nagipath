@@ -82,10 +82,18 @@ func TestFleetListsNameTheNode(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	// /search is still server-rendered; /snapshots and /nodes are the React
-	// SPA now (docs/adr/0017), asserted against their JSON APIs instead.
-	if body := c.get("/search?q=proxy_pass").Body.String(); !strings.Contains(body, "lb01") || !strings.Contains(body, "lb02") {
-		t.Errorf("GET /search?q=proxy_pass does not name both nodes: missing lb01/lb02")
+	// Search, Snapshots and Nodes are all the React SPA now (docs/adr/0017),
+	// asserted against their JSON APIs instead.
+	var search pb.SearchResponse
+	if err := protojson.Unmarshal(c.get("/api/ui/search?q=proxy_pass").Body.Bytes(), &search); err != nil {
+		t.Fatalf("decode /api/ui/search: %v", err)
+	}
+	searchNodes := map[string]bool{}
+	for _, g := range search.Groups {
+		searchNodes[g.Node] = true
+	}
+	if !searchNodes["lb01"] || !searchNodes["lb02"] {
+		t.Errorf("GET /api/ui/search?q=proxy_pass does not name both nodes: %+v", searchNodes)
 	}
 
 	var snapshots pb.SnapshotsListResponse

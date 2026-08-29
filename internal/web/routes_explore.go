@@ -21,6 +21,8 @@ func (s *Server) routesExplore(m *http.ServeMux) {
 	// Probe history for a given URL or all probes
 	m.HandleFunc("GET /trace/history", s.auth(s.probeHistory))
 
-	m.HandleFunc("GET /rules", s.auth(s.rules))
-	m.HandleFunc("GET /search", s.auth(s.search))
+	// Rule lookup and Config search are the SPA now (docs/adr/0017, Phase 5):
+	// GET /api/ui/rules and GET /api/ui/search (internal/api/{rules,search}.go).
+	m.HandleFunc("GET /rules", s.auth(s.serveSPA))
+	m.HandleFunc("GET /search", s.auth(s.serveSPA))
 }

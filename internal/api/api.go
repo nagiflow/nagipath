@@ -105,6 +105,8 @@ func New(db *store.DB, licenseStatus func(context.Context) (license.Status, stri
 	m.HandleFunc("POST /settings/license", s.requireAdmin(s.postInstallLicense))
 	m.HandleFunc("GET /settings/system", s.requireAdmin(s.getDiagnostics))
 	m.HandleFunc("GET /collections", s.requireAuth(s.getCollections))
+	m.HandleFunc("GET /rules", s.requireAuth(s.getRules))
+	m.HandleFunc("GET /search", s.requireAuth(s.getSearch))
 
 	s.mux = m
 	return s

@@ -24,6 +24,8 @@ import { AuditPage } from '../pages/settings/AuditPage'
 import { LicensePage } from '../pages/settings/LicensePage'
 import { SystemPage } from '../pages/settings/SystemPage'
 import { CollectionsPage } from '../pages/settings/CollectionsPage'
+import { RulesPage } from '../pages/rules/RulesPage'
+import { SearchPage } from '../pages/search/SearchPage'
 
 // Every other nav link in AppShell still points at an internal/web
 // server-rendered page — a plain <a href>, a normal full-page navigation
@@ -55,6 +57,8 @@ export function AppRoutes() {
       <Route path="/settings/audit" element={<AppShell><AuditPage /></AppShell>} />
       <Route path="/settings/license" element={<AppShell><LicensePage /></AppShell>} />
       <Route path="/settings/system" element={<AppShell><SystemPage /></AppShell>} />
+      <Route path="/rules" element={<AppShell><RulesPage /></AppShell>} />
+      <Route path="/search" element={<AppShell><SearchPage /></AppShell>} />
     </Routes>
   )
 }

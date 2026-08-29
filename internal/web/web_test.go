@@ -172,17 +172,16 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 	// be executed by something — and an empty fleet is the state every install
 	// starts in.
 	// /instances removed: it redirects to /nodes, which is already tested.
-	// "/", "/clusters", "/sites", "/nodes", "/collections" and every
-	// "/settings/*" page removed: they all serve the React SPA shell now
-	// (TestDashboardServesSPAShell, TestClustersServesSPAShell,
+	// "/", "/clusters", "/sites", "/nodes", "/collections", "/rules", "/search"
+	// and every "/settings/*" page removed: they all serve the React SPA shell
+	// now (TestDashboardServesSPAShell, TestClustersServesSPAShell,
 	// TestSitesServesSPAShell, TestNodesServesSPAShell, TestAnalysisServesSPAShell,
 	// TestSettingsServesSPAShell), not a server-rendered page with the
 	// class="pnl"/class="empty" chrome below.
 	for _, path := range []string{
-		"/search",
-		"/search?q=proxy_pass", "/search?q=proxy_pass&vendor=nginx&page=2", "/trace",
+		"/trace",
 		"/trace/history",
-		"/rules", "/rules?hostname=shop.example.com&path=/api", "/nodes/import",
+		"/nodes/import",
 		"/password"} {
 		w := c.get(path)
 		if w.Code != http.StatusOK {
@@ -1107,12 +1106,12 @@ func TestPagesRenderOverAParsedSnapshot(t *testing.T) {
 		t.Errorf("GET /api/ui/sites?export=csv did not return the filtered site export: %d %q", w.Code, w.Body.String())
 	}
 
-	// The raw-text index answers separately from the rule index, and its rows only
-	// reach the page when a query matches file text. That branch read a field
-	// store.TextHit does not have, so on a real install every text match was a 500
-	// while this loop stayed green — the fixture matched rules and nothing else.
-	if body := c.get("/search?q=proxy_pass").Body.String(); !strings.Contains(body, `class="no"`) {
-		t.Error("no raw-text hit rendered, so the .Texts branch is still unexecuted")
+	// Search is the SPA now (docs/adr/0017, Phase 5); GET /api/ui/search
+	// (internal/api/search.go) returns a typed proto response, so the class of
+	// bug this used to guard — a template reading a field store.TextHit does
+	// not have — cannot recur: a mismatched field fails to compile.
+	if w := c.get("/api/ui/search?q=proxy_pass"); w.Code != http.StatusOK {
+		t.Errorf("GET /api/ui/search?q=proxy_pass = %d\n%s", w.Code, w.Body.String())
 	}
 
 	// A POST stores the Trace, and the bare form then lists it. That table was

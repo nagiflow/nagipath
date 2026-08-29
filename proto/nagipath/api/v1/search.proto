@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+message RuleHitPB {
+  int64 rule_id = 1;
+  int64 instance_id = 2;
+  int64 snapshot_id = 3;
+  int64 file_id = 4;
+  string instance = 5;
+  string vendor = 6;
+  string node = 7;
+  string cluster = 8;
+  string directive = 9;
+  string action_class = 10;
+  string args = 11;
+  string raw = 12;
+  string path = 13;
+  int32 byte_start = 14;
+  bool shadowed = 15;
+}
+
+message TextHitPB {
+  int64 file_id = 1;
+  int64 snapshot_id = 2;
+  int64 instance_id = 3;
+  string instance = 4;
+  string vendor = 5;
+  string node = 6;
+  string cluster = 7;
+  string path = 8;
+  string snippet = 9;
+}
+
+message SearchGroup {
+  int64 instance_id = 1;
+  string instance = 2;
+  string node = 3;
+  string vendor = 4;
+  int64 snapshot_id = 5;
+  int64 file_id = 6;
+  string path = 7;
+  repeated RuleHitPB rules = 8;
+  repeated TextHitPB texts = 9;
+}
+
+message SearchFacet {
+  string value = 1;
+  int32 count = 2;
+}
+
+message SearchResponse {
+  string query = 1;
+  string match_mode = 2;
+  string scope = 3;
+  repeated SearchFacet vendors = 4;
+  repeated SearchFacet files = 5;
+  repeated SearchFacet clusters = 6;
+  repeated SearchFacet snapshot_age = 7;
+  repeated string sel_vendor = 8;
+  repeated string sel_file = 9;
+  repeated string sel_cluster = 10;
+  repeated string sel_age = 11;
+  int32 matches = 12;
+  int32 files_hit = 13;
+  int32 nodes_hit = 14;
+  int32 instances = 15;
+  int32 from = 16;
+  int32 to = 17;
+  int32 page = 18;
+  int32 pages = 19;
+  string duration = 20;
+  string error = 21;
+  string regex_error = 22;
+  repeated SearchGroup groups = 23;
+}

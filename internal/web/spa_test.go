@@ -131,3 +131,53 @@ func TestAnalysisServesSPAShell(t *testing.T) {
 		}
 	}
 }
+
+// TestSettingsServesSPAShell mirrors TestDashboardServesSPAShell for the
+// Settings and Collections group cut over to the SPA (docs/adr/0017, Phase 4).
+func TestSettingsServesSPAShell(t *testing.T) {
+	s, _ := newTestServer(t)
+	c := &client{t: t, s: s}
+	c.post("/setup", url.Values{
+		"username": {"admin"}, "password": {"a good long password"},
+		"confirm": {"a good long password"},
+	})
+
+	for _, path := range []string{
+		"/collections", "/settings", "/settings/credentials", "/settings/hostkeys",
+		"/settings/masterkey", "/settings/collection-defaults", "/settings/retention",
+		"/settings/users", "/settings/api-keys", "/settings/audit", "/settings/license",
+		"/settings/system",
+	} {
+		w := c.get(path)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d", path, w.Code)
+		}
+		if body := w.Body.String(); !strings.Contains(body, `id="root"`) {
+			t.Errorf("GET %s did not return the SPA shell:\n%s", path, body)
+		}
+	}
+}
+
+// TestExploreServesSPAShell mirrors TestDashboardServesSPAShell for Rule
+// lookup and Config search, cut over to the SPA (docs/adr/0017, Phase 5).
+func TestExploreServesSPAShell(t *testing.T) {
+	s, _ := newTestServer(t)
+	c := &client{t: t, s: s}
+	c.post("/setup", url.Values{
+		"username": {"admin"}, "password": {"a good long password"},
+		"confirm": {"a good long password"},
+	})
+
+	for _, path := range []string{
+		"/rules", "/rules?hostname=shop.example.com&path=/api",
+		"/search", "/search?q=proxy_pass",
+	} {
+		w := c.get(path)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d", path, w.Code)
+		}
+		if body := w.Body.String(); !strings.Contains(body, `id="root"`) {
+			t.Errorf("GET %s did not return the SPA shell:\n%s", path, body)
+		}
+	}
+}

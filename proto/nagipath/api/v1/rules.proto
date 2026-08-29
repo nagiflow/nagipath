@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+// LookupRulePB is one rule in evaluation order, with the scope it came from
+// (internal/trace.LookupRule).
+message LookupRulePB {
+  int32 ordinal = 1;
+  string directive = 2;
+  string action_class = 3;
+  string args = 4;
+  string scope = 5;
+  bool inherited = 6;
+  bool shadowed = 7;
+  string shadowed_by = 8;
+  string path = 9;
+  int32 byte_start = 10;
+  int64 file_id = 11;
+  int64 snapshot_id = 12;
+}
+
+message LookupBranchPB {
+  int32 hop_ordinal = 1;
+  string raw = 2;
+  string reason = 3;
+}
+
+// LookupResultPB is one Instance's answer (internal/trace.LookupResult) — an
+// Instance with no candidates is still a result, so this always carries the
+// instance identity even when rules is empty.
+message LookupResultPB {
+  int64 inst_id = 1;
+  string inst_display_name = 2;
+  string inst_node_name = 3;
+  string inst_vendor = 4;
+  bool inst_degraded = 5;
+  string listener_address = 6;
+  int32 listener_port = 7;
+  bool listener_tls = 8;
+  string site_name = 9;
+  string matched_by = 10;
+  string route_pattern = 11;
+  string precedence = 12;
+  bool degraded = 13;
+  string reason = 14;
+  repeated LookupRulePB rules = 15;
+  repeated LookupBranchPB undetermined = 16;
+}
+
+message RuleGroup {
+  string node_name = 1;
+  string hash = 2;
+  int32 count = 3;
+  repeated LookupResultPB results = 4;
+}
+
+message RuleFacet {
+  string value = 1;
+  int32 count = 2;
+}
+
+message RulesResponse {
+  string scheme = 1;
+  string hostname = 2;
+  string path = 3;
+  int32 port = 4;
+  repeated string classes_selected = 5;
+  repeated string vendors_selected = 6;
+  string url = 7;
+  repeated string classes = 8; // every available action class
+  repeated string vendors = 9; // every vendor seen in the fleet
+  bool asked = 10;
+  bool empty = 11;
+  int32 rules = 12;
+  int32 nodes = 13;
+  int32 files = 14;
+  int32 page = 15;
+  int32 pages = 16;
+  int32 from = 17;
+  int32 to = 18;
+  repeated RuleFacet vendor_facets = 19;
+  repeated RuleFacet class_facets = 20;
+  int32 rules_unfiltered = 21;
+  repeated RuleGroup groups = 22;
+  // Silent is every instance that was checked and had no candidate rule —
+  // shown collapsed, so it is clear the question was answered, not skipped.
+  repeated LookupResultPB silent = 23;
+}
