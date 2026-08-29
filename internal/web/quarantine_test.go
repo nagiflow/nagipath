@@ -8,9 +8,12 @@ import (
 	"testing"
 )
 
-// TestQuarantineSmoke confirms the quarantine badge renders on dashboard,
-// nodes list and node detail without a template error when a Node crosses
-// the threshold — the one check a rendering change across three pages needs.
+// TestQuarantineSmoke confirms the quarantine badge renders on the nodes
+// list and node detail without a template error when a Node crosses the
+// threshold. The dashboard's own copy of this check moved to
+// internal/api/dashboard_test.go's TestGetDashboardMarksQuarantinedNodes —
+// the dashboard is the React SPA now, so a Go-side HTML assertion on "/"
+// no longer means anything (see docs/adr/0017).
 func TestQuarantineSmoke(t *testing.T) {
 	s, db := newTestServer(t)
 	ctx := t.Context()
@@ -29,7 +32,6 @@ func TestQuarantineSmoke(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 	for _, path := range []string{
-		"/",
 		"/nodes",
 		"/nodes/" + strconv.FormatInt(nodeID, 10),
 	} {

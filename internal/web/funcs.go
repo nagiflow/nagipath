@@ -58,7 +58,6 @@ var funcs = template.FuncMap{
 	"cols":        cols,
 	"settingsNav": settingsNav,
 	"outcome":     collectionOutcome,
-	"tone":        attentionTone,
 	// The same predicate /nodes, the node page and the dashboard all decide the
 	// quarantine badge with. Inlined as `ge .Failures .Threshold` it read a missing
 	// threshold as zero and stamped QUARANTINED on a fleet that was fine.
@@ -82,6 +81,24 @@ var funcs = template.FuncMap{
 	"globalonly": globalOnly,
 	"split":      strings.Split,
 	"tail":       tailPath,
+	"procname":   procName,
+}
+
+// procName is the process label shown next to a node's hostname and in the
+// process picker. Vendor alone is what an operator thinks of ("this box runs
+// nginx"); the config file name only earns a place when the node runs more
+// than one instance of the same vendor and the file is what tells them apart.
+func procName(instances []store.Instance, vendor, displayName string) string {
+	n := 0
+	for _, in := range instances {
+		if in.Vendor == vendor {
+			n++
+		}
+	}
+	if n > 1 {
+		return displayName
+	}
+	return vendor
 }
 
 // tailPath shortens a config path to its last two segments. Provenance columns are

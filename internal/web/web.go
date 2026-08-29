@@ -104,7 +104,7 @@ func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode b
 	s.collector = &collect.Collector{DB: db, Dialer: collect.SSH{
 		Dialer: &sshx.Dialer{DB: db, Master: master, Timeout: 20 * time.Second},
 	}}
-	s.api = api.New(db, s.LicenseStatus)
+	s.api = api.New(db, s.LicenseStatus, demoMode)
 	s.routes()
 	return s, nil
 }
@@ -226,6 +226,7 @@ func (s *Server) setLicense(lic *license.License) {
 // hundred lines of this file.
 func (s *Server) routes() {
 	m := http.NewServeMux()
+	s.registerSPAAssets(m)
 	s.routesCore(m)
 	s.routesExplore(m)
 	s.routesInventory(m)

@@ -22,14 +22,19 @@ type Server struct {
 	// internal/web until Phase 4 ports the license admin page here too, at
 	// which point this indirection is deleted along with its owner.
 	LicenseStatus func(ctx context.Context) (license.Status, string)
+	// DemoMode mirrors internal/web.Server.DemoMode, for the header's DEMO
+	// badge — a public trial instance refuses every Probe outright, and an
+	// operator needs to know before clicking one.
+	DemoMode bool
 
 	mux *http.ServeMux
 }
 
-func New(db *store.DB, licenseStatus func(context.Context) (license.Status, string)) *Server {
-	s := &Server{DB: db, LicenseStatus: licenseStatus}
+func New(db *store.DB, licenseStatus func(context.Context) (license.Status, string), demoMode bool) *Server {
+	s := &Server{DB: db, LicenseStatus: licenseStatus, DemoMode: demoMode}
 	m := http.NewServeMux()
 	m.HandleFunc("GET /session", s.requireAuth(s.getSession))
+	m.HandleFunc("GET /dashboard", s.requireAuth(s.getDashboard))
 	s.mux = m
 	return s
 }

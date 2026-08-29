@@ -144,7 +144,9 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 	// be executed by something — and an empty fleet is the state every install
 	// starts in.
 	// /instances removed: it redirects to /nodes, which is already tested.
-	for _, path := range []string{"/", "/nodes", "/clusters", "/collections",
+	// "/" removed: it serves the React SPA shell now (TestDashboardServesSPAShell),
+	// not a server-rendered page with the class="pnl"/class="empty" chrome below.
+	for _, path := range []string{"/nodes", "/clusters", "/collections",
 		"/sites",
 		"/certificates", "/certificates?cert=1", "/search",
 		"/search?q=proxy_pass", "/search?q=proxy_pass&vendor=nginx&page=2", "/trace",

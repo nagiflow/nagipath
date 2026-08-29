@@ -1,13 +1,21 @@
 import { Route, Routes } from 'react-router-dom'
-import { FoundationCheck } from '../pages/foundation-check/FoundationCheck'
+import { AppShell } from '../components/layout/AppShell'
+import { Dashboard } from '../pages/dashboard/Dashboard'
 
-// Phase 0 placeholder: proves the build pipeline, EUI, and the session
-// bootstrap endpoint work end to end. Replaced page by page starting Phase 1
-// (see docs/adr/0017-react-spa-with-eui-supersedes-0013.md).
+// One route so far (docs/adr/0017, Phase 1). Every other nav link in
+// AppShell still points at an internal/web server-rendered page — a plain
+// <a href>, which is a normal full-page navigation away from the SPA.
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<FoundationCheck />} />
+      <Route
+        path="/"
+        element={
+          <AppShell>
+            <Dashboard />
+          </AppShell>
+        }
+      />
     </Routes>
   )
 }

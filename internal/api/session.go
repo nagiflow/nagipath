@@ -20,6 +20,7 @@ type sessionResponse struct {
 	MustChangePassword bool      `json:"must_change_password"`
 	NavCounts          navCounts `json:"nav_counts"`
 	LicenseNotice      string    `json:"license_notice"`
+	DemoMode           bool      `json:"demo_mode"`
 }
 
 // getSession is the SPA's bootstrap call: everything internal/web's
@@ -36,6 +37,7 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 	resp.User.Role = u.Role
 	resp.CSRFToken = csrfToken(c.Value)
 	resp.MustChangePassword = u.MustChangePassword
+	resp.DemoMode = s.DemoMode
 
 	counts := s.DB.NavCounts(r.Context())
 	resp.NavCounts = navCounts{

@@ -5,7 +5,9 @@ import "net/http"
 // The Explore group: Dashboard, Trace, Rule lookup and Config search — the four
 // screens that answer a question rather than list an inventory.
 func (s *Server) routesExplore(m *http.ServeMux) {
-	m.HandleFunc("GET /{$}", s.auth(s.dashboard))
+	// Dashboard is the SPA now (docs/adr/0017): served from the embedded React
+	// build, backed by GET /api/v1/dashboard (internal/api/dashboard.go).
+	m.HandleFunc("GET /{$}", s.auth(s.serveSPA))
 
 	// Trace accepts POST as well as GET so a long entry point can come out of a
 	// form body; both render the same screen.
