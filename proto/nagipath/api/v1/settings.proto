@@ -1,0 +1,243 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+import "nagipath/api/v1/nodes.proto";
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+// ---------------------------------------------------------------- credentials
+
+message CredentialItem {
+  int64 id = 1;
+  string name = 2;
+  string username = 3;
+  string auth_kind = 4;
+  string public_key = 5;
+  string fingerprint = 6;
+  string external_ref = 7;
+  string created_at = 8;
+  int32 node_count = 9;
+  string last_used = 10;
+}
+
+message CredentialsResponse {
+  repeated CredentialItem credentials = 1;
+  repeated string auth_kinds = 2;
+}
+
+// ---------------------------------------------------------------- host keys
+
+message HostKeyStatsPB {
+  int32 pending = 1;
+  int32 changed = 2;
+  int32 approved = 3;
+  map<string, int32> algorithms = 4;
+}
+
+message HostKeysResponse {
+  HostKeyStatsPB stats = 1;
+  repeated PendingHostKey keys = 2;
+}
+
+// ---------------------------------------------------------------- master key
+
+message MasterKeyResponse {
+  string path = 1;
+  string data_dir = 2;
+  int32 credentials_encrypted = 3;
+  int32 api_keys_encrypted = 4;
+  int32 job_logs_encrypted = 5;
+}
+
+// ---------------------------------------------------------------- retention
+
+message PruneCountsPB {
+  int32 snapshots = 1;
+  int32 job_logs = 2;
+  int32 traces = 3;
+  int32 audit_events = 4;
+}
+
+// PrunedCountsPB mirrors store.Pruned, the shape of an actual prune run's
+// deletions — a different field set than PruneCountsPB (which mirrors
+// store.PruneExamined/PruneKept): a prune deletes probes and blobs, not
+// "traces".
+message PrunedCountsPB {
+  int64 snapshots = 1;
+  int64 job_logs = 2;
+  int64 probes = 3;
+  int64 audit_events = 4;
+  int64 blobs = 5;
+}
+
+message PruneHistoryPB {
+  string ran_at = 1;
+  double duration_seconds = 2;
+  PruneCountsPB examined = 3;
+  PrunedCountsPB deleted = 4;
+  PruneCountsPB kept = 5;
+  int64 freed_bytes = 6;
+}
+
+message RetentionStatsPB {
+  int64 index_size_bytes = 1;
+  int32 snapshots = 2;
+  int32 job_logs = 3;
+  int32 traces = 4;
+  PruneHistoryPB last_prune = 5;
+}
+
+message RetentionResponse {
+  int32 snapshot_days = 1;
+  int32 min_per_instance = 2;
+  int32 job_log_days = 3;
+  int32 probe_days = 4;
+  int32 audit_days = 5;
+  RetentionStatsPB stats = 6;
+}
+
+// ---------------------------------------------------------------- collection defaults
+
+message CollectionDefaultsResponse {
+  repeated CredentialItem credentials = 1;
+  int64 default_credential = 2;
+  int32 interval_minutes = 3;
+  int32 jitter_seconds = 4;
+  int32 ssh_workers = 5;
+  int32 command_timeout = 6;
+  int32 max_files = 7;
+  int32 probe_redirects = 8;
+  int32 probe_lookback = 9;
+}
+
+// ---------------------------------------------------------------- users
+
+message UserItem {
+  int64 id = 1;
+  string username = 2;
+  string role = 3;
+  string display_name = 4;
+  bool must_change_password = 5;
+  string created_at = 6;
+  string last_login_at = 7;
+  bool disabled = 8;
+}
+
+message UsersResponse {
+  repeated UserItem users = 1;
+}
+
+// ---------------------------------------------------------------- audit
+
+message AuditEventItem {
+  string at = 1;
+  string actor_label = 2;
+  string action = 3;
+  string target_kind = 4;
+  string target_label = 5;
+  string outcome = 6;
+  string detail = 7;
+  string source_ip = 8;
+}
+
+message AuditResponse {
+  repeated AuditEventItem events = 1;
+  int32 total = 2;
+  int32 total_pages = 3;
+  int32 page = 4;
+  int32 per_page = 5;
+  repeated string actions = 6;
+}
+
+// ---------------------------------------------------------------- api keys
+
+message ApiKeyItem {
+  int64 id = 1;
+  string name = 2;
+  string username = 3;
+  string created_at = 4;
+  string last_used_at = 5;
+  string expires_at = 6;
+  string revoked_at = 7;
+  string prefix = 8;
+}
+
+message ApiKeysResponse {
+  repeated ApiKeyItem keys = 1;
+}
+
+// ---------------------------------------------------------------- license
+
+message LicenseStatePB {
+  string customer = 1;
+  string edition = 2;
+  int32 node_ceiling = 3;
+  string expires_at = 4;
+  bool signature_valid = 5;
+  string last_evaluated_at = 6;
+  string installed_by_username = 7;
+}
+
+message LicenseResponse {
+  bool loaded = 1;
+  string customer = 2;
+  string edition = 3;
+  int32 node_ceiling = 4;
+  string expiry = 5;
+  string status = 6;
+  string message = 7;
+  int32 node_count = 8;
+  LicenseStatePB state = 9;
+}
+
+// ---------------------------------------------------------------- system / diagnostics
+
+message DiagnosticsResponse {
+  string version = 1;
+  string go_version = 2;
+  int64 uptime_seconds = 3;
+  string db_path = 4;
+  int64 db_size_bytes = 5;
+  string master_key_path = 6;
+  bool master_key_present = 7;
+  string master_key_mode = 8;
+  string listen_addr = 9;
+  bool tls_enabled = 10;
+  bool demo_mode = 11;
+  string license_status = 12;
+  string license_message = 13;
+  int32 migrations_applied = 14;
+  int32 migrations_expected = 15;
+}
+
+// ---------------------------------------------------------------- collection jobs
+
+message CollectionRow {
+  int64 id = 1;
+  int64 node_id = 2;
+  string node_name = 3;
+  string trigger = 4;
+  string started_at = 5;
+  string status = 6;
+  string error = 7;
+  int32 instances_seen = 8;
+  int64 duration_ms = 9;
+  string outcome = 10;
+}
+
+message CollectionsResponse {
+  repeated CollectionRow rows = 1;
+  int32 total = 2;
+  int32 succeeded = 3;
+  int32 degraded = 4;
+  int32 failed = 5;
+  int32 running = 6;
+  int64 median_ms = 7;
+  int64 p95_ms = 8;
+  string next_cursor = 9;
+  bool has_more = 10;
+  int32 from = 11;
+  int32 to = 12;
+  bool empty = 13;
+}

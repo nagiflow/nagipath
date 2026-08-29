@@ -8,51 +8,21 @@ import "net/http"
 // Audit log are two very different queries and a single screen holding both
 // would run both on every visit. The sub-navigation is settingsNav in nav.go.
 func (s *Server) routesOps(m *http.ServeMux) {
-	m.HandleFunc("GET /collections", s.auth(s.collections))
-
 	// Host key approval is the gate on running any command on a Node, so it is
-	// its own action with its own audit entry, reachable from Settings.
-	m.HandleFunc("POST /hostkeys/{id}/decide", s.admin(s.decideHostKey))
+	// its own action with its own audit entry, reachable from Settings. The
+	// bulk-approve form posts here directly (a plain HTML form, CSRF field and
+	// all) from HostKeysPage rather than through /api/ui: it lives in
+	// inventory_import.go, which this migration does not touch.
 	m.HandleFunc("POST /hostkeys/approve", s.admin(s.approveHostKeys))
 
-	// Settings index redirects to the first section.
-	// Only a redirect, so it is auth not admin: a viewer reaching /settings must
-	// land on the one section they can read, not a 403 from a page that would have
-	// sent them there anyway.
-	m.HandleFunc("GET /settings", s.auth(s.settingsIndex))
+	// Settings, Collections and every other page in this group are the React
+	// SPA now (docs/adr/0017, Phase 4); business logic lives in internal/api.
+	m.HandleFunc("GET /collections", s.auth(s.serveSPA))
+	m.HandleFunc("GET /settings", s.auth(s.serveSPA))
+	m.HandleFunc("GET /settings/{section}", s.auth(s.serveSPA))
 
-	m.HandleFunc("GET /settings/credentials", s.admin(s.credentials))
-	m.HandleFunc("POST /settings/credentials", s.admin(s.addCredential))
-
-	m.HandleFunc("GET /settings/hostkeys", s.admin(s.hostKeys))
-
-	m.HandleFunc("GET /settings/masterkey", s.admin(s.masterKey))
-
-	m.HandleFunc("GET /settings/collection-defaults", s.admin(s.collectionDefaults))
-	m.HandleFunc("POST /settings/collection-defaults", s.admin(s.setCollectionDefaults))
-
-	m.HandleFunc("GET /settings/retention", s.admin(s.retention))
-	m.HandleFunc("POST /settings/retention", s.admin(s.setRetention))
-	m.HandleFunc("POST /settings/retention/prune", s.admin(s.runRetention))
-
-	m.HandleFunc("GET /settings/users", s.admin(s.users))
-	m.HandleFunc("POST /settings/users", s.admin(s.addUser))
-	m.HandleFunc("POST /settings/users/{id}/disable", s.admin(s.disableUser))
-	m.HandleFunc("POST /settings/users/{id}/enable", s.admin(s.enableUser))
-
-	m.HandleFunc("GET /settings/audit", s.auth(s.audit))
-
-	m.HandleFunc("GET /settings/api-keys", s.admin(s.apiKeys))
-	m.HandleFunc("POST /settings/api-keys", s.admin(s.createAPIKey))
-	m.HandleFunc("POST /settings/api-keys/{id}/revoke", s.admin(s.revokeAPIKey))
-
-	// A viewer can read license status; only an admin can install one.
-	m.HandleFunc("GET /settings/license", s.auth(s.license))
-	m.HandleFunc("POST /settings/license", s.admin(s.installLicense))
-
-	// Admin-only, unlike the license page: a diagnostics bundle is exactly the
-	// kind of thing a viewer should not be handed a download link for.
-	m.HandleFunc("GET /settings/system", s.admin(s.diagnostics))
+	// Diagnostics bundle stays a server-rendered download: a plain-text
+	// attachment has no JSON shape worth a proto message (see CSV exports).
 	m.HandleFunc("GET /settings/system/bundle", s.admin(s.diagnosticsBundle))
 
 	// Where these lived before Settings gathered them up.

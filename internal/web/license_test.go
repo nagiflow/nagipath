@@ -6,25 +6,27 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// GET /license behaves like every other page behind auth(): signed out, it
-// redirects to /login rather than rendering anything.
+// GET /api/ui/settings/license behaves like every other JSON route behind
+// requireAuth: signed out, it 401s rather than returning anything.
 func TestLicensePageRequiresAuth(t *testing.T) {
 	s, db := newTestServer(t)
 	// An admin has to exist, or auth() redirects to /setup instead of /login —
 	// this test is about the latter.
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	w := c.get("/settings/license")
-	if w.Code != http.StatusSeeOther || !strings.HasPrefix(w.Header().Get("Location"), "/login") {
-		t.Errorf("GET /license while signed out = %d -> %q", w.Code, w.Header().Get("Location"))
+	w := c.get("/api/ui/settings/license")
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("GET /api/ui/settings/license while signed out = %d, want 401", w.Code)
 	}
 }
 
-// A viewer can read the page (both roles can view license status per the
-// design doc) but must not be handed the install form — that action is
-// admin-only, and the route itself refuses a viewer's POST regardless.
+// A viewer can read license status (both roles can, per the design doc) but
+// must not be able to install one — that action is admin-only.
 func TestViewerCanViewLicenseButNotInstall(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "viewer", "a good long password", "viewer", "Viewer", false)
@@ -34,20 +36,13 @@ func TestViewerCanViewLicenseButNotInstall(t *testing.T) {
 		t.Fatal("viewer could not sign in")
 	}
 
-	w := c.get("/settings/license")
+	w := c.get("/api/ui/settings/license")
 	if w.Code != http.StatusOK {
-		t.Fatalf("GET /license as a viewer = %d, want 200: %s", w.Code, w.Body.String())
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "</html>") {
-		t.Fatal("GET /license rendered a truncated page (template error mid-render)")
-	}
-	if strings.Contains(body, "license_text") {
-		t.Error("a viewer's /license page rendered the install form, which is admin-only")
+		t.Fatalf("GET /api/ui/settings/license as a viewer = %d, want 200: %s", w.Code, w.Body.String())
 	}
 
-	if got := c.post("/settings/license", url.Values{"license_text": {"whatever"}}).Code; got != http.StatusForbidden {
-		t.Errorf("POST /license as a viewer = %d, want 403", got)
+	if got := c.postJSON("/api/ui/settings/license", map[string]any{"licenseText": "whatever"}).Code; got != http.StatusForbidden {
+		t.Errorf("POST /api/ui/settings/license as a viewer = %d, want 403", got)
 	}
 }
 
@@ -60,9 +55,9 @@ func TestInstallingAGarbledLicenseChangesNothing(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.post("/settings/license", url.Values{"license_text": {"this is not a license file"}})
-	if loc := w.Header().Get("Location"); !strings.Contains(loc, "err=") {
-		t.Errorf("installing garbage license text was not rejected (redirect %q)", loc)
+	w := c.postJSON("/api/ui/settings/license", map[string]any{"licenseText": "this is not a license file"})
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("installing garbage license text was not rejected: %d %s", w.Code, w.Body.String())
 	}
 	if s.currentLicense() != nil {
 		t.Error("s.currentLicense() changed despite the install failing")
@@ -97,10 +92,15 @@ func TestLicensePageRendersSeededLicenseState(t *testing.T) {
 
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-	body := c.get("/settings/license").Body.String()
-	for _, want := range []string{"Acme Corp", "enterprise", "2030-06-30", "admin"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("GET /license is missing %q\n%s", want, body)
-		}
+	var resp pb.LicenseResponse
+	if err := protojson.Unmarshal(c.get("/api/ui/settings/license").Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.State == nil {
+		t.Fatal("license response has no state")
+	}
+	if resp.State.Customer != "Acme Corp" || resp.State.Edition != "enterprise" ||
+		resp.State.InstalledByUsername != "admin" || !strings.HasPrefix(resp.State.ExpiresAt, "2030-06-30") {
+		t.Errorf("GET /api/ui/settings/license state = %+v", resp.State)
 	}
 }

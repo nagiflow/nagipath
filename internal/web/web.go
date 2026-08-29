@@ -104,9 +104,18 @@ func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode b
 	s.collector = &collect.Collector{DB: db, Dialer: collect.SSH{
 		Dialer: &sshx.Dialer{DB: db, Master: master, Timeout: 20 * time.Second},
 	}}
+	api.Version = Version
 	s.api = api.New(db, s.LicenseStatus, demoMode)
 	s.api.Collector = s.collector
 	s.api.Log = log
+	s.api.Master = master
+	s.api.LicensePath = licensePath
+	s.api.CurrentLicense = s.currentLicense
+	s.api.InstallLicense = s.installLicenseBytes
+	// StartedAt/ListenAddr/TLSEnabled are set on s by cmdServer after New
+	// returns (see the Server.StartedAt doc comment), so the diagnostics page
+	// reads them through a closure rather than a value copied too early.
+	s.api.Diag = func() (time.Time, string, bool) { return s.StartedAt, s.ListenAddr, s.TLSEnabled }
 	s.routes()
 	return s, nil
 }

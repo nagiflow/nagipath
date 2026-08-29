@@ -172,18 +172,17 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 	// be executed by something — and an empty fleet is the state every install
 	// starts in.
 	// /instances removed: it redirects to /nodes, which is already tested.
-	// "/", "/clusters", "/sites" and "/nodes" removed: all four serve the React
-	// SPA shell now (TestDashboardServesSPAShell, TestClustersServesSPAShell,
-	// TestSitesServesSPAShell, TestNodesServesSPAShell, TestAnalysisServesSPAShell),
-	// not a server-rendered page with the class="pnl"/class="empty" chrome below.
-	for _, path := range []string{"/collections",
+	// "/", "/clusters", "/sites", "/nodes", "/collections" and every
+	// "/settings/*" page removed: they all serve the React SPA shell now
+	// (TestDashboardServesSPAShell, TestClustersServesSPAShell,
+	// TestSitesServesSPAShell, TestNodesServesSPAShell, TestAnalysisServesSPAShell,
+	// TestSettingsServesSPAShell), not a server-rendered page with the
+	// class="pnl"/class="empty" chrome below.
+	for _, path := range []string{
 		"/search",
 		"/search?q=proxy_pass", "/search?q=proxy_pass&vendor=nginx&page=2", "/trace",
 		"/trace/history",
 		"/rules", "/rules?hostname=shop.example.com&path=/api", "/nodes/import",
-		"/settings/credentials", "/settings/users", "/settings/audit",
-		"/settings/hostkeys", "/settings/masterkey", "/settings/retention",
-		"/settings/license", "/settings/system",
 		"/password"} {
 		w := c.get(path)
 		if w.Code != http.StatusOK {
@@ -375,11 +374,11 @@ func TestNotFoundIsAPageInsideTheShell(t *testing.T) {
 
 	// A mistyped URL, and an id that does not exist: different routes, same page.
 	// /instances/4242 removed: it redirects (301) rather than 404ing. /nodes/4242
-	// removed: /nodes/{id} is the SPA now (docs/adr/0017) and always 200s at the
-	// Go level — a bad id is a 404 from GET /api/ui/nodes/4242 instead, which
-	// NodeDetailPage renders as its own not-found state client-side. Same for
-	// /snapshots/4242/file/1 — that route is the SPA now too.
-	for _, path := range []string{"/settings/account"} {
+	// and /settings/{anything} removed: both are the SPA now (docs/adr/0017) and
+	// always 200 at the Go level — a bad id or section is a 404 from the JSON API
+	// instead, which the page renders as its own not-found state client-side.
+	// Same for /snapshots/4242/file/1 — that route is the SPA now too.
+	for _, path := range []string{"/does-not-exist"} {
 		w := c.get(path)
 		if w.Code != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, w.Code)
@@ -521,10 +520,11 @@ func TestAdminCreatesASecondUserWhoCanSignIn(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.post("/settings/users", url.Values{"username": {"newviewer"}, "password": {"a good long password"},
-		"confirm": {"a good long password"}, "role": {"viewer"}})
-	if loc := w.Header().Get("Location"); strings.Contains(loc, "err=") {
-		t.Fatalf("creating a user failed: %s", loc)
+	w := c.postJSON("/api/ui/settings/users", map[string]any{
+		"username": "newviewer", "password": "a good long password", "confirm": "a good long password", "role": "viewer",
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("creating a user failed: %d %s", w.Code, w.Body.String())
 	}
 	users, err := db.Users(t.Context())
 	if err != nil {
@@ -533,8 +533,17 @@ func TestAdminCreatesASecondUserWhoCanSignIn(t *testing.T) {
 	if len(users) != 2 {
 		t.Fatalf("users = %d, want 2", len(users))
 	}
-	body := c.get("/settings/users").Body.String()
-	if !strings.Contains(body, "newviewer") || !strings.Contains(body, "viewer") {
+	var list pb.UsersResponse
+	if err := protojson.Unmarshal(c.get("/api/ui/settings/users").Body.Bytes(), &list); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, u := range list.Users {
+		if u.Username == "newviewer" && u.Role == "viewer" {
+			found = true
+		}
+	}
+	if !found {
 		t.Error("the new user is not listed")
 	}
 
@@ -544,18 +553,20 @@ func TestAdminCreatesASecondUserWhoCanSignIn(t *testing.T) {
 	if w.Code != http.StatusSeeOther || c2.cookie == "" {
 		t.Fatalf("the new user could not sign in: %d", w.Code)
 	}
-	if got := c2.get("/settings/users").Code; got != http.StatusForbidden {
-		t.Errorf("a viewer reading /users = %d, want 403", got)
+	if got := c2.get("/api/ui/settings/users").Code; got != http.StatusForbidden {
+		t.Errorf("a viewer reading /settings/users = %d, want 403", got)
 	}
-	if got := c2.post("/settings/users", url.Values{"username": {"x"}, "password": {"a good long password"},
-		"confirm": {"a good long password"}, "role": {"viewer"}}).Code; got != http.StatusForbidden {
+	if got := c2.postJSON("/api/ui/settings/users", map[string]any{
+		"username": "x", "password": "a good long password", "confirm": "a good long password", "role": "viewer",
+	}).Code; got != http.StatusForbidden {
 		t.Errorf("a viewer creating a user = %d, want 403", got)
 	}
 
 	// A short password is refused rather than accepted quietly, the same as /setup.
-	w = c.post("/settings/users", url.Values{"username": {"short"}, "password": {"tooshort"},
-		"confirm": {"tooshort"}, "role": {"viewer"}})
-	if loc := w.Header().Get("Location"); !strings.Contains(loc, "err=") {
+	w = c.postJSON("/api/ui/settings/users", map[string]any{
+		"username": "short", "password": "tooshort", "confirm": "tooshort", "role": "viewer",
+	})
+	if w.Code != http.StatusUnprocessableEntity {
 		t.Error("a short password was accepted for a new user")
 	}
 }
@@ -572,9 +583,9 @@ func TestDisablingAUserPreventsLogin(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.post("/settings/users/"+strconv.FormatInt(viewerID, 10)+"/disable", url.Values{})
-	if loc := w.Header().Get("Location"); strings.Contains(loc, "err=") {
-		t.Fatalf("disabling the viewer failed: %s", loc)
+	w := c.postJSON("/api/ui/settings/users/"+strconv.FormatInt(viewerID, 10)+"/disable", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("disabling the viewer failed: %d %s", w.Code, w.Body.String())
 	}
 
 	c2 := &client{t: t, s: s}
@@ -584,7 +595,7 @@ func TestDisablingAUserPreventsLogin(t *testing.T) {
 	}
 
 	// Re-enabling restores it.
-	c.post("/settings/users/"+strconv.FormatInt(viewerID, 10)+"/enable", url.Values{})
+	c.postJSON("/api/ui/settings/users/"+strconv.FormatInt(viewerID, 10)+"/enable", nil)
 	c3 := &client{t: t, s: s}
 	c3.post("/login", url.Values{"username": {"viewer"}, "password": {"a good long password"}})
 	if c3.cookie == "" {
@@ -603,8 +614,8 @@ func TestLastAdminCannotBeDisabled(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.post("/settings/users/"+strconv.FormatInt(adminID, 10)+"/disable", url.Values{})
-	if loc := w.Header().Get("Location"); !strings.Contains(loc, "err=") {
+	w := c.postJSON("/api/ui/settings/users/"+strconv.FormatInt(adminID, 10)+"/disable", nil)
+	if w.Code != http.StatusUnprocessableEntity {
 		t.Error("disabling the last admin was allowed")
 	}
 	u, err := db.User(t.Context(), adminID)
@@ -617,9 +628,9 @@ func TestLastAdminCannotBeDisabled(t *testing.T) {
 
 	// With a second enabled admin, disabling the first is allowed.
 	db.CreateUser(t.Context(), "admin2", "a good long password", "admin", "Admin2", false)
-	w = c.post("/settings/users/"+strconv.FormatInt(adminID, 10)+"/disable", url.Values{})
-	if loc := w.Header().Get("Location"); strings.Contains(loc, "err=") {
-		t.Errorf("disabling one of two admins was refused: %s", loc)
+	w = c.postJSON("/api/ui/settings/users/"+strconv.FormatInt(adminID, 10)+"/disable", nil)
+	if w.Code != http.StatusOK {
+		t.Errorf("disabling one of two admins was refused: %d %s", w.Code, w.Body.String())
 	}
 }
 
@@ -700,7 +711,7 @@ func TestViewerCannotChangeAnything(t *testing.T) {
 	if got := c.postJSON("/api/ui/nodes", map[string]any{"address": "10.0.0.9"}).Code; got != http.StatusForbidden {
 		t.Errorf("viewer adding a node = %d, want 403", got)
 	}
-	if got := c.get("/settings/audit").Code; got != http.StatusOK {
+	if got := c.get("/api/ui/settings/audit").Code; got != http.StatusOK {
 		t.Errorf("viewer reading the audit log = %d, want 200", got)
 	}
 }
@@ -736,17 +747,17 @@ func TestPrivateKeyIsNeverRendered(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.post("/settings/credentials", url.Values{
-		"name": {"lab"}, "username": {"nagipath"}, "private_key": {testKey},
+	w := c.postJSON("/api/ui/settings/credentials", map[string]any{
+		"name": "lab", "username": "nagipath", "privateKey": testKey,
 	})
-	if loc := w.Header().Get("Location"); strings.Contains(loc, "err=") {
-		t.Fatalf("storing the credential failed: %s", loc)
+	if w.Code != http.StatusOK {
+		t.Fatalf("storing the credential failed: %d %s", w.Code, w.Body.String())
 	}
 	creds, _ := db.Credentials(t.Context())
 	if len(creds) != 1 {
 		t.Fatalf("credentials = %d, want 1", len(creds))
 	}
-	body := c.get("/settings/credentials").Body.String()
+	body := c.get("/api/ui/settings/credentials").Body.String()
 	if !strings.Contains(body, "lab") || !strings.Contains(body, creds[0].Fingerprint) {
 		t.Error("the credential is not listed at all")
 	}

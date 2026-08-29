@@ -8,76 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nagiflow/nagipath/internal/license"
 	"github.com/nagiflow/nagipath/internal/store"
 )
 
 // ---------------------------------------------------------------- diagnostics
 
-// diagnosticsPage is what diagnostics.html renders: docs/frontend/settings.md
-// §10's read-only panel, minus scheduler state and worker pool utilisation —
-// neither corresponds to anything real in this codebase (collection is one
-// serial ticker goroutine, and the job table is schema-only) — and minus a
-// separate "build commit" field, since Version is already a `git describe`
-// output that carries the commit whenever it isn't a clean tag.
-type diagnosticsPage struct {
-	Version   string
-	GoVersion string
-	Uptime    time.Duration
-
-	DBPath      string
-	DBSizeBytes int64
-
-	MasterKeyPath    string
-	MasterKeyPresent bool
-	MasterKeyMode    string // e.g. "0600"; empty unless MasterKeyPresent
-
-	ListenAddr string
-	TLSEnabled bool
-	DemoMode   bool
-
-	LicenseStatus  license.Status
-	LicenseMessage string
-
-	MigrationsApplied  int
-	MigrationsExpected int
-}
-
-func (s *Server) diagnostics(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	d := diagnosticsPage{
-		Version:       Version,
-		GoVersion:     runtime.Version(),
-		Uptime:        time.Since(s.StartedAt).Round(time.Second),
-		DBPath:        s.DB.Path,
-		ListenAddr:    s.ListenAddr,
-		TLSEnabled:    s.TLSEnabled,
-		DemoMode:      s.DemoMode,
-		MasterKeyPath: s.Master.Path,
-	}
-	if fi, err := os.Stat(s.DB.Path); err == nil {
-		d.DBSizeBytes = fi.Size()
-	}
-	if fi, err := os.Stat(s.Master.Path); err == nil {
-		d.MasterKeyPresent = true
-		d.MasterKeyMode = fmt.Sprintf("%#o", fi.Mode().Perm())
-	}
-	d.LicenseStatus, d.LicenseMessage = s.licenseStatus(ctx)
-	applied, err := s.DB.AppliedMigrations(ctx)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	d.MigrationsApplied = len(applied)
-	d.MigrationsExpected, _ = store.ExpectedMigrationCount()
-	// "System", not "Diagnostics": that is what the settings nav and the page heading
-	// call it, and the breadcrumb was the one place using the file's name instead.
-	s.render(w, r, "diagnostics.html", "System", d)
-}
-
-// diagnosticsBundle is the same facts as diagnostics.html, as one plain-text
-// download rather than a zip — there's nothing here that needs more than one
-// file. It never touches credentials, Master Key contents, session/token
+// diagnosticsBundle is the same facts as Settings > System (internal/api's
+// getDiagnostics), as one plain-text download rather than a zip — there's
+// nothing here that needs more than one file. It never touches credentials,
+// Master Key contents, session/token
 // values, certificate material, Probe tokens, or collected configuration file
 // contents; the exclusion list on the page states that up front, before the
 // download link, so whoever is about to email this bundle out can see exactly

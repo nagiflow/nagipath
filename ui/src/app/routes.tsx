@@ -12,6 +12,18 @@ import { CertificatesListPage } from '../pages/certificates/CertificatesListPage
 import { CertificateDetailPage } from '../pages/certificates/CertificateDetailPage'
 import { SnapshotsListPage } from '../pages/snapshots/SnapshotsListPage'
 import { SnapshotFilePage } from '../pages/snapshots/SnapshotFilePage'
+import { SettingsIndexRedirect } from '../pages/settings/SettingsIndexRedirect'
+import { CredentialsPage } from '../pages/settings/CredentialsPage'
+import { HostKeysPage } from '../pages/settings/HostKeysPage'
+import { MasterKeyPage } from '../pages/settings/MasterKeyPage'
+import { CollectionDefaultsPage } from '../pages/settings/CollectionDefaultsPage'
+import { RetentionPage } from '../pages/settings/RetentionPage'
+import { UsersPage } from '../pages/settings/UsersPage'
+import { ApiKeysPage } from '../pages/settings/ApiKeysPage'
+import { AuditPage } from '../pages/settings/AuditPage'
+import { LicensePage } from '../pages/settings/LicensePage'
+import { SystemPage } from '../pages/settings/SystemPage'
+import { CollectionsPage } from '../pages/settings/CollectionsPage'
 
 // Every other nav link in AppShell still points at an internal/web
 // server-rendered page — a plain <a href>, a normal full-page navigation
@@ -31,6 +43,18 @@ export function AppRoutes() {
       <Route path="/certificates/:id" element={<AppShell><CertificateDetailPage /></AppShell>} />
       <Route path="/snapshots" element={<AppShell><SnapshotsListPage /></AppShell>} />
       <Route path="/snapshots/:id/file/:fileID" element={<AppShell><SnapshotFilePage /></AppShell>} />
+      <Route path="/collections" element={<AppShell><CollectionsPage /></AppShell>} />
+      <Route path="/settings" element={<AppShell><SettingsIndexRedirect /></AppShell>} />
+      <Route path="/settings/credentials" element={<AppShell><CredentialsPage /></AppShell>} />
+      <Route path="/settings/hostkeys" element={<AppShell><HostKeysPage /></AppShell>} />
+      <Route path="/settings/masterkey" element={<AppShell><MasterKeyPage /></AppShell>} />
+      <Route path="/settings/collection-defaults" element={<AppShell><CollectionDefaultsPage /></AppShell>} />
+      <Route path="/settings/retention" element={<AppShell><RetentionPage /></AppShell>} />
+      <Route path="/settings/users" element={<AppShell><UsersPage /></AppShell>} />
+      <Route path="/settings/api-keys" element={<AppShell><ApiKeysPage /></AppShell>} />
+      <Route path="/settings/audit" element={<AppShell><AuditPage /></AppShell>} />
+      <Route path="/settings/license" element={<AppShell><LicensePage /></AppShell>} />
+      <Route path="/settings/system" element={<AppShell><SystemPage /></AppShell>} />
     </Routes>
   )
 }

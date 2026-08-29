@@ -26,7 +26,7 @@ type navItem struct {
 	// Icon names the glyph in navIcons. Empty renders no glyph, which is what the
 	// second-level Settings list wants.
 	Icon string
-	On    bool
+	On   bool
 }
 
 type navGroup struct {
@@ -105,38 +105,6 @@ func crumb(groups []navGroup) (string, string) {
 		}
 	}
 	return "", ""
-}
-
-// settingsNav is the second-level list on Settings. Its sections are separate
-// pages rather than tabs on one, because Users and Audit are two very different
-// queries and one screen holding both would load both.
-//
-// Sections a viewer may not open are dropped, not disabled: an item that
-// refuses every click is worse than an item that is not there.
-func settingsNav(path string, u store.User) []navItem {
-	items := []navItem{
-		{Label: "Credentials", Href: "/settings/credentials", Admin: true},
-		{Label: "Host keys", Href: "/settings/hostkeys", Admin: true},
-		{Label: "Master key", Href: "/settings/masterkey", Admin: true},
-		{Label: "Collection defaults", Href: "/settings/collection-defaults", Admin: true},
-		{Label: "Collection jobs", Href: "/collections", Admin: true},
-		{Label: "Retention", Href: "/settings/retention", Admin: true},
-		{Label: "Users & roles", Href: "/settings/users", Admin: true},
-		{Label: "API keys", Href: "/settings/api-keys", Admin: true},
-		{Label: "Audit log", Href: "/settings/audit"},
-		{Label: "License", Href: "/settings/license"},
-		{Label: "System", Href: "/settings/system", Admin: true},
-		{Label: "Your account", Href: "/password"},
-	}
-	out := make([]navItem, 0, len(items))
-	for _, it := range items {
-		if it.Admin && !u.IsAdmin() {
-			continue
-		}
-		it.On = path == it.Href
-		out = append(out, it)
-	}
-	return out
 }
 
 // initials fills the header avatar. Two letters from a username, because the

@@ -1,75 +1,34 @@
 package web
 
 import (
-	"net/http"
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/nagiflow/nagipath/internal/license"
-	"github.com/nagiflow/nagipath/internal/store"
 )
 
 // ---------------------------------------------------------------- license
 
-// licensePage is what license.html renders: the License actually loaded into
-// this process right now (which can come from NAGIPATH_LICENSE_FILE and so
-// differ from the last one installed through the UI) alongside the
-// license_state row for that last UI install, if any.
-type licensePage struct {
-	Loaded      bool // false when no License is currently loaded at all
-	Customer    string
-	Edition     string
-	NodeCeiling int
-	Expiry      time.Time
-	Status      license.Status
-	Message     string
-	NodeCount   int
-	State       *store.LicenseState
-}
-
-func (s *Server) license(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	lic := s.currentLicense()
-	status, message := s.licenseStatus(ctx)
-	n, err := s.DB.NodeCount(ctx)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	state, err := s.DB.LicenseState(ctx)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	data := licensePage{Status: status, Message: message, NodeCount: n, State: state}
-	if lic != nil {
-		data.Loaded = true
-		data.Customer, data.Edition, data.NodeCeiling, data.Expiry = lic.Customer, lic.Edition, lic.NodeCeiling, lic.Expiry
-	}
-	s.render(w, r, "license.html", "License", data)
-}
-
-func (s *Server) installLicense(w http.ResponseWriter, r *http.Request) {
-	ctx, u := r.Context(), userOf(r)
-	raw := []byte(r.FormValue("license_text"))
+// installLicenseBytes is internal/api's postInstallLicense hook (wired via
+// api.Server.InstallLicense in web.go's New): parse, persist to disk, swap
+// the in-memory pointer and record license_state — everything installLicense
+// used to do inline, minus the audit entry, which the caller writes with the
+// actor it already has from the request context.
+func (s *Server) installLicenseBytes(ctx context.Context, raw []byte, by *int64) (*license.License, error) {
 	lic, err := license.Parse(raw)
 	if err != nil {
-		redirect(w, r, "/license", "", err.Error())
-		return
+		return nil, err
 	}
 	if err := writeLicenseFile(s.LicensePath, raw); err != nil {
-		redirect(w, r, "/license", "", "license verified but could not be saved to disk: "+err.Error())
-		return
+		return nil, fmt.Errorf("license verified but could not be saved to disk: %w", err)
 	}
 	s.setLicense(lic)
-	if err := s.DB.UpsertLicenseState(ctx, string(raw), lic.Customer, lic.Edition, lic.NodeCeiling, lic.Expiry, true, &u.ID); err != nil {
+	if err := s.DB.UpsertLicenseState(ctx, string(raw), lic.Customer, lic.Edition, lic.NodeCeiling, lic.Expiry, true, by); err != nil {
 		s.Log.Error("could not record license_state", "err", err)
 	}
-	// Customer name only — never the raw license text or its signature — matching
-	// how credential.create audits by name, not key material.
-	s.DB.Audit(ctx, &u.ID, "license.install", "license", nil, lic.Customer)
-	redirect(w, r, "/license", "license installed", "")
+	return lic, nil
 }
 
 // writeLicenseFile persists a newly pasted license so it survives a restart,

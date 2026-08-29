@@ -5,17 +5,20 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// GET /diagnostics behaves like every other page behind auth(): signed out,
-// it redirects to /login rather than rendering anything.
+// GET /api/ui/settings/system behaves like every other JSON route behind
+// requireAuth: signed out, it 401s rather than returning anything.
 func TestDiagnosticsPageRequiresAuth(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	w := c.get("/settings/system")
-	if w.Code != http.StatusSeeOther || !strings.HasPrefix(w.Header().Get("Location"), "/login") {
-		t.Errorf("GET /diagnostics while signed out = %d -> %q", w.Code, w.Header().Get("Location"))
+	w := c.get("/api/ui/settings/system")
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("GET /api/ui/settings/system while signed out = %d, want 401", w.Code)
 	}
 }
 
@@ -30,8 +33,8 @@ func TestViewerCannotReachDiagnostics(t *testing.T) {
 		t.Fatal("viewer could not sign in")
 	}
 
-	if got := c.get("/settings/system").Code; got != http.StatusForbidden {
-		t.Errorf("GET /diagnostics as a viewer = %d, want 403", got)
+	if got := c.get("/api/ui/settings/system").Code; got != http.StatusForbidden {
+		t.Errorf("GET /api/ui/settings/system as a viewer = %d, want 403", got)
 	}
 	if got := c.get("/settings/system/bundle").Code; got != http.StatusForbidden {
 		t.Errorf("GET /diagnostics/bundle as a viewer = %d, want 403", got)
@@ -46,18 +49,17 @@ func TestAdminSeesDiagnosticsPanel(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.get("/settings/system")
+	var resp pb.DiagnosticsResponse
+	w := c.get("/api/ui/settings/system")
 	if w.Code != http.StatusOK {
-		t.Fatalf("GET /diagnostics as an admin = %d, want 200: %s", w.Code, w.Body.String())
+		t.Fatalf("GET /api/ui/settings/system as an admin = %d, want 200: %s", w.Code, w.Body.String())
 	}
-	body := w.Body.String()
-	if !strings.Contains(body, "</html>") {
-		t.Fatal("GET /diagnostics rendered a truncated page (template error mid-render)")
+	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
 	}
-	for _, want := range []string{s.DB.Path, "master key", "License", "Migrations applied"} {
-		if !strings.Contains(strings.ToLower(body), strings.ToLower(want)) {
-			t.Errorf("GET /diagnostics is missing %q\n%s", want, body)
-		}
+	if resp.DbPath != s.DB.Path || resp.MigrationsApplied == 0 {
+		t.Errorf("diagnostics response missing expected fields: dbPath=%q migrationsApplied=%d",
+			resp.DbPath, resp.MigrationsApplied)
 	}
 }
 
