@@ -1,4 +1,4 @@
-.PHONY: build test css css-watch ui ui-dev dev dev-logs dev-down lab lab-collect lab-logs lab-down clean
+.PHONY: build test css css-watch proto ui ui-dev dev dev-logs dev-down lab lab-collect lab-logs lab-down clean
 
 build:
 	CGO_ENABLED=0 go build -ldflags "-X main.Version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o nagipath ./cmd/nagipath
@@ -27,6 +27,18 @@ css: $(TAILWIND)
 
 css-watch: $(TAILWIND)
 	$(TAILWIND) -i $(CSS_SRC) -o $(CSS_OUT) --watch
+
+# -------------------------------------------------------------------- proto
+#
+# internal/api/pb and ui/src/api/pb are generated from proto/*.proto and
+# COMMITTED (ADR-0018): go build and bun run build need no toolchain beyond
+# Go and bun even without buf installed. Run `make proto` after touching a
+# .proto file. Requires buf and protoc-gen-go on PATH (buf parses .proto
+# itself — no separate protoc binary needed) and protoc-gen-es installed
+# under ui/node_modules (bun install, in ui/, pulls it in).
+
+proto:
+	buf generate proto
 
 # ---------------------------------------------------------------------- ui
 #

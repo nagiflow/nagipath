@@ -24,7 +24,7 @@ function useNavItems(): EuiSideNavItemType<{}>[] {
     id: group.section,
     name: group.section,
     items: group.items.map((item) => {
-      const count = item.countKey && data ? data.nav_counts[item.countKey] : undefined
+      const count = item.countKey ? data?.navCounts?.[item.countKey] : undefined
       return {
         id: item.href,
         name: (
@@ -87,21 +87,21 @@ export function AppShell({ children }: { children: ReactNode }) {
               <EuiHeaderLogo iconType="logoElastic" href="/" key="logo">
                 nagipath
               </EuiHeaderLogo>,
-              ...(session.demo_mode ? [<EuiBadge color="warning" key="demo">DEMO</EuiBadge>] : []),
+              ...(session.demoMode ? [<EuiBadge color="warning" key="demo">DEMO</EuiBadge>] : []),
             ],
           },
           {
             items: [
-              <EuiHeaderSectionItemButton aria-label="Sign out" onClick={() => logout(session.csrf_token)} key="avatar">
-                <EuiAvatar name={session.user.username} size="s" />
+              <EuiHeaderSectionItemButton aria-label="Sign out" onClick={() => logout(session.csrfToken)} key="avatar">
+                <EuiAvatar name={session.user?.username ?? '?'} size="s" />
               </EuiHeaderSectionItemButton>,
             ],
           },
         ]}
       />
 
-      {session.license_notice && (
-        <div style={{ background: '#fdf3e2', padding: '8px 16px', borderBottom: '1px solid #f2cd8e' }}>{session.license_notice}</div>
+      {session.licenseNotice && (
+        <div style={{ background: '#fdf3e2', padding: '8px 16px', borderBottom: '1px solid #f2cd8e' }}>{session.licenseNotice}</div>
       )}
 
       <EuiPageTemplate paddingSize="none">

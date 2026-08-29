@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+message ClusterListItem {
+  int64 id = 1;
+  string name = 2;
+  int32 members = 3;
+  string vendor = 4;
+  string golden_peer_name = 5;
+  int32 drift_count = 6;
+  int32 certs_expiring_30d = 7;
+  string last_collected = 8;
+  int32 instances_collected = 9;
+}
+
+message ClusterMemberItem {
+  int64 id = 1;
+  string display_name = 2;
+  optional int64 divergence = 3;
+  bool is_golden = 4;
+}
+
+message ClusterDetail {
+  int64 id = 1;
+  string name = 2;
+  int32 members = 3;
+  string vendor = 4;
+  string golden_peer_name = 5;
+  string last_collected = 6;
+  repeated ClusterMemberItem member_list = 7;
+}
+
+message ClustersResponse {
+  repeated ClusterListItem clusters = 1;
+  int32 total = 2;
+  string query = 3;
+  string drift_filter = 4;
+  string sort = 5;
+  ClusterDetail selected = 6;
+}

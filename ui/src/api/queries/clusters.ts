@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../client'
-import type { ClustersResponse } from '../types'
+import { ClustersResponseSchema } from '../pb/nagipath/api/v1/clusters_pb'
 
 export function useClusters(params: { q: string; drift: string; sort: string; cluster?: number }) {
   const qs = new URLSearchParams()
@@ -11,14 +11,14 @@ export function useClusters(params: { q: string; drift: string; sort: string; cl
 
   return useQuery({
     queryKey: ['clusters', params.q, params.drift, params.sort, params.cluster ?? 0],
-    queryFn: () => api.get<ClustersResponse>(`/clusters?${qs.toString()}`),
+    queryFn: () => api.get(`/clusters?${qs.toString()}`, ClustersResponseSchema),
   })
 }
 
 export function useRenameCluster() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: { cluster: number; name: string }) => api.post('/clusters/rename', body),
+    mutationFn: (body: { cluster: number; name: string }) => api.postAction('/clusters/rename', body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['clusters'] }),
   })
 }

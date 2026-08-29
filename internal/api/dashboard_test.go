@@ -1,13 +1,14 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
 	"time"
 
+	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
 	"github.com/nagiflow/nagipath/internal/store"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func testDB(t *testing.T) *store.DB {
@@ -45,8 +46,8 @@ func TestGetDashboardMarksQuarantinedNodes(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatalf("getDashboard status = %d, body %q", w.Code, w.Body.String())
 	}
-	var resp dashboardResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+	var resp pb.DashboardResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode dashboard response: %v", err)
 	}
 	found := false

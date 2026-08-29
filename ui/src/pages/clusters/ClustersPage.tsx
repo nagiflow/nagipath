@@ -20,7 +20,7 @@ import {
 import { useSearchParams } from 'react-router-dom'
 import { useClusters, useRenameCluster } from '../../api/queries/clusters'
 import { useSession } from '../../api/queries/session'
-import type { ClusterListItem } from '../../api/types'
+import type { ClusterListItem } from '../../api/pb/nagipath/api/v1/clusters_pb'
 
 // Ported from internal/web/templates/clusters.html against
 // GET/POST /api/ui/clusters (internal/api/clusters.go) — same filters, same
@@ -47,23 +47,23 @@ export function ClustersPage() {
       field: 'name',
       name: 'Cluster',
       render: (name: string, row: ClusterListItem) => (
-        <EuiLink onClick={() => setParams((p) => { p.set('cluster', String(row.id)); return p })}>{name}</EuiLink>
+        <EuiLink onClick={() => setParams((p) => { p.set('cluster', row.id.toString()); return p })}>{name}</EuiLink>
       ),
     },
     { field: 'members', name: 'Proc.' },
     { field: 'vendor', name: 'Vendor' },
-    { field: 'golden_peer_name', name: 'Baseline', render: (v?: string) => v || <EuiText color="subdued" size="s">not set</EuiText> },
+    { field: 'goldenPeerName', name: 'Baseline', render: (v?: string) => v || <EuiText color="subdued" size="s">not set</EuiText> },
     {
-      field: 'drift_count',
+      field: 'driftCount',
       name: 'Drift',
       render: (v: number) => (v > 0 ? <EuiBadge color="warning">{v}</EuiBadge> : <EuiText color="subdued" size="s">—</EuiText>),
     },
-    { field: 'certs_expiring_30d', name: 'Certs ≤30d', render: (v: number) => (v > 0 ? v : <EuiText color="subdued" size="s">—</EuiText>) },
+    { field: 'certsExpiring30d', name: 'Certs ≤30d', render: (v: number) => (v > 0 ? v : <EuiText color="subdued" size="s">—</EuiText>) },
     {
-      field: 'last_collected',
+      field: 'lastCollected',
       name: 'Last collected',
       render: (v: string | undefined, row: ClusterListItem) =>
-        v ? `${new Date(v).toLocaleString()} · ${row.instances_collected}/${row.members}` : <EuiText color="subdued" size="s">never</EuiText>,
+        v ? `${new Date(v).toLocaleString()} · ${row.instancesCollected}/${row.members}` : <EuiText color="subdued" size="s">never</EuiText>,
     },
   ]
 
@@ -150,17 +150,17 @@ export function ClustersPage() {
                 <EuiSpacer size="s" />
                 <EuiText size="s">
                   <p>nodes: {data.selected.members}</p>
-                  <p>baseline: {data.selected.golden_peer_name || 'not set'}</p>
+                  <p>baseline: {data.selected.goldenPeerName || 'not set'}</p>
                   {data.selected.vendor && <p>vendor: {data.selected.vendor}</p>}
-                  <p>last collected: {data.selected.last_collected ? new Date(data.selected.last_collected).toLocaleString() : 'never'}</p>
+                  <p>last collected: {data.selected.lastCollected ? new Date(data.selected.lastCollected).toLocaleString() : 'never'}</p>
                 </EuiText>
 
-                {session?.user.role === 'admin' && (
+                {session?.user?.role === 'admin' && (
                   <>
                     <EuiSpacer size="s" />
                     <form method="post" action="/drift/golden">
-                      <input type="hidden" name="csrf" value={session.csrf_token} />
-                      <input type="hidden" name="cluster" value={data.selected.id} />
+                      <input type="hidden" name="csrf" value={session.csrfToken} />
+                      <input type="hidden" name="cluster" value={data.selected.id.toString()} />
                       <EuiButton type="submit" size="s">Change baseline</EuiButton>
                     </form>
                     <EuiSpacer size="s" />
@@ -177,7 +177,7 @@ export function ClustersPage() {
                           <EuiButton
                             size="s"
                             isLoading={rename.isPending}
-                            onClick={() => rename.mutate({ cluster: data.selected!.id, name: renameValue || data.selected!.name })}
+                            onClick={() => rename.mutate({ cluster: Number(data.selected!.id), name: renameValue || data.selected!.name })}
                           >
                             Rename
                           </EuiButton>
@@ -189,20 +189,20 @@ export function ClustersPage() {
 
                 <EuiSpacer size="m" />
                 <EuiTitle size="xxs">
-                  <h3>Members ({data.selected.member_list.length})</h3>
+                  <h3>Members ({data.selected.memberList.length})</h3>
                 </EuiTitle>
                 <EuiSpacer size="xs" />
-                {data.selected.member_list.length === 0 ? (
+                {data.selected.memberList.length === 0 ? (
                   <EuiText size="s" color="subdued">No members in this cluster.</EuiText>
                 ) : (
-                  data.selected.member_list.map((m) => (
-                    <EuiFlexGroup key={m.id} gutterSize="s" alignItems="center" style={{ padding: '4px 0' }}>
+                  data.selected.memberList.map((m) => (
+                    <EuiFlexGroup key={m.id.toString()} gutterSize="s" alignItems="center" style={{ padding: '4px 0' }}>
                       <EuiFlexItem>
-                        <EuiLink href={`/instances/${m.id}`}>{m.display_name}</EuiLink>
+                        <EuiLink href={`/instances/${m.id}`}>{m.displayName}</EuiLink>
                       </EuiFlexItem>
                       <EuiFlexItem grow={false}>
                         <EuiText size="xs" color="subdued">
-                          {m.is_golden ? 'GOLDEN' : m.divergence === undefined ? 'not compared' : m.divergence === 0 ? 'clean' : `${m.divergence} diffs`}
+                          {m.isGolden ? 'GOLDEN' : m.divergence === undefined ? 'not compared' : m.divergence === 0n ? 'clean' : `${m.divergence} diffs`}
                         </EuiText>
                       </EuiFlexItem>
                     </EuiFlexGroup>

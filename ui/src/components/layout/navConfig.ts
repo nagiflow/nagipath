@@ -2,12 +2,14 @@
 // count from SessionResponse.nav_counts each item shows. Kept as one file for
 // the same reason nav.go is one function: the sidebar and the breadcrumb must
 // never be able to disagree about what page you're on.
-import type { NavCounts } from '../../api/types'
+// The real data fields of NavCounts, not protobuf-ES's bookkeeping ones
+// ($typeName, $unknown) that a bare `keyof NavCounts` would also pick up.
+type NavCountKey = 'nodes' | 'sites' | 'clusters' | 'drift' | 'certificates'
 
 export interface NavItem {
   label: string
   href: string
-  countKey?: keyof NavCounts
+  countKey?: NavCountKey
   warnOnCount?: boolean
 }
 

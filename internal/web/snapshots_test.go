@@ -5,6 +5,9 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // The Export link on a list screen is a promise that what you narrowed to is
@@ -70,13 +73,30 @@ func TestFleetListsNameTheNode(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	// /instances changed to /nodes after design alignment.
-	for _, path := range []string{"/nodes", "/snapshots", "/search?q=proxy_pass"} {
+	for _, path := range []string{"/snapshots", "/search?q=proxy_pass"} {
 		body := c.get(path).Body.String()
 		for _, host := range []string{"lb01", "lb02"} {
 			if !strings.Contains(body, host) {
 				t.Errorf("GET %s never names %s, so its two nginx rows are indistinguishable", path, host)
 			}
+		}
+	}
+
+	// Nodes is the React SPA now (docs/adr/0017); same check against the JSON
+	// API (protojson, docs/adr/0018) instead of rendered HTML.
+	var nodes pb.NodesListResponse
+	if err := protojson.Unmarshal(c.get("/api/ui/nodes").Body.Bytes(), &nodes); err != nil {
+		t.Fatalf("decode /api/ui/nodes: %v", err)
+	}
+	for _, host := range []string{"lb01", "lb02"} {
+		found := false
+		for _, n := range nodes.Nodes {
+			if n.DisplayName == host {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("GET /api/ui/nodes never names %s, so its two nginx rows are indistinguishable", host)
 		}
 	}
 }

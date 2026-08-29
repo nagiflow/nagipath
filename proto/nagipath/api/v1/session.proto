@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+message NavCounts {
+  int32 nodes = 1;
+  int32 sites = 2;
+  int32 clusters = 3;
+  int32 drift = 4;
+  int32 certificates = 5;
+}
+
+message SessionUser {
+  int64 id = 1;
+  string username = 2;
+  string role = 3;
+}
+
+message SessionResponse {
+  SessionUser user = 1;
+  string csrf_token = 2;
+  bool must_change_password = 3;
+  NavCounts nav_counts = 4;
+  string license_notice = 5;
+  bool demo_mode = 6;
+}

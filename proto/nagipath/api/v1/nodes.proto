@@ -1,0 +1,279 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+message NodeListRow {
+  int64 id = 1;
+  string address = 2;
+  int32 ssh_port = 3;
+  string display_name = 4;
+  string os_family = 5;
+  bool enabled = 6;
+  int32 consecutive_failures = 7;
+  int32 instance_count = 8;
+  int32 pending_host_keys = 9;
+  string last_collection = 10;
+  string last_status = 11;
+  string vendor = 12;
+  string version = 13;
+  string cluster = 14;
+  int32 process_count = 15;
+  string listeners = 16;
+  string last_captured = 17;
+}
+
+message NodesListResponse {
+  repeated NodeListRow nodes = 1;
+  string query = 2;
+  int32 total = 3;
+  int32 threshold = 4;
+  int32 pending = 5;
+  int32 quarantined = 6;
+  int32 never_collected = 7;
+}
+
+message Node {
+  int64 id = 1;
+  string address = 2;
+  int32 ssh_port = 3;
+  string display_name = 4;
+  string ssh_username = 5;
+  int64 credential_id = 6;
+  string os_family = 7;
+  bool sudo_available = 8;
+  bool enabled = 9;
+  string source = 10;
+  string notes = 11;
+  int32 consecutive_failures = 12;
+  string first_seen_at = 13;
+  string last_collection = 14;
+  string last_status = 15;
+}
+
+message Credential {
+  int64 id = 1;
+  string name = 2;
+  string username = 3;
+  string auth_kind = 4;
+  string public_key = 5;
+  string fingerprint = 6;
+  string external_ref = 7;
+  string created_at = 8;
+}
+
+message Instance {
+  int64 id = 1;
+  int64 node_id = 2;
+  int64 cluster_id = 3;
+  string vendor = 4;
+  string display_name = 5;
+  string version = 6;
+  string main_config_path = 7;
+  string node_display_name = 8;
+  int32 site_count = 9;
+  int32 route_count = 10;
+  int32 cert_count = 11;
+  string last_captured = 12;
+  string cluster_name = 13;
+  bool degraded = 14;
+  string parse_state = 15;
+  string state = 16;
+}
+
+message HostKey {
+  int64 id = 1;
+  int64 node_id = 2;
+  string algorithm = 3;
+  string fingerprint = 4;
+  string state = 5;
+  string first_seen_at = 6;
+  string decided_at = 7;
+}
+
+message PendingHostKey {
+  HostKey key = 1;
+  string node_name = 2;
+  string node_address = 3;
+  string previous = 4;
+}
+
+message NodeStats {
+  int32 sites = 1;
+  int32 routes = 2;
+  int32 upstreams = 3;
+  int32 cert_count = 4;
+  int32 drift_count = 5;
+}
+
+message UpstreamPool {
+  int64 id = 1;
+  string name = 2;
+  string kind = 3;
+  string balance_method = 4;
+  int32 member_count = 5;
+  string used_by = 6;
+  string resolution = 7;
+  string state = 8;
+}
+
+message UpstreamMember {
+  string host = 1;
+  int32 port = 2;
+  int32 weight = 3;
+  string flags = 4;
+  string role = 5;
+  string node_name = 6;
+}
+
+message NodeCertBinding {
+  string subject_cn = 1;
+  string site_name = 2;
+  int32 port = 3;
+  string not_after = 4;
+  string fingerprint = 5;
+  string key_type = 6;
+  int32 chain_length = 7;
+}
+
+message FileRef {
+  int64 id = 1;
+  string kind = 2;
+  string path = 3;
+  int64 bytes_raw = 4;
+  bool truncated = 5;
+}
+
+message Snapshot {
+  int64 id = 1;
+  string captured_at = 2;
+  bool degraded = 3;
+  string degraded_reason = 4;
+  int32 file_count = 5;
+  int64 bytes_raw = 6;
+  string parse_state = 7;
+}
+
+message DriftRun {
+  int64 id = 1;
+  int64 instance_id = 2;
+  string baseline_kind = 3;
+  string baseline_label = 4;
+  string computed_at = 5;
+  int32 finding_count = 6;
+}
+
+message DriftFinding {
+  int64 id = 1;
+  string object_kind = 2;
+  string natural_key = 3;
+  string change = 4;
+  string field = 5;
+  string baseline_text = 6;
+  string subject_text = 7;
+  string action_class = 8;
+}
+
+// Route mirrors internal/trace.Route: one match rule inside a site, possibly
+// with children (nested location blocks). Recursive on purpose — the
+// frontend renders the same tree structure the config actually has.
+message Route {
+  int64 id = 1;
+  string match_type = 2;
+  string pattern = 3;
+  int32 ordinal = 4;
+  bool is_terminal = 5;
+  int64 upstream_id = 6;
+  string target_raw = 7;
+  repeated Route children = 8;
+}
+
+message Site {
+  int64 id = 1;
+  string primary_name = 2;
+  string kind = 3;
+  repeated string names = 4;
+  repeated Route routes = 5;
+}
+
+message UpstreamMemberRef {
+  int64 id = 1;
+  string host = 2;
+  int32 port = 3;
+  string scheme = 4;
+  string flags = 5;
+}
+
+message Upstream {
+  int64 id = 1;
+  string name = 2;
+  string kind = 3;
+  string balance_method = 4;
+  repeated UpstreamMemberRef members = 5;
+}
+
+// Inst mirrors internal/trace.Inst — the parsed instance graph the Sites and
+// Routes tabs render from. Global rules and raw listeners aren't included;
+// neither tab uses them yet.
+message Inst {
+  int64 id = 1;
+  string node_name = 2;
+  string vendor = 3;
+  string display_name = 4;
+  string cluster_name = 5;
+  bool degraded = 6;
+  repeated Site sites = 7;
+  repeated Upstream upstreams = 8;
+}
+
+message NodeTabItem {
+  string label = 1;
+  string href = 2;
+  int32 count = 3;
+  bool on = 4;
+}
+
+message RouteEffect {
+  string upstream_name = 1;
+  int32 member_count = 2;
+  string balance_method = 3;
+  repeated UpstreamMemberRef members = 4;
+}
+
+message NodeDetailResponse {
+  Node node = 1;
+  repeated Credential credentials = 2;
+  repeated Instance instances = 3;
+  Instance selected = 4;
+  repeated HostKey host_keys = 5;
+  repeated PendingHostKey pending_keys = 6;
+  NodeStats stats = 7;
+  bool running = 8;
+  int32 threshold = 9;
+  repeated NodeTabItem tabs = 10;
+  string tab = 11;
+  string credential_name = 12;
+
+  Inst inst = 13;
+  repeated UpstreamPool upstreams = 14;
+  UpstreamPool selected_pool = 15;
+  repeated UpstreamMember pool_members = 16;
+  repeated NodeCertBinding certificates = 17;
+  repeated FileRef files = 18;
+  Snapshot snapshot = 19;
+  FileRef selected_file = 20;
+  string file_body = 21;
+  int32 byte_start = 22;
+  int32 line_start = 23;
+
+  repeated DriftRun drift_runs = 24;
+  repeated DriftFinding drift_findings = 25;
+  map<string, int32> drift_by_object = 26;
+  bool has_drift = 27;
+  string no_drift_reason = 28;
+
+  string selected_site_name = 29;
+  Route selected_route = 30;
+  RouteEffect route_effect = 31;
+}

@@ -13,7 +13,7 @@ import {
 } from '@elastic/eui'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useSite } from '../../api/queries/sites'
-import type { SiteDetailRoute, SiteNodeRow, SiteUpstreamMember } from '../../api/types'
+import type { SiteDetailRoute, SiteNodeRow, SiteUpstreamMember } from '../../api/pb/nagipath/api/v1/sites_pb'
 
 // Ported from internal/web/templates/site.html against
 // GET /api/ui/sites/{name} (internal/api/sites.go). The path-graph diagram
@@ -44,34 +44,34 @@ export function SiteDetailPage() {
   return (
     <>
       <EuiTitle size="m">
-        <h1>{data.Name}</h1>
+        <h1>{data.name}</h1>
       </EuiTitle>
       <EuiSpacer />
 
       <EuiTabbedContent
         selectedTab={{ id: tab, name: '', content: null }}
         onTabClick={(t) => setParams((p) => { if (t.id === 'overview') p.delete('tab'); else p.set('tab', t.id); return p })}
-        tabs={data.Tabs.map((t) => ({
-          id: t.Href.includes('tab=') ? new URLSearchParams(t.Href.split('?')[1]).get('tab')! : 'overview',
-          name: t.Count > 0 ? `${t.Label} (${t.Count})` : t.Label,
+        tabs={data.tabs.map((t) => ({
+          id: t.href.includes('tab=') ? new URLSearchParams(t.href.split('?')[1]).get('tab')! : 'overview',
+          name: t.count > 0 ? `${t.label} (${t.count})` : t.label,
           content: null,
         }))}
       />
       <EuiSpacer />
 
-      {tab === 'overview' && data.Overview && (
+      {tab === 'overview' && data.overview && (
         <EuiFlexGroup>
           <EuiFlexItem grow={2}>
             <EuiPanel>
               <EuiTitle size="xs"><h2>Routes</h2></EuiTitle>
               <EuiSpacer size="s" />
               <EuiBasicTable<SiteDetailRoute>
-                items={data.Overview.Routes}
+                items={data.overview.routes}
                 columns={[
-                  { field: 'Pattern', name: 'Pattern' },
-                  { field: 'MatchType', name: 'Match' },
-                  { field: 'Action', name: 'Action' },
-                  { field: 'Target', name: 'Target' },
+                  { field: 'pattern', name: 'Pattern' },
+                  { field: 'matchType', name: 'Match' },
+                  { field: 'action', name: 'Action' },
+                  { field: 'target', name: 'Target' },
                 ]}
                 noItemsMessage="No routes."
               />
@@ -80,19 +80,19 @@ export function SiteDetailPage() {
           <EuiFlexItem grow={1}>
             <EuiPanel>
               <EuiText size="s">
-                <p>listener: {data.Overview.ListenerSummary}</p>
-                <p>certificate: {data.Overview.CertSubject || 'none'} {data.Overview.CertExpiry && `· expires in ${data.Overview.CertExpiryDays}d`}</p>
-                <p>upstreams: {data.Overview.Upstreams.length}</p>
+                <p>listener: {data.overview.listenerSummary}</p>
+                <p>certificate: {data.overview.certSubject || 'none'} {data.overview.certExpiry && `· expires in ${data.overview.certExpiryDays}d`}</p>
+                <p>upstreams: {data.overview.upstreams.length}</p>
               </EuiText>
             </EuiPanel>
             <EuiSpacer />
             <EuiPanel>
               <EuiTitle size="xs"><h2>Nodes serving this site</h2></EuiTitle>
               <EuiSpacer size="s" />
-              {(data.Nodes ?? []).map((n) => (
-                <EuiFlexGroup key={n.NodeID} gutterSize="s" style={{ padding: '4px 0' }}>
-                  <EuiFlexItem>{n.NodeName}</EuiFlexItem>
-                  <EuiFlexItem grow={false}><EuiBadge>{n.Variant}</EuiBadge></EuiFlexItem>
+              {data.nodes.map((n) => (
+                <EuiFlexGroup key={n.nodeId.toString()} gutterSize="s" style={{ padding: '4px 0' }}>
+                  <EuiFlexItem>{n.nodeName}</EuiFlexItem>
+                  <EuiFlexItem grow={false}><EuiBadge>{n.variant}</EuiBadge></EuiFlexItem>
                 </EuiFlexGroup>
               ))}
             </EuiPanel>
@@ -103,13 +103,13 @@ export function SiteDetailPage() {
       {tab === 'nodes' && (
         <EuiPanel>
           <EuiBasicTable<SiteNodeRow>
-            items={data.Nodes ?? []}
+            items={data.nodes}
             columns={[
-              { field: 'NodeName', name: 'Node' },
-              { field: 'Cluster', name: 'Cluster' },
-              { field: 'Variant', name: 'Variant' },
-              { field: 'Listener', name: 'Listener' },
-              { field: 'State', name: 'State', render: (s: string) => <EuiBadge color={s === 'OK' ? 'success' : 'warning'}>{s}</EuiBadge> },
+              { field: 'nodeName', name: 'Node' },
+              { field: 'cluster', name: 'Cluster' },
+              { field: 'variant', name: 'Variant' },
+              { field: 'listener', name: 'Listener' },
+              { field: 'state', name: 'State', render: (s: string) => <EuiBadge color={s === 'OK' ? 'success' : 'warning'}>{s}</EuiBadge> },
             ]}
             noItemsMessage="No nodes."
           />
@@ -119,12 +119,12 @@ export function SiteDetailPage() {
       {tab === 'upstreams' && (
         <EuiPanel>
           <EuiBasicTable<SiteUpstreamMember>
-            items={data.Upstreams ?? []}
+            items={data.upstreams}
             columns={[
-              { field: 'Upstream', name: 'Upstream' },
-              { field: 'Host', name: 'Host' },
-              { field: 'Port', name: 'Port' },
-              { field: 'NodeName', name: 'Node' },
+              { field: 'upstream', name: 'Upstream' },
+              { field: 'host', name: 'Host' },
+              { field: 'port', name: 'Port' },
+              { field: 'nodeName', name: 'Node' },
             ]}
             noItemsMessage="No upstreams."
           />
@@ -135,12 +135,12 @@ export function SiteDetailPage() {
         <EuiPanel>
           <EuiTitle size="xs"><h2>Certificates bound</h2></EuiTitle>
           <EuiSpacer size="s" />
-          {(data.Certs ?? []).length === 0 ? (
+          {data.certs.length === 0 ? (
             <EuiText size="s" color="subdued">No certificates bound to this site.</EuiText>
           ) : (
-            data.Certs!.map((c, i) => (
+            data.certs.map((c, i) => (
               <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid #edf0f5' }}>
-                <EuiText size="s"><strong>{c.Subject}</strong> · expires in {c.ExpiryDays}d · {c.Bindings} binding(s)</EuiText>
+                <EuiText size="s"><strong>{c.subject}</strong> · expires in {c.expiryDays}d · {c.bindings} binding(s)</EuiText>
               </div>
             ))
           )}
@@ -148,16 +148,16 @@ export function SiteDetailPage() {
       )}
 
       <EuiSpacer />
-      {data.VariantOpts.length > 0 && (
+      {data.variantOpts.length > 0 && (
         <EuiFlexGroup gutterSize="xs">
-          {data.VariantOpts.map((v) => (
-            <EuiFlexItem grow={false} key={v.Key}>
+          {data.variantOpts.map((v) => (
+            <EuiFlexItem grow={false} key={v.key}>
               <EuiBadge
-                color={v.On ? 'primary' : 'hollow'}
-                onClick={() => setParams((p) => { p.set('variant', v.Key); return p })}
-                onClickAriaLabel={v.Label}
+                color={v.on ? 'primary' : 'hollow'}
+                onClick={() => setParams((p) => { p.set('variant', v.key); return p })}
+                onClickAriaLabel={v.label}
               >
-                {v.Label}
+                {v.label}
               </EuiBadge>
             </EuiFlexItem>
           ))}

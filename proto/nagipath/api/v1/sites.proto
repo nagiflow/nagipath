@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+message SiteListRow {
+  string name = 1;
+  int32 alias_count = 2;
+  repeated string aliases = 3;
+  int32 nodes = 4;
+  string listener_summary = 5;
+  string cert_subject = 6;
+  int32 routes = 7;
+  int32 variants = 8;
+  string state = 9;
+  string state_reason = 10;
+}
+
+message SiteStats {
+  int32 hostnames = 1;
+  int32 nodes = 2;
+  int32 variant_hosts = 3;
+  int32 tls_terminated = 4;
+  int32 plaintext = 5;
+  int32 expiring_certs = 6;
+  int32 expiring_bindings = 7;
+}
+
+message SiteVariant {
+  string key = 1;
+  string raw_text = 2;
+  int32 nodes = 3;
+  repeated string node_names = 4;
+}
+
+message SitesListResponse {
+  repeated SiteListRow rows = 1;
+  string query = 2;
+  int32 total = 3;
+  SiteStats stats = 4;
+  string sel = 5;
+  repeated SiteVariant variants = 6;
+}
+
+message SiteTabItem {
+  string label = 1;
+  string href = 2;
+  int32 count = 3;
+  bool on = 4;
+}
+
+message SiteVariantOpt {
+  string key = 1;
+  string label = 2;
+  bool on = 3;
+}
+
+message ClusterCount {
+  string name = 1;
+  int32 nodes = 2;
+}
+
+message UpstreamSummary {
+  string name = 1;
+  int32 members = 2;
+  string variant = 3;
+}
+
+message SiteDetailRoute {
+  int32 ordinal = 1;
+  string pattern = 2;
+  string match_type = 3;
+  string action = 4;
+  string target = 5;
+  string also_does = 6;
+  string variant = 7;
+}
+
+message SiteDetailStats {
+  int32 nodes = 1;
+  int32 routes = 2;
+  int32 variants = 3;
+  int32 upstreams = 4;
+  int32 cert_days = 5;
+  string cert_subject = 6;
+}
+
+message SiteOverview {
+  string name = 1;
+  repeated string aliases = 2;
+  int32 variants = 3;
+  string variant_key = 4;
+  int32 nodes = 5;
+  repeated ClusterCount clusters = 6;
+  string listener_summary = 7;
+  string listener_flags = 8;
+  string cert_subject = 9;
+  string cert_issuer = 10;
+  string cert_expiry = 11;
+  int32 cert_expiry_days = 12;
+  int32 cert_bindings = 13;
+  repeated string cert_uncovered = 14;
+  repeated UpstreamSummary upstreams = 15;
+  repeated SiteDetailRoute routes = 16;
+  SiteDetailStats stats = 17;
+}
+
+message SiteNodeRow {
+  int64 node_id = 1;
+  string node_name = 2;
+  string cluster = 3;
+  string variant = 4;
+  string listener = 5;
+  string certificate = 6;
+  string last_coll = 7;
+  string state = 8;
+  string state_reason = 9;
+}
+
+message SiteUpstreamMember {
+  string upstream = 1;
+  string host = 2;
+  int32 port = 3;
+  string scheme = 4;
+  int32 weight = 5;
+  string flags = 6;
+  string node_name = 7;
+}
+
+message SiteCertBinding {
+  string subject = 1;
+  repeated string sans = 2;
+  string issuer = 3;
+  string not_after = 4;
+  int32 expiry_days = 5;
+  int32 bindings = 6;
+  repeated string uncovered = 7;
+}
+
+message SiteDetailResponse {
+  string name = 1;
+  string tab = 2;
+  string variant = 3;
+  SiteOverview overview = 4;
+  repeated SiteNodeRow nodes = 5;
+  repeated SiteUpstreamMember upstreams = 6;
+  repeated SiteCertBinding certs = 7;
+  repeated SiteTabItem tabs = 8;
+  repeated SiteVariantOpt variant_opts = 9;
+}

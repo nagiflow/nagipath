@@ -1,12 +1,14 @@
 package web
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"testing"
+
+	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // nagipath never scans. Bulk import is the one place a range could get in at
@@ -154,19 +156,15 @@ func TestClustersRendersDetailPanel(t *testing.T) {
 	// Clusters is the React SPA now (docs/adr/0017); what used to be "the
 	// template doesn't 500 on this shape" is now "the JSON API doesn't 500 on
 	// this shape" against GET /api/ui/clusters, with and without ?cluster=.
-	type apiClustersDetail struct {
-		Selected *struct {
-			Name       string `json:"name"`
-			MemberList []any  `json:"member_list"`
-		} `json:"selected"`
-	}
-
+	// Decoded via protojson against the generated schema (docs/adr/0018),
+	// not hand-typed json tags — a field rename in the .proto can't silently
+	// desync this test from the wire format the way a string tag could.
 	w := c.get("/api/ui/clusters")
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET /api/ui/clusters = %d, want 200", w.Code)
 	}
-	var noSel apiClustersDetail
-	if err := json.Unmarshal(w.Body.Bytes(), &noSel); err != nil {
+	var noSel pb.ClustersResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &noSel); err != nil {
 		t.Fatalf("decode /api/ui/clusters: %v", err)
 	}
 	if noSel.Selected != nil {
@@ -180,8 +178,8 @@ func TestClustersRendersDetailPanel(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET /api/ui/clusters?cluster=%d = %d, want 200, body %q", clusterID, w.Code, w.Body.String())
 	}
-	var withSel apiClustersDetail
-	if err := json.Unmarshal(w.Body.Bytes(), &withSel); err != nil {
+	var withSel pb.ClustersResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &withSel); err != nil {
 		t.Fatalf("decode /api/ui/clusters?cluster=%d: %v", clusterID, err)
 	}
 	if withSel.Selected == nil {
@@ -190,7 +188,12 @@ func TestClustersRendersDetailPanel(t *testing.T) {
 	if withSel.Selected.Name != "test-cluster" {
 		t.Errorf("selected.name = %q, want %q", withSel.Selected.Name, "test-cluster")
 	}
-	if withSel.Selected.MemberList == nil {
-		t.Errorf("selected.member_list = nil, want [] even with zero members")
+	// A zero-member selection must not 500 — this cluster was inserted directly
+	// via SQL, and ReconcileClusters may clear its members entirely. protojson
+	// has no nil-vs-empty distinction for repeated fields (both decode to a nil
+	// Go slice, by proto3 design); it's the frontend's fromJson that normalizes
+	// this to [] for .map() safety, not this test's job to assert on.
+	if len(withSel.Selected.MemberList) != 0 {
+		t.Errorf("selected.member_list = %+v, want none", withSel.Selected.MemberList)
 	}
 }

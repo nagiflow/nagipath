@@ -17,9 +17,9 @@ import {
   EuiTitle,
 } from '@elastic/eui'
 import { useDashboard } from '../../api/queries/dashboard'
-import type { DashboardAttention, DashboardRiskCluster } from '../../api/types'
+import type { DashboardRiskCluster } from '../../api/pb/nagipath/api/v1/dashboard_pb'
 
-const toneColor: Record<DashboardAttention['tone'], 'success' | 'warning' | 'danger' | 'default'> = {
+const toneColor: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
   ok: 'success',
   deg: 'warning',
   err: 'danger',
@@ -47,7 +47,7 @@ function ActivityStrip({ buckets, max }: { buckets: { label: string; total: numb
 }
 
 // Dashboard is the fleet-overview screen — ported from internal/web's
-// dashboard.html against GET /api/v1/dashboard (internal/api/dashboard.go),
+// dashboard.html against GET /api/ui/dashboard (internal/api/dashboard.go),
 // same filters (cluster scope, attention severity/cluster) and same fields.
 export function Dashboard() {
   const [cluster, setCluster] = useState(0)
@@ -65,9 +65,9 @@ export function Dashboard() {
 
   const riskColumns = [
     { field: 'name', name: 'Cluster' },
-    { field: 'fresh_percent', name: 'Fresh', render: (v: number) => `${v}%` },
+    { field: 'freshPercent', name: 'Fresh', render: (v: number) => `${v}%` },
     { field: 'drift', name: 'Drift' },
-    { field: 'certs_label', name: 'Certs' },
+    { field: 'certsLabel', name: 'Certs' },
     {
       field: 'state',
       name: 'State',
@@ -90,7 +90,7 @@ export function Dashboard() {
         <EuiFlexItem grow={false}>
           <EuiSelect
             compressed
-            options={[{ value: '0', text: 'All clusters' }, ...data.clusters.map((c) => ({ value: String(c.id), text: c.name }))]}
+            options={[{ value: '0', text: 'All clusters' }, ...data.clusters.map((c) => ({ value: c.id.toString(), text: c.name }))]}
             value={String(cluster)}
             onChange={(e) => setCluster(Number(e.target.value))}
           />
@@ -111,32 +111,32 @@ export function Dashboard() {
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiPanel>
-            <EuiStat title={data.drifted_instances} description="Drifted instances" titleColor={data.drifted_instances > 0 ? 'warning' : 'primary'} />
+            <EuiStat title={data.driftedInstances} description="Drifted instances" titleColor={data.driftedInstances > 0 ? 'warning' : 'primary'} />
           </EuiPanel>
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiPanel>
-            <EuiStat title={data.certs_expiring_30d} description="Certs expiring (30d)" titleColor={data.certs_expiring_30d > 0 ? 'warning' : 'primary'} />
+            <EuiStat title={data.certsExpiring30d} description="Certs expiring (30d)" titleColor={data.certsExpiring30d > 0 ? 'warning' : 'primary'} />
           </EuiPanel>
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiPanel>
-            <EuiStat title={data.unreachable_nodes} description="Unreachable nodes" titleColor={data.unreachable_nodes > 0 ? 'danger' : 'primary'} />
+            <EuiStat title={data.unreachableNodes} description="Unreachable nodes" titleColor={data.unreachableNodes > 0 ? 'danger' : 'primary'} />
           </EuiPanel>
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiPanel>
-            <EuiStat title={data.pending_host_keys} description="Pending host keys" titleColor={data.pending_host_keys > 0 ? 'warning' : 'primary'} />
+            <EuiStat title={data.pendingHostKeys} description="Pending host keys" titleColor={data.pendingHostKeys > 0 ? 'warning' : 'primary'} />
           </EuiPanel>
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiPanel>
-            <EuiStat title={data.total_rules} description="Rules in force" titleColor="primary" />
+            <EuiStat title={data.totalRules} description="Rules in force" titleColor="primary" />
           </EuiPanel>
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiPanel>
-            <EuiStat title={data.vendor_count} description="Vendors" titleColor="primary" />
+            <EuiStat title={data.vendorCount} description="Vendors" titleColor="primary" />
           </EuiPanel>
         </EuiFlexItem>
       </EuiFlexGrid>
@@ -176,7 +176,7 @@ export function Dashboard() {
                 <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid #edf0f5' }}>
                   <EuiFlexGroup gutterSize="s" alignItems="center">
                     <EuiFlexItem grow={false}>
-                      <EuiBadge color={toneColor[a.tone]}>{a.kind}</EuiBadge>
+                      <EuiBadge color={toneColor[a.tone] ?? 'default'}>{a.kind}</EuiBadge>
                     </EuiFlexItem>
                     <EuiFlexItem>
                       <EuiLink href={a.link}>{a.text}</EuiLink>
@@ -199,7 +199,7 @@ export function Dashboard() {
               <h2>Collection activity (24h)</h2>
             </EuiTitle>
             <EuiSpacer size="s" />
-            <ActivityStrip buckets={data.activity} max={data.activity_max} />
+            <ActivityStrip buckets={data.activity} max={data.activityMax} />
           </EuiPanel>
           <EuiSpacer />
           <EuiPanel>
@@ -210,7 +210,7 @@ export function Dashboard() {
             </EuiTitle>
             <EuiSpacer size="s" />
             <EuiBasicTable<DashboardRiskCluster>
-              items={data.risk_clusters}
+              items={data.riskClusters}
               columns={riskColumns}
               rowHeader="name"
               noItemsMessage="No clusters yet."

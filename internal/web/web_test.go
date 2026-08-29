@@ -19,10 +19,12 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
 	"github.com/nagiflow/nagipath/internal/keys"
 	"github.com/nagiflow/nagipath/internal/parse"
 	"github.com/nagiflow/nagipath/internal/store"
 	"github.com/nagiflow/nagipath/internal/trace"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Template errors are runtime errors in Go, so every page is fetched here. A typo
@@ -97,6 +99,31 @@ func (c *client) post(path string, form url.Values) *httptest.ResponseRecorder {
 	return w
 }
 
+// postJSON is api/client.ts's real request shape for the SPA's internal/api
+// endpoints: a JSON body and the CSRF token as a header, not a form field —
+// internal/api/middleware.go's checkCSRF only ever looks at the header.
+func (c *client) postJSON(path string, body any) *httptest.ResponseRecorder {
+	c.t.Helper()
+	var buf bytes.Buffer
+	if body != nil {
+		if err := json.NewEncoder(&buf).Encode(body); err != nil {
+			c.t.Fatalf("encode request body: %v", err)
+		}
+	}
+	r := httptest.NewRequest("POST", path, &buf)
+	r.Header.Set("Content-Type", "application/json")
+	if c.csrf != "" {
+		r.Header.Set("X-CSRF-Token", c.csrf)
+	}
+	if c.cookie != "" {
+		r.AddCookie(&http.Cookie{Name: cookieName, Value: c.cookie})
+	}
+	w := httptest.NewRecorder()
+	c.s.ServeHTTP(w, r)
+	c.absorb(w)
+	return w
+}
+
 func (c *client) absorb(w *httptest.ResponseRecorder) {
 	for _, ck := range w.Result().Cookies() {
 		if ck.Name == cookieName && ck.Value != "" {
@@ -145,11 +172,11 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 	// be executed by something — and an empty fleet is the state every install
 	// starts in.
 	// /instances removed: it redirects to /nodes, which is already tested.
-	// "/", "/clusters" and "/sites" removed: all three serve the React SPA
-	// shell now (TestDashboardServesSPAShell, TestClustersServesSPAShell,
-	// TestSitesServesSPAShell), not a server-rendered page with the
-	// class="pnl"/class="empty" chrome below.
-	for _, path := range []string{"/nodes", "/collections",
+	// "/", "/clusters", "/sites" and "/nodes" removed: all four serve the React
+	// SPA shell now (TestDashboardServesSPAShell, TestClustersServesSPAShell,
+	// TestSitesServesSPAShell, TestNodesServesSPAShell), not a server-rendered
+	// page with the class="pnl"/class="empty" chrome below.
+	for _, path := range []string{"/collections",
 		"/certificates", "/certificates?cert=1", "/search",
 		"/search?q=proxy_pass", "/search?q=proxy_pass&vendor=nginx&page=2", "/trace",
 		"/trace/history", "/snapshots",
@@ -347,8 +374,11 @@ func TestNotFoundIsAPageInsideTheShell(t *testing.T) {
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
 	// A mistyped URL, and an id that does not exist: different routes, same page.
-	// /instances/4242 removed: it redirects (301) rather than 404ing.
-	for _, path := range []string{"/settings/account", "/nodes/4242", "/snapshots/4242/file/1"} {
+	// /instances/4242 removed: it redirects (301) rather than 404ing. /nodes/4242
+	// removed: /nodes/{id} is the SPA now (docs/adr/0017) and always 200s at the
+	// Go level — a bad id is a 404 from GET /api/ui/nodes/4242 instead, which
+	// NodeDetailPage renders as its own not-found state client-side.
+	for _, path := range []string{"/settings/account", "/snapshots/4242/file/1"} {
 		w := c.get(path)
 		if w.Code != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, w.Code)
@@ -380,18 +410,20 @@ func TestPostWithoutCSRFTokenIsRejected(t *testing.T) {
 		t.Fatal("login did not set a session cookie")
 	}
 
+	// Adding a node is the SPA now (docs/adr/0017): POST /api/ui/nodes
+	// (internal/api/nodes.go), CSRF checked via header only (middleware.go).
 	saved := c.csrf
 	c.csrf = ""
-	if got := c.post("/nodes", url.Values{"address": {"10.0.0.1"}}).Code; got != http.StatusForbidden {
+	if got := c.postJSON("/api/ui/nodes", map[string]any{"address": "10.0.0.1"}).Code; got != http.StatusForbidden {
 		t.Errorf("POST without a CSRF token = %d, want 403", got)
 	}
 	c.csrf = "forged-token"
-	if got := c.post("/nodes", url.Values{"address": {"10.0.0.1"}}).Code; got != http.StatusForbidden {
+	if got := c.postJSON("/api/ui/nodes", map[string]any{"address": "10.0.0.1"}).Code; got != http.StatusForbidden {
 		t.Errorf("POST with a forged CSRF token = %d, want 403", got)
 	}
 	c.csrf = saved
-	if got := c.post("/nodes", url.Values{"address": {"10.0.0.1"}}).Code; got != http.StatusSeeOther {
-		t.Errorf("POST with the right CSRF token = %d, want 303", got)
+	if got := c.postJSON("/api/ui/nodes", map[string]any{"address": "10.0.0.1"}).Code; got != http.StatusOK {
+		t.Errorf("POST with the right CSRF token = %d, want 200", got)
 	}
 	nodes, _ := db.Nodes(t.Context())
 	if len(nodes) != 1 {
@@ -465,9 +497,15 @@ func TestAddNodeRejectsNetworkRanges(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.post("/nodes", url.Values{"address": {"10.90.4.0/24"}})
-	if loc := w.Header().Get("Location"); !strings.Contains(loc, "scan") {
-		t.Errorf("a CIDR was accepted as a node address (redirect %q)", loc)
+	w := c.postJSON("/api/ui/nodes", map[string]any{"address": "10.90.4.0/24"})
+	var body struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	json.Unmarshal(w.Body.Bytes(), &body)
+	if w.Code != http.StatusUnprocessableEntity || body.Error.Code != "no_scanning" {
+		t.Errorf("a CIDR was accepted as a node address (status %d, body %s)", w.Code, w.Body.String())
 	}
 	if nodes, _ := db.Nodes(t.Context()); len(nodes) != 0 {
 		t.Errorf("nodes = %d, want 0", len(nodes))
@@ -658,7 +696,7 @@ func TestViewerCannotChangeAnything(t *testing.T) {
 	if got := c.get("/nodes").Code; got != http.StatusOK {
 		t.Errorf("a viewer must still be able to read /nodes, got %d", got)
 	}
-	if got := c.post("/nodes", url.Values{"address": {"10.0.0.9"}}).Code; got != http.StatusForbidden {
+	if got := c.postJSON("/api/ui/nodes", map[string]any{"address": "10.0.0.9"}).Code; got != http.StatusForbidden {
 		t.Errorf("viewer adding a node = %d, want 403", got)
 	}
 	if got := c.get("/settings/audit").Code; got != http.StatusOK {
@@ -1081,19 +1119,66 @@ func TestPagesRenderOverAParsedSnapshot(t *testing.T) {
 		}
 	}
 
-	// The node page has to carry what it parsed, not just render — and each fact on
-	// the tab that claims it, because a tab that renders an empty panel is
-	// indistinguishable from one that renders at all.
-	for _, want := range []struct{ path, text string }{
-		{node, "shop.example.com"},                      // overview names the site
-		{node + "/sites" + proc, "jump to file"},        // provenance on every derived fact
-		{node + "/routes" + proc, "/api/"},              // the route the config declares
-		{node + "/upstreams" + proc, "web02"},           // the pool member behind it
-		{node + "/certificates" + proc, "shop.example"}, // the binding
-	} {
-		if body := c.get(want.path).Body.String(); !strings.Contains(body, want.text) {
-			t.Errorf("GET %s is missing %q", want.path, want.text)
+	// Nodes is the SPA now (docs/adr/0017); what used to be HTML substring checks
+	// per tab are field assertions against GET /api/ui/nodes/{id}[/{tab}] instead.
+	nodeAPI := "/api/ui/nodes/" + strconv.FormatInt(nodeID, 10)
+
+	var overview pb.NodeDetailResponse
+	if err := protojson.Unmarshal(c.get(nodeAPI+proc).Body.Bytes(), &overview); err != nil {
+		t.Fatalf("decode node overview: %v", err)
+	}
+	foundSite := false
+	for _, site := range overview.Inst.GetSites() {
+		if site.PrimaryName == "shop.example.com" {
+			foundSite = true
 		}
+	}
+	if !foundSite {
+		t.Errorf("node overview's Inst.Sites is missing shop.example.com: %+v", overview.Inst.GetSites())
+	}
+
+	var sitesTab pb.NodeDetailResponse
+	if err := protojson.Unmarshal(c.get(nodeAPI+"/sites"+proc).Body.Bytes(), &sitesTab); err != nil {
+		t.Fatalf("decode node sites tab: %v", err)
+	}
+	if len(sitesTab.Inst.GetSites()) == 0 || len(sitesTab.Inst.GetSites()[0].Routes) == 0 {
+		t.Errorf("node sites tab carries no routes to provide provenance for: %+v", sitesTab.Inst.GetSites())
+	}
+
+	var routesTab pb.NodeDetailResponse
+	if err := protojson.Unmarshal(c.get(nodeAPI+"/routes"+proc).Body.Bytes(), &routesTab); err != nil {
+		t.Fatalf("decode node routes tab: %v", err)
+	}
+	if routesTab.SelectedRoute == nil || !strings.Contains(routesTab.SelectedRoute.Pattern, "/api/") {
+		t.Errorf("node routes tab's selected route = %+v, want a pattern containing /api/", routesTab.SelectedRoute)
+	}
+
+	var upstreamsTab pb.NodeDetailResponse
+	if err := protojson.Unmarshal(c.get(nodeAPI+"/upstreams"+proc).Body.Bytes(), &upstreamsTab); err != nil {
+		t.Fatalf("decode node upstreams tab: %v", err)
+	}
+	foundMember := false
+	for _, m := range upstreamsTab.PoolMembers {
+		if m.Host == "web02" {
+			foundMember = true
+		}
+	}
+	if !foundMember {
+		t.Errorf("node upstreams tab's pool members = %+v, want web02 among them", upstreamsTab.PoolMembers)
+	}
+
+	var certsTab pb.NodeDetailResponse
+	if err := protojson.Unmarshal(c.get(nodeAPI+"/certificates"+proc).Body.Bytes(), &certsTab); err != nil {
+		t.Fatalf("decode node certificates tab: %v", err)
+	}
+	foundCert := false
+	for _, cb := range certsTab.Certificates {
+		if strings.Contains(cb.SubjectCn, "shop.example") {
+			foundCert = true
+		}
+	}
+	if !foundCert {
+		t.Errorf("node certificates tab = %+v, want a binding naming shop.example", certsTab.Certificates)
 	}
 }
 
@@ -1162,19 +1247,13 @@ func TestClustersAreDiscoveredFromIdenticalConfiguration(t *testing.T) {
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
 	// Clusters is the React SPA now (docs/adr/0017); the fact it used to read off
-	// rendered HTML is asserted against GET /api/ui/clusters instead. One cluster,
-	// two members, vendor nginx, the third (different-vendor) host excluded.
-	type apiClusters struct {
-		Clusters []struct {
-			Name    string `json:"name"`
-			Vendor  string `json:"vendor"`
-			Members int    `json:"members"`
-		} `json:"clusters"`
-	}
-	getClusters := func() apiClusters {
+	// rendered HTML is asserted against GET /api/ui/clusters instead, decoded via
+	// protojson against the generated schema (docs/adr/0018). One cluster, two
+	// members, vendor nginx, the third (different-vendor) host excluded.
+	getClusters := func() *pb.ClustersResponse {
 		t.Helper()
-		var got apiClusters
-		if err := json.Unmarshal(c.get("/api/ui/clusters").Body.Bytes(), &got); err != nil {
+		got := &pb.ClustersResponse{}
+		if err := protojson.Unmarshal(c.get("/api/ui/clusters").Body.Bytes(), got); err != nil {
 			t.Fatalf("decode /api/ui/clusters: %v", err)
 		}
 		return got

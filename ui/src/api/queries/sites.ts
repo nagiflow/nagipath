@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../client'
-import type { SiteDetailResponse, SitesListResponse } from '../types'
+import { SiteDetailResponseSchema, SitesListResponseSchema } from '../pb/nagipath/api/v1/sites_pb'
 
 export function useSites(params: { q: string; site?: string }) {
   const qs = new URLSearchParams()
@@ -8,7 +8,7 @@ export function useSites(params: { q: string; site?: string }) {
   if (params.site) qs.set('site', params.site)
   return useQuery({
     queryKey: ['sites', params.q, params.site ?? ''],
-    queryFn: () => api.get<SitesListResponse>(`/sites?${qs.toString()}`),
+    queryFn: () => api.get(`/sites?${qs.toString()}`, SitesListResponseSchema),
   })
 }
 
@@ -19,7 +19,7 @@ export function useSite(name: string, params: { tab: string; variant?: string })
   const suffix = qs.toString()
   return useQuery({
     queryKey: ['site', name, params.tab, params.variant ?? ''],
-    queryFn: () => api.get<SiteDetailResponse>(`/sites/${encodeURIComponent(name)}${suffix ? `?${suffix}` : ''}`),
+    queryFn: () => api.get(`/sites/${encodeURIComponent(name)}${suffix ? `?${suffix}` : ''}`, SiteDetailResponseSchema),
     enabled: !!name,
   })
 }

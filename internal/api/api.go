@@ -9,8 +9,10 @@ package api
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
+	"github.com/nagiflow/nagipath/internal/collect"
 	"github.com/nagiflow/nagipath/internal/license"
 	"github.com/nagiflow/nagipath/internal/store"
 )
@@ -26,6 +28,11 @@ type Server struct {
 	// badge — a public trial instance refuses every Probe outright, and an
 	// operator needs to know before clicking one.
 	DemoMode bool
+	// Collector and Log are set directly by internal/web after New (same
+	// pattern web.go's own doc comment uses for StartedAt/ListenAddr/
+	// TLSEnabled: New's parameter list is long enough already).
+	Collector *collect.Collector
+	Log       *slog.Logger
 
 	mux *http.ServeMux
 }
@@ -39,6 +46,14 @@ func New(db *store.DB, licenseStatus func(context.Context) (license.Status, stri
 	m.HandleFunc("POST /clusters/rename", s.requireAdmin(s.postRenameCluster))
 	m.HandleFunc("GET /sites", s.requireAuth(s.getSites))
 	m.HandleFunc("GET /sites/{name}", s.requireAuth(s.getSite))
+	m.HandleFunc("GET /nodes", s.requireAuth(s.getNodes))
+	m.HandleFunc("POST /nodes", s.requireAdmin(s.postAddNode))
+	m.HandleFunc("GET /nodes/{id}", s.requireAuth(s.getNode))
+	m.HandleFunc("GET /nodes/{id}/{tab}", s.requireAuth(s.getNode))
+	m.HandleFunc("POST /nodes/{id}/collect", s.requireAdmin(s.postCollectNode))
+	m.HandleFunc("POST /nodes/{id}/delete", s.requireAdmin(s.postDeleteNode))
+	m.HandleFunc("POST /nodes/{id}/credential", s.requireAdmin(s.postChangeNodeCredential))
+	m.HandleFunc("POST /hostkeys/{id}/decide", s.requireAdmin(s.postDecideHostKey))
 	s.mux = m
 	return s
 }

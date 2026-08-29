@@ -15,7 +15,7 @@ import {
 } from '@elastic/eui'
 import { useSearchParams } from 'react-router-dom'
 import { useSites } from '../../api/queries/sites'
-import type { SiteListRow } from '../../api/types'
+import type { SiteListRow } from '../../api/pb/nagipath/api/v1/sites_pb'
 
 const stateColor: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
   OK: 'success',
@@ -35,17 +35,17 @@ export function SitesListPage() {
 
   const columns = [
     {
-      field: 'Name',
+      field: 'name',
       name: 'Hostname',
       render: (name: string) => <EuiLink href={`/sites/${encodeURIComponent(name)}`}>{name}</EuiLink>,
     },
-    { field: 'Nodes', name: 'Nodes' },
-    { field: 'ListenerSummary', name: 'Listener' },
-    { field: 'CertSubject', name: 'Certificate' },
-    { field: 'Routes', name: 'Routes' },
-    { field: 'Variants', name: 'Config', render: (v: number) => (v > 1 ? <EuiBadge color="warning">{v} variants</EuiBadge> : 'IDENTICAL') },
+    { field: 'nodes', name: 'Nodes' },
+    { field: 'listenerSummary', name: 'Listener' },
+    { field: 'certSubject', name: 'Certificate' },
+    { field: 'routes', name: 'Routes' },
+    { field: 'variants', name: 'Config', render: (v: number) => (v > 1 ? <EuiBadge color="warning">{v} variants</EuiBadge> : 'IDENTICAL') },
     {
-      field: 'State',
+      field: 'state',
       name: 'State',
       render: (state: string) => <EuiBadge color={stateColor[state] ?? 'default'}>{state}</EuiBadge>,
     },
@@ -59,11 +59,11 @@ export function SitesListPage() {
       <EuiSpacer />
 
       <EuiFlexGroup>
-        <EuiFlexItem grow={false}><EuiPanel><EuiStat title={data.Stats.Hostnames} description="Hostnames" titleColor="primary" /></EuiPanel></EuiFlexItem>
-        <EuiFlexItem grow={false}><EuiPanel><EuiStat title={data.Stats.TLSTerminated} description="TLS terminated" titleColor="primary" /></EuiPanel></EuiFlexItem>
-        <EuiFlexItem grow={false}><EuiPanel><EuiStat title={data.Stats.Plaintext} description="Plaintext" titleColor={data.Stats.Plaintext > 0 ? 'warning' : 'primary'} /></EuiPanel></EuiFlexItem>
-        <EuiFlexItem grow={false}><EuiPanel><EuiStat title={data.Stats.ExpiringCerts} description="Certs expiring" titleColor={data.Stats.ExpiringCerts > 0 ? 'warning' : 'primary'} /></EuiPanel></EuiFlexItem>
-        <EuiFlexItem grow={false}><EuiPanel><EuiStat title={data.Stats.VariantHosts} description="Variant hosts" titleColor="primary" /></EuiPanel></EuiFlexItem>
+        <EuiFlexItem grow={false}><EuiPanel><EuiStat title={data.stats?.hostnames ?? 0} description="Hostnames" titleColor="primary" /></EuiPanel></EuiFlexItem>
+        <EuiFlexItem grow={false}><EuiPanel><EuiStat title={data.stats?.tlsTerminated ?? 0} description="TLS terminated" titleColor="primary" /></EuiPanel></EuiFlexItem>
+        <EuiFlexItem grow={false}><EuiPanel><EuiStat title={data.stats?.plaintext ?? 0} description="Plaintext" titleColor={(data.stats?.plaintext ?? 0) > 0 ? 'warning' : 'primary'} /></EuiPanel></EuiFlexItem>
+        <EuiFlexItem grow={false}><EuiPanel><EuiStat title={data.stats?.expiringCerts ?? 0} description="Certs expiring" titleColor={(data.stats?.expiringCerts ?? 0) > 0 ? 'warning' : 'primary'} /></EuiPanel></EuiFlexItem>
+        <EuiFlexItem grow={false}><EuiPanel><EuiStat title={data.stats?.variantHosts ?? 0} description="Variant hosts" titleColor="primary" /></EuiPanel></EuiFlexItem>
       </EuiFlexGroup>
       <EuiSpacer />
 
@@ -77,9 +77,9 @@ export function SitesListPage() {
 
       <EuiPanel>
         <EuiBasicTable<SiteListRow>
-          items={data.Rows}
+          items={data.rows}
           columns={columns}
-          rowHeader="Name"
+          rowHeader="name"
           noItemsMessage={
             <EuiText size="s" color="subdued">
               {q ? 'No sites match this filter.' : 'No sites collected yet.'}

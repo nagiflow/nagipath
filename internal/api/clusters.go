@@ -7,52 +7,14 @@ import (
 	"strconv"
 	"strings"
 
+	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
 	"github.com/nagiflow/nagipath/internal/store"
 )
 
-type clusterListItem struct {
-	ID                 int64  `json:"id"`
-	Name               string `json:"name"`
-	Members            int    `json:"members"`
-	Vendor             string `json:"vendor"`
-	GoldenPeerName     string `json:"golden_peer_name,omitempty"`
-	DriftCount         int    `json:"drift_count"`
-	CertsExpiring30d   int    `json:"certs_expiring_30d"`
-	LastCollected      string `json:"last_collected,omitempty"`
-	InstancesCollected int    `json:"instances_collected"`
-}
-
-type clusterMemberItem struct {
-	ID          int64  `json:"id"`
-	DisplayName string `json:"display_name"`
-	// Divergence is omitted (not just zero) when the instance has never been
-	// compared — "0 diffs" and "never compared" are different facts.
-	Divergence *int64 `json:"divergence,omitempty"`
-	IsGolden   bool   `json:"is_golden"`
-}
-
-type clusterDetailResponse struct {
-	ID             int64               `json:"id"`
-	Name           string              `json:"name"`
-	Members        int                 `json:"members"`
-	Vendor         string              `json:"vendor,omitempty"`
-	GoldenPeerName string              `json:"golden_peer_name,omitempty"`
-	LastCollected  string              `json:"last_collected,omitempty"`
-	MemberList     []clusterMemberItem `json:"member_list"`
-}
-
-type clustersResponse struct {
-	Clusters    []clusterListItem      `json:"clusters"`
-	Total       int                    `json:"total"`
-	Query       string                 `json:"query"`
-	DriftFilter string                 `json:"drift_filter"`
-	Sort        string                 `json:"sort"`
-	Selected    *clusterDetailResponse `json:"selected,omitempty"`
-}
-
 // getClusters ports internal/web/clusters.go's clusters() — same discovery
 // call, same filters (?q=, ?drift=, ?sort=) and sort orders, same optional
-// selected-cluster detail panel (?cluster=) — as JSON.
+// selected-cluster detail panel (?cluster=) — as
+// proto/nagipath/api/v1/clusters.proto's ClustersResponse (docs/adr/0018).
 func (s *Server) getClusters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if err := s.DB.ReconcileClusters(ctx); err != nil {
@@ -61,7 +23,7 @@ func (s *Server) getClusters(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := r.URL.Query()
-	resp := clustersResponse{Clusters: []clusterListItem{}}
+	resp := &pb.ClustersResponse{}
 	resp.Query = strings.TrimSpace(q.Get("q"))
 	resp.DriftFilter = q.Get("drift")
 	if resp.DriftFilter == "" {
@@ -88,7 +50,7 @@ func (s *Server) getClusters(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	members := map[int64][]store.Instance{}
-	resp.Total = len(instances)
+	resp.Total = int32(len(instances))
 	for _, in := range instances {
 		if in.ClusterID.Valid {
 			members[in.ClusterID.Int64] = append(members[in.ClusterID.Int64], in)
@@ -100,12 +62,12 @@ func (s *Server) getClusters(w http.ResponseWriter, r *http.Request) {
 		if len(mem) == 0 {
 			continue
 		}
-		row := clusterListItem{ID: c.ID, Name: c.Name, Members: c.Members,
+		row := &pb.ClusterListItem{Id: c.ID, Name: c.Name, Members: int32(c.Members),
 			Vendor: mem[0].Vendor, GoldenPeerName: c.GoldenPeerName,
-			InstancesCollected: len(mem)}
+			InstancesCollected: int32(len(mem))}
 		if agg, ok := aggs[c.ID]; ok {
-			row.DriftCount = agg.DriftCount
-			row.CertsExpiring30d = agg.CertsExpiring30d
+			row.DriftCount = int32(agg.DriftCount)
+			row.CertsExpiring_30D = int32(agg.CertsExpiring30d)
 			if agg.LastCollected.Valid {
 				row.LastCollected = agg.LastCollected.String
 			}
@@ -129,8 +91,8 @@ func (s *Server) getClusters(w http.ResponseWriter, r *http.Request) {
 		case "name":
 			return a.Name < b.Name
 		case "certs":
-			if a.CertsExpiring30d != b.CertsExpiring30d {
-				return a.CertsExpiring30d > b.CertsExpiring30d
+			if a.CertsExpiring_30D != b.CertsExpiring_30D {
+				return a.CertsExpiring_30D > b.CertsExpiring_30D
 			}
 		case "collected":
 			if a.LastCollected != b.LastCollected {
@@ -155,10 +117,10 @@ func (s *Server) getClusters(w http.ResponseWriter, r *http.Request) {
 					apiError(w, http.StatusServiceUnavailable, "datastore_unavailable", err.Error())
 					return
 				}
-				det := &clusterDetailResponse{ID: c.ID, Name: c.Name, Members: c.Members,
-					GoldenPeerName: c.GoldenPeerName, MemberList: []clusterMemberItem{}}
+				det := &pb.ClusterDetail{Id: c.ID, Name: c.Name, Members: int32(c.Members),
+					GoldenPeerName: c.GoldenPeerName}
 				for _, m := range mems {
-					item := clusterMemberItem{ID: m.ID, DisplayName: m.DisplayName,
+					item := &pb.ClusterMemberItem{Id: m.ID, DisplayName: m.DisplayName,
 						IsGolden: c.GoldenPeer.Valid && c.GoldenPeer.Int64 == m.ID}
 					if m.Divergence.Valid {
 						v := m.Divergence.Int64
@@ -181,11 +143,13 @@ func (s *Server) getClusters(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, resp)
+	writeProto(w, http.StatusOK, resp)
 }
 
 // postRenameCluster ports internal/web/clusters.go's renameCluster(): the
-// only editable field a discovered cluster has.
+// only editable field a discovered cluster has. Not a proto message on
+// either side — a rename is a fire-and-forget mutation, not a resource with
+// a shape worth a generated type (see client.ts's postAction).
 func (s *Server) postRenameCluster(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Cluster int64  `json:"cluster"`

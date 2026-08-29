@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../client'
-import type { DashboardResponse } from '../types'
+import { DashboardResponseSchema } from '../pb/nagipath/api/v1/dashboard_pb'
 
 export function useDashboard(params: { cluster?: number; severity?: string; attentionCluster?: number }) {
   const q = new URLSearchParams()
@@ -11,6 +11,6 @@ export function useDashboard(params: { cluster?: number; severity?: string; atte
 
   return useQuery({
     queryKey: ['dashboard', params.cluster ?? 0, params.severity ?? 'all', params.attentionCluster ?? 0],
-    queryFn: () => api.get<DashboardResponse>(`/dashboard${qs ? `?${qs}` : ''}`),
+    queryFn: () => api.get(`/dashboard${qs ? `?${qs}` : ''}`, DashboardResponseSchema),
   })
 }

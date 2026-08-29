@@ -81,3 +81,27 @@ func TestSitesServesSPAShell(t *testing.T) {
 		}
 	}
 }
+
+// TestNodesServesSPAShell mirrors TestDashboardServesSPAShell for the Nodes
+// routes cut over to the SPA (docs/adr/0017, Phase 2). /nodes/{id} always
+// 200s at this level, even for an id that doesn't exist — that check moved
+// to NodeDetailPage's client-side handling of the API's 404 (see
+// web_test.go's TestNotFoundIsAPageInsideTheShell).
+func TestNodesServesSPAShell(t *testing.T) {
+	s, _ := newTestServer(t)
+	c := &client{t: t, s: s}
+	c.post("/setup", url.Values{
+		"username": {"admin"}, "password": {"a good long password"},
+		"confirm": {"a good long password"},
+	})
+
+	for _, path := range []string{"/nodes", "/nodes/4242"} {
+		w := c.get(path)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d", path, w.Code)
+		}
+		if body := w.Body.String(); !strings.Contains(body, `id="root"`) {
+			t.Errorf("GET %s did not return the SPA shell:\n%s", path, body)
+		}
+	}
+}

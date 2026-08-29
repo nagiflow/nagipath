@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+message DashboardAttention {
+  string kind = 1;
+  string tone = 2;
+  string text = 3;
+  string note = 4;
+  string link = 5;
+  string cluster = 6;
+  string since = 7;
+}
+
+message DashboardActivityBucket {
+  string label = 1;
+  int32 total = 2;
+  int32 failed = 3;
+  int32 degraded = 4;
+}
+
+message DashboardRiskCluster {
+  int64 id = 1;
+  string name = 2;
+  int32 nodes = 3;
+  int32 fresh = 4;
+  int32 fresh_percent = 5;
+  int32 drift = 6;
+  string certs_label = 7;
+  string state = 8;
+  int32 risk = 9;
+}
+
+message DashboardCollection {
+  int64 id = 1;
+  int64 node_id = 2;
+  string node_name = 3;
+  string trigger = 4;
+  string started_at = 5;
+  string status = 6;
+  string error = 7;
+}
+
+message DashboardCertificate {
+  int64 id = 1;
+  string subject_cn = 2;
+  string not_after = 3;
+  int32 bindings = 4;
+}
+
+message DashboardCluster {
+  int64 id = 1;
+  string name = 2;
+}
+
+message DashboardTrace {
+  int64 id = 1;
+  string hostname = 2;
+  string path = 3;
+  string computed_at = 4;
+  int32 hop_count = 5;
+  string confidence = 6;
+  string terminal_reason = 7;
+}
+
+message DashboardResponse {
+  int32 nodes = 1;
+  int32 instances = 2;
+  int32 vendor_count = 3;
+  int32 degraded = 4;
+  int32 pending_host_keys = 5;
+  int32 ok_instances = 6;
+  int32 unparsed_instances = 7;
+  int32 pending_instances = 8;
+  int32 certs_expiring_30d = 9;
+  int32 drifted_instances = 10;
+  int32 drifted_clusters = 11;
+  int32 fresh_instances = 12;
+  int32 aging_instances = 13;
+  int32 stale_instances = 14;
+  int32 total_rules = 15;
+  int32 cert_bindings_expiring = 16;
+  int32 unreachable_nodes = 17;
+  string unreachable_since = 18;
+
+  repeated DashboardAttention attention = 19;
+  repeated DashboardActivityBucket activity = 20;
+  int32 activity_max = 21;
+  repeated DashboardRiskCluster risk_clusters = 22;
+  repeated DashboardTrace recent_traces = 23;
+  repeated DashboardCollection recent_collections = 24;
+  repeated DashboardCertificate expiring_certificates = 25;
+  repeated DashboardCluster clusters = 26;
+
+  int64 selected_cluster = 27;
+  string attention_severity = 28;
+  int64 attention_cluster = 29;
+
+  string oldest_snapshot = 30;
+  string oldest_snapshot_node = 31;
+  double avg_collection_duration_seconds = 32;
+}

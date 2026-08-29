@@ -4,6 +4,8 @@ import { Dashboard } from '../pages/dashboard/Dashboard'
 import { ClustersPage } from '../pages/clusters/ClustersPage'
 import { SitesListPage } from '../pages/sites/SitesListPage'
 import { SiteDetailPage } from '../pages/sites/SiteDetailPage'
+import { NodesListPage } from '../pages/nodes/NodesListPage'
+import { NodeDetailPage } from '../pages/nodes/NodeDetailPage'
 
 // Every other nav link in AppShell still points at an internal/web
 // server-rendered page — a plain <a href>, a normal full-page navigation
@@ -40,6 +42,22 @@ export function AppRoutes() {
         element={
           <AppShell>
             <SiteDetailPage />
+          </AppShell>
+        }
+      />
+      <Route
+        path="/nodes"
+        element={
+          <AppShell>
+            <NodesListPage />
+          </AppShell>
+        }
+      />
+      <Route
+        path="/nodes/:id"
+        element={
+          <AppShell>
+            <NodeDetailPage />
           </AppShell>
         }
       />

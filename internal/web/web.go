@@ -105,6 +105,8 @@ func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode b
 		Dialer: &sshx.Dialer{DB: db, Master: master, Timeout: 20 * time.Second},
 	}}
 	s.api = api.New(db, s.LicenseStatus, demoMode)
+	s.api.Collector = s.collector
+	s.api.Log = log
 	s.routes()
 	return s, nil
 }
