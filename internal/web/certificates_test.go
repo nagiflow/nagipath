@@ -4,15 +4,17 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
+	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
 	"github.com/nagiflow/nagipath/internal/store"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// /certificates has to render at all: it is one ParseFS set, and a field that
-// only exists on one branch of one template takes every page down with it.
+// Certificates is the React SPA now (docs/adr/0017); GET /api/ui/certificates
+// has to render at all — same guarantee TestCertificatesRenders always
+// checked, just against the JSON API (docs/adr/0018) instead of HTML.
 func TestCertificatesRenders(t *testing.T) {
 	s, db := newTestServer(t)
 	if _, err := db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false); err != nil {
@@ -22,14 +24,17 @@ func TestCertificatesRenders(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.get("/certificates")
+	w := c.get("/api/ui/certificates")
 	if w.Code != http.StatusOK {
-		t.Fatalf("GET /certificates = %d\n%s", w.Code, w.Body.String())
+		t.Fatalf("GET /api/ui/certificates = %d\n%s", w.Code, w.Body.String())
 	}
-	// No certificate fixture exists, so this is the empty state, and the empty
-	// state has to say which of the three empties it is.
-	if !strings.Contains(w.Body.String(), "No certificates seen yet") {
-		t.Error("/certificates with no certificates does not say so")
+	var resp pb.CertificatesListResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode /api/ui/certificates: %v", err)
+	}
+	// No certificate fixture exists, so this is the empty state.
+	if len(resp.List) != 0 {
+		t.Errorf("List = %+v, want none with no certificates seen yet", resp.List)
 	}
 }
 
@@ -89,13 +94,13 @@ func TestCertificatesFilters(t *testing.T) {
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
 	tests := []string{
-		"/certificates?expires=30d",
-		"/certificates?expires=7d",
-		"/certificates?expires=expired",
-		"/certificates?issuer=test",
-		"/certificates?cluster=1",
-		"/certificates?include_cas=1",
-		"/certificates?expires=7d&cluster=1",
+		"/api/ui/certificates?expires=30d",
+		"/api/ui/certificates?expires=7d",
+		"/api/ui/certificates?expires=expired",
+		"/api/ui/certificates?issuer=test",
+		"/api/ui/certificates?cluster=1",
+		"/api/ui/certificates?include_cas=1",
+		"/api/ui/certificates?expires=7d&cluster=1",
 	}
 
 	for _, path := range tests {
@@ -116,8 +121,8 @@ func TestCertificateDetailNotFound(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	w := c.get("/certificates/999")
+	w := c.get("/api/ui/certificates/999")
 	if w.Code != http.StatusNotFound {
-		t.Errorf("GET /certificates/999 = %d, want 404", w.Code)
+		t.Errorf("GET /api/ui/certificates/999 = %d, want 404", w.Code)
 	}
 }

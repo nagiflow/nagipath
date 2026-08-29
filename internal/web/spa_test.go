@@ -105,3 +105,29 @@ func TestNodesServesSPAShell(t *testing.T) {
 		}
 	}
 }
+
+// TestAnalysisServesSPAShell mirrors TestDashboardServesSPAShell for the
+// Analysis group (Drift, Certificates, Snapshots) cut over to the SPA
+// (docs/adr/0017, Phase 3).
+func TestAnalysisServesSPAShell(t *testing.T) {
+	s, _ := newTestServer(t)
+	c := &client{t: t, s: s}
+	c.post("/setup", url.Values{
+		"username": {"admin"}, "password": {"a good long password"},
+		"confirm": {"a good long password"},
+	})
+
+	for _, path := range []string{
+		"/drift", "/drift/review/4242",
+		"/certificates", "/certificates/4242",
+		"/snapshots", "/snapshots/4242/file/1",
+	} {
+		w := c.get(path)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d", path, w.Code)
+		}
+		if body := w.Body.String(); !strings.Contains(body, `id="root"`) {
+			t.Errorf("GET %s did not return the SPA shell:\n%s", path, body)
+		}
+	}
+}

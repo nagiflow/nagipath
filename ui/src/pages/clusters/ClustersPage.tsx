@@ -18,15 +18,16 @@ import {
   EuiTitle,
 } from '@elastic/eui'
 import { useSearchParams } from 'react-router-dom'
-import { useClusters, useRenameCluster } from '../../api/queries/clusters'
+import { useClusters, useRenameCluster, useSetGoldenPeer } from '../../api/queries/clusters'
 import { useSession } from '../../api/queries/session'
 import type { ClusterListItem } from '../../api/pb/nagipath/api/v1/clusters_pb'
 
 // Ported from internal/web/templates/clusters.html against
 // GET/POST /api/ui/clusters (internal/api/clusters.go) — same filters, same
-// sort orders, same master/detail layout. "Change baseline" still posts to
-// the old server-rendered /drift/golden (Drift isn't ported until Phase 3),
-// as a plain form so the CSRF flow matches what that endpoint expects today.
+// sort orders, same master/detail layout. "Clear baseline" calls
+// POST /api/ui/drift/golden (internal/api/drift.go) — the original form only
+// ever cleared the golden peer (it had no instance picker), so the label was
+// renamed to say what it actually does.
 export function ClustersPage() {
   const [params, setParams] = useSearchParams()
   const { data: session } = useSession()
@@ -37,6 +38,7 @@ export function ClustersPage() {
 
   const { data, isPending, isError, error } = useClusters({ q, drift, sort: sortBy, cluster: selectedID })
   const rename = useRenameCluster()
+  const golden = useSetGoldenPeer()
   const [renameValue, setRenameValue] = useState('')
 
   if (isPending) return <EuiPageTemplate.EmptyPrompt icon={<EuiLoadingChart size="xl" />} title={<h2>Loading clusters…</h2>} />
@@ -158,11 +160,13 @@ export function ClustersPage() {
                 {session?.user?.role === 'admin' && (
                   <>
                     <EuiSpacer size="s" />
-                    <form method="post" action="/drift/golden">
-                      <input type="hidden" name="csrf" value={session.csrfToken} />
-                      <input type="hidden" name="cluster" value={data.selected.id.toString()} />
-                      <EuiButton type="submit" size="s">Change baseline</EuiButton>
-                    </form>
+                    <EuiButton
+                      size="s"
+                      isLoading={golden.isPending}
+                      onClick={() => golden.mutate({ cluster: Number(data.selected!.id) })}
+                    >
+                      Clear baseline
+                    </EuiButton>
                     <EuiSpacer size="s" />
                     <EuiFormRow label="Rename">
                       <EuiFlexGroup gutterSize="xs">

@@ -1393,6 +1393,14 @@ type DriftRun struct {
 	BaselineLabel string                 `protobuf:"bytes,4,opt,name=baseline_label,json=baselineLabel,proto3" json:"baseline_label,omitempty"`
 	ComputedAt    string                 `protobuf:"bytes,5,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
 	FindingCount  int32                  `protobuf:"varint,6,opt,name=finding_count,json=findingCount,proto3" json:"finding_count,omitempty"`
+	// The rest are unused by the node detail drift tab, populated for the
+	// fleet-wide Drift screen's "what was compared" panel (drift.proto).
+	InstanceName  string `protobuf:"bytes,7,opt,name=instance_name,json=instanceName,proto3" json:"instance_name,omitempty"`
+	NodeName      string `protobuf:"bytes,8,opt,name=node_name,json=nodeName,proto3" json:"node_name,omitempty"`
+	Vendor        string `protobuf:"bytes,9,opt,name=vendor,proto3" json:"vendor,omitempty"`
+	ParserVersion int32  `protobuf:"varint,10,opt,name=parser_version,json=parserVersion,proto3" json:"parser_version,omitempty"`
+	IgnoredCount  int32  `protobuf:"varint,11,opt,name=ignored_count,json=ignoredCount,proto3" json:"ignored_count,omitempty"`
+	IsGoldenPeer  bool   `protobuf:"varint,12,opt,name=is_golden_peer,json=isGoldenPeer,proto3" json:"is_golden_peer,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1469,6 +1477,131 @@ func (x *DriftRun) GetFindingCount() int32 {
 	return 0
 }
 
+func (x *DriftRun) GetInstanceName() string {
+	if x != nil {
+		return x.InstanceName
+	}
+	return ""
+}
+
+func (x *DriftRun) GetNodeName() string {
+	if x != nil {
+		return x.NodeName
+	}
+	return ""
+}
+
+func (x *DriftRun) GetVendor() string {
+	if x != nil {
+		return x.Vendor
+	}
+	return ""
+}
+
+func (x *DriftRun) GetParserVersion() int32 {
+	if x != nil {
+		return x.ParserVersion
+	}
+	return 0
+}
+
+func (x *DriftRun) GetIgnoredCount() int32 {
+	if x != nil {
+		return x.IgnoredCount
+	}
+	return 0
+}
+
+func (x *DriftRun) GetIsGoldenPeer() bool {
+	if x != nil {
+		return x.IsGoldenPeer
+	}
+	return false
+}
+
+// Provenance is the file and byte offset a derived fact was parsed from —
+// the product's trust mechanism (internal/web/templates/parts/prov.html),
+// present on rules, routes, sites, listeners, upstreams, certificate
+// bindings and drift findings without exception. link is precomputed here
+// (empty when there's no file recorded — parsed before provenance was
+// tracked) rather than built client-side from the raw ids, matching this
+// package's "no business logic recomputed in TypeScript" rule (ADR-0018).
+type Provenance struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	SnapshotId    int64                  `protobuf:"varint,2,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	FileId        int64                  `protobuf:"varint,3,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	ByteStart     int64                  `protobuf:"varint,4,opt,name=byte_start,json=byteStart,proto3" json:"byte_start,omitempty"`
+	Link          string                 `protobuf:"bytes,5,opt,name=link,proto3" json:"link,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Provenance) Reset() {
+	*x = Provenance{}
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Provenance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Provenance) ProtoMessage() {}
+
+func (x *Provenance) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Provenance.ProtoReflect.Descriptor instead.
+func (*Provenance) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *Provenance) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *Provenance) GetSnapshotId() int64 {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return 0
+}
+
+func (x *Provenance) GetFileId() int64 {
+	if x != nil {
+		return x.FileId
+	}
+	return 0
+}
+
+func (x *Provenance) GetByteStart() int64 {
+	if x != nil {
+		return x.ByteStart
+	}
+	return 0
+}
+
+func (x *Provenance) GetLink() string {
+	if x != nil {
+		return x.Link
+	}
+	return ""
+}
+
 type DriftFinding struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1479,13 +1612,14 @@ type DriftFinding struct {
 	BaselineText  string                 `protobuf:"bytes,6,opt,name=baseline_text,json=baselineText,proto3" json:"baseline_text,omitempty"`
 	SubjectText   string                 `protobuf:"bytes,7,opt,name=subject_text,json=subjectText,proto3" json:"subject_text,omitempty"`
 	ActionClass   string                 `protobuf:"bytes,8,opt,name=action_class,json=actionClass,proto3" json:"action_class,omitempty"`
+	Provenance    *Provenance            `protobuf:"bytes,9,opt,name=provenance,proto3" json:"provenance,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DriftFinding) Reset() {
 	*x = DriftFinding{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[14]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1497,7 +1631,7 @@ func (x *DriftFinding) String() string {
 func (*DriftFinding) ProtoMessage() {}
 
 func (x *DriftFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[14]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1510,7 +1644,7 @@ func (x *DriftFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DriftFinding.ProtoReflect.Descriptor instead.
 func (*DriftFinding) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{14}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DriftFinding) GetId() int64 {
@@ -1569,6 +1703,13 @@ func (x *DriftFinding) GetActionClass() string {
 	return ""
 }
 
+func (x *DriftFinding) GetProvenance() *Provenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
 // Route mirrors internal/trace.Route: one match rule inside a site, possibly
 // with children (nested location blocks). Recursive on purpose — the
 // frontend renders the same tree structure the config actually has.
@@ -1588,7 +1729,7 @@ type Route struct {
 
 func (x *Route) Reset() {
 	*x = Route{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[15]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1600,7 +1741,7 @@ func (x *Route) String() string {
 func (*Route) ProtoMessage() {}
 
 func (x *Route) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[15]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1613,7 +1754,7 @@ func (x *Route) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Route.ProtoReflect.Descriptor instead.
 func (*Route) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{15}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Route) GetId() int64 {
@@ -1685,7 +1826,7 @@ type Site struct {
 
 func (x *Site) Reset() {
 	*x = Site{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[16]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1697,7 +1838,7 @@ func (x *Site) String() string {
 func (*Site) ProtoMessage() {}
 
 func (x *Site) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[16]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1710,7 +1851,7 @@ func (x *Site) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Site.ProtoReflect.Descriptor instead.
 func (*Site) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{16}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *Site) GetId() int64 {
@@ -1761,7 +1902,7 @@ type UpstreamMemberRef struct {
 
 func (x *UpstreamMemberRef) Reset() {
 	*x = UpstreamMemberRef{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[17]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1773,7 +1914,7 @@ func (x *UpstreamMemberRef) String() string {
 func (*UpstreamMemberRef) ProtoMessage() {}
 
 func (x *UpstreamMemberRef) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[17]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1786,7 +1927,7 @@ func (x *UpstreamMemberRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpstreamMemberRef.ProtoReflect.Descriptor instead.
 func (*UpstreamMemberRef) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{17}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpstreamMemberRef) GetId() int64 {
@@ -1837,7 +1978,7 @@ type Upstream struct {
 
 func (x *Upstream) Reset() {
 	*x = Upstream{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[18]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1849,7 +1990,7 @@ func (x *Upstream) String() string {
 func (*Upstream) ProtoMessage() {}
 
 func (x *Upstream) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[18]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1862,7 +2003,7 @@ func (x *Upstream) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Upstream.ProtoReflect.Descriptor instead.
 func (*Upstream) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{18}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Upstream) GetId() int64 {
@@ -1919,7 +2060,7 @@ type Inst struct {
 
 func (x *Inst) Reset() {
 	*x = Inst{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[19]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1931,7 +2072,7 @@ func (x *Inst) String() string {
 func (*Inst) ProtoMessage() {}
 
 func (x *Inst) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[19]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1944,7 +2085,7 @@ func (x *Inst) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Inst.ProtoReflect.Descriptor instead.
 func (*Inst) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{19}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Inst) GetId() int64 {
@@ -2015,7 +2156,7 @@ type NodeTabItem struct {
 
 func (x *NodeTabItem) Reset() {
 	*x = NodeTabItem{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[20]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2027,7 +2168,7 @@ func (x *NodeTabItem) String() string {
 func (*NodeTabItem) ProtoMessage() {}
 
 func (x *NodeTabItem) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[20]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2040,7 +2181,7 @@ func (x *NodeTabItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeTabItem.ProtoReflect.Descriptor instead.
 func (*NodeTabItem) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{20}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *NodeTabItem) GetLabel() string {
@@ -2083,7 +2224,7 @@ type RouteEffect struct {
 
 func (x *RouteEffect) Reset() {
 	*x = RouteEffect{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[21]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2095,7 +2236,7 @@ func (x *RouteEffect) String() string {
 func (*RouteEffect) ProtoMessage() {}
 
 func (x *RouteEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[21]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2108,7 +2249,7 @@ func (x *RouteEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteEffect.ProtoReflect.Descriptor instead.
 func (*RouteEffect) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{21}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RouteEffect) GetUpstreamName() string {
@@ -2178,7 +2319,7 @@ type NodeDetailResponse struct {
 
 func (x *NodeDetailResponse) Reset() {
 	*x = NodeDetailResponse{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[22]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2190,7 +2331,7 @@ func (x *NodeDetailResponse) String() string {
 func (*NodeDetailResponse) ProtoMessage() {}
 
 func (x *NodeDetailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[22]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2203,7 +2344,7 @@ func (x *NodeDetailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeDetailResponse.ProtoReflect.Descriptor instead.
 func (*NodeDetailResponse) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{22}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *NodeDetailResponse) GetNode() *Node {
@@ -2574,7 +2715,7 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"file_count\x18\x05 \x01(\x05R\tfileCount\x12\x1b\n" +
 	"\tbytes_raw\x18\x06 \x01(\x03R\bbytesRaw\x12\x1f\n" +
 	"\vparse_state\x18\a \x01(\tR\n" +
-	"parseState\"\xcd\x01\n" +
+	"parseState\"\x99\x03\n" +
 	"\bDriftRun\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vinstance_id\x18\x02 \x01(\x03R\n" +
@@ -2583,7 +2724,23 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\x0ebaseline_label\x18\x04 \x01(\tR\rbaselineLabel\x12\x1f\n" +
 	"\vcomputed_at\x18\x05 \x01(\tR\n" +
 	"computedAt\x12#\n" +
-	"\rfinding_count\x18\x06 \x01(\x05R\ffindingCount\"\xf9\x01\n" +
+	"\rfinding_count\x18\x06 \x01(\x05R\ffindingCount\x12#\n" +
+	"\rinstance_name\x18\a \x01(\tR\finstanceName\x12\x1b\n" +
+	"\tnode_name\x18\b \x01(\tR\bnodeName\x12\x16\n" +
+	"\x06vendor\x18\t \x01(\tR\x06vendor\x12%\n" +
+	"\x0eparser_version\x18\n" +
+	" \x01(\x05R\rparserVersion\x12#\n" +
+	"\rignored_count\x18\v \x01(\x05R\fignoredCount\x12$\n" +
+	"\x0eis_golden_peer\x18\f \x01(\bR\fisGoldenPeer\"\x8d\x01\n" +
+	"\n" +
+	"Provenance\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1f\n" +
+	"\vsnapshot_id\x18\x02 \x01(\x03R\n" +
+	"snapshotId\x12\x17\n" +
+	"\afile_id\x18\x03 \x01(\x03R\x06fileId\x12\x1d\n" +
+	"\n" +
+	"byte_start\x18\x04 \x01(\x03R\tbyteStart\x12\x12\n" +
+	"\x04link\x18\x05 \x01(\tR\x04link\"\xb6\x02\n" +
 	"\fDriftFinding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vobject_kind\x18\x02 \x01(\tR\n" +
@@ -2594,7 +2751,10 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\x05field\x18\x05 \x01(\tR\x05field\x12#\n" +
 	"\rbaseline_text\x18\x06 \x01(\tR\fbaselineText\x12!\n" +
 	"\fsubject_text\x18\a \x01(\tR\vsubjectText\x12!\n" +
-	"\faction_class\x18\b \x01(\tR\vactionClass\"\xff\x01\n" +
+	"\faction_class\x18\b \x01(\tR\vactionClass\x12;\n" +
+	"\n" +
+	"provenance\x18\t \x01(\v2\x1b.nagipath.api.v1.ProvenanceR\n" +
+	"provenance\"\xff\x01\n" +
 	"\x05Route\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
 	"\n" +
@@ -2697,7 +2857,7 @@ func file_nagipath_api_v1_nodes_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_nodes_proto_rawDescData
 }
 
-var file_nagipath_api_v1_nodes_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_nagipath_api_v1_nodes_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_nagipath_api_v1_nodes_proto_goTypes = []any{
 	(*NodeListRow)(nil),        // 0: nagipath.api.v1.NodeListRow
 	(*NodesListResponse)(nil),  // 1: nagipath.api.v1.NodesListResponse
@@ -2713,52 +2873,54 @@ var file_nagipath_api_v1_nodes_proto_goTypes = []any{
 	(*FileRef)(nil),            // 11: nagipath.api.v1.FileRef
 	(*Snapshot)(nil),           // 12: nagipath.api.v1.Snapshot
 	(*DriftRun)(nil),           // 13: nagipath.api.v1.DriftRun
-	(*DriftFinding)(nil),       // 14: nagipath.api.v1.DriftFinding
-	(*Route)(nil),              // 15: nagipath.api.v1.Route
-	(*Site)(nil),               // 16: nagipath.api.v1.Site
-	(*UpstreamMemberRef)(nil),  // 17: nagipath.api.v1.UpstreamMemberRef
-	(*Upstream)(nil),           // 18: nagipath.api.v1.Upstream
-	(*Inst)(nil),               // 19: nagipath.api.v1.Inst
-	(*NodeTabItem)(nil),        // 20: nagipath.api.v1.NodeTabItem
-	(*RouteEffect)(nil),        // 21: nagipath.api.v1.RouteEffect
-	(*NodeDetailResponse)(nil), // 22: nagipath.api.v1.NodeDetailResponse
-	nil,                        // 23: nagipath.api.v1.NodeDetailResponse.DriftByObjectEntry
+	(*Provenance)(nil),         // 14: nagipath.api.v1.Provenance
+	(*DriftFinding)(nil),       // 15: nagipath.api.v1.DriftFinding
+	(*Route)(nil),              // 16: nagipath.api.v1.Route
+	(*Site)(nil),               // 17: nagipath.api.v1.Site
+	(*UpstreamMemberRef)(nil),  // 18: nagipath.api.v1.UpstreamMemberRef
+	(*Upstream)(nil),           // 19: nagipath.api.v1.Upstream
+	(*Inst)(nil),               // 20: nagipath.api.v1.Inst
+	(*NodeTabItem)(nil),        // 21: nagipath.api.v1.NodeTabItem
+	(*RouteEffect)(nil),        // 22: nagipath.api.v1.RouteEffect
+	(*NodeDetailResponse)(nil), // 23: nagipath.api.v1.NodeDetailResponse
+	nil,                        // 24: nagipath.api.v1.NodeDetailResponse.DriftByObjectEntry
 }
 var file_nagipath_api_v1_nodes_proto_depIdxs = []int32{
 	0,  // 0: nagipath.api.v1.NodesListResponse.nodes:type_name -> nagipath.api.v1.NodeListRow
 	5,  // 1: nagipath.api.v1.PendingHostKey.key:type_name -> nagipath.api.v1.HostKey
-	15, // 2: nagipath.api.v1.Route.children:type_name -> nagipath.api.v1.Route
-	15, // 3: nagipath.api.v1.Site.routes:type_name -> nagipath.api.v1.Route
-	17, // 4: nagipath.api.v1.Upstream.members:type_name -> nagipath.api.v1.UpstreamMemberRef
-	16, // 5: nagipath.api.v1.Inst.sites:type_name -> nagipath.api.v1.Site
-	18, // 6: nagipath.api.v1.Inst.upstreams:type_name -> nagipath.api.v1.Upstream
-	17, // 7: nagipath.api.v1.RouteEffect.members:type_name -> nagipath.api.v1.UpstreamMemberRef
-	2,  // 8: nagipath.api.v1.NodeDetailResponse.node:type_name -> nagipath.api.v1.Node
-	3,  // 9: nagipath.api.v1.NodeDetailResponse.credentials:type_name -> nagipath.api.v1.Credential
-	4,  // 10: nagipath.api.v1.NodeDetailResponse.instances:type_name -> nagipath.api.v1.Instance
-	4,  // 11: nagipath.api.v1.NodeDetailResponse.selected:type_name -> nagipath.api.v1.Instance
-	5,  // 12: nagipath.api.v1.NodeDetailResponse.host_keys:type_name -> nagipath.api.v1.HostKey
-	6,  // 13: nagipath.api.v1.NodeDetailResponse.pending_keys:type_name -> nagipath.api.v1.PendingHostKey
-	7,  // 14: nagipath.api.v1.NodeDetailResponse.stats:type_name -> nagipath.api.v1.NodeStats
-	20, // 15: nagipath.api.v1.NodeDetailResponse.tabs:type_name -> nagipath.api.v1.NodeTabItem
-	19, // 16: nagipath.api.v1.NodeDetailResponse.inst:type_name -> nagipath.api.v1.Inst
-	8,  // 17: nagipath.api.v1.NodeDetailResponse.upstreams:type_name -> nagipath.api.v1.UpstreamPool
-	8,  // 18: nagipath.api.v1.NodeDetailResponse.selected_pool:type_name -> nagipath.api.v1.UpstreamPool
-	9,  // 19: nagipath.api.v1.NodeDetailResponse.pool_members:type_name -> nagipath.api.v1.UpstreamMember
-	10, // 20: nagipath.api.v1.NodeDetailResponse.certificates:type_name -> nagipath.api.v1.NodeCertBinding
-	11, // 21: nagipath.api.v1.NodeDetailResponse.files:type_name -> nagipath.api.v1.FileRef
-	12, // 22: nagipath.api.v1.NodeDetailResponse.snapshot:type_name -> nagipath.api.v1.Snapshot
-	11, // 23: nagipath.api.v1.NodeDetailResponse.selected_file:type_name -> nagipath.api.v1.FileRef
-	13, // 24: nagipath.api.v1.NodeDetailResponse.drift_runs:type_name -> nagipath.api.v1.DriftRun
-	14, // 25: nagipath.api.v1.NodeDetailResponse.drift_findings:type_name -> nagipath.api.v1.DriftFinding
-	23, // 26: nagipath.api.v1.NodeDetailResponse.drift_by_object:type_name -> nagipath.api.v1.NodeDetailResponse.DriftByObjectEntry
-	15, // 27: nagipath.api.v1.NodeDetailResponse.selected_route:type_name -> nagipath.api.v1.Route
-	21, // 28: nagipath.api.v1.NodeDetailResponse.route_effect:type_name -> nagipath.api.v1.RouteEffect
-	29, // [29:29] is the sub-list for method output_type
-	29, // [29:29] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	14, // 2: nagipath.api.v1.DriftFinding.provenance:type_name -> nagipath.api.v1.Provenance
+	16, // 3: nagipath.api.v1.Route.children:type_name -> nagipath.api.v1.Route
+	16, // 4: nagipath.api.v1.Site.routes:type_name -> nagipath.api.v1.Route
+	18, // 5: nagipath.api.v1.Upstream.members:type_name -> nagipath.api.v1.UpstreamMemberRef
+	17, // 6: nagipath.api.v1.Inst.sites:type_name -> nagipath.api.v1.Site
+	19, // 7: nagipath.api.v1.Inst.upstreams:type_name -> nagipath.api.v1.Upstream
+	18, // 8: nagipath.api.v1.RouteEffect.members:type_name -> nagipath.api.v1.UpstreamMemberRef
+	2,  // 9: nagipath.api.v1.NodeDetailResponse.node:type_name -> nagipath.api.v1.Node
+	3,  // 10: nagipath.api.v1.NodeDetailResponse.credentials:type_name -> nagipath.api.v1.Credential
+	4,  // 11: nagipath.api.v1.NodeDetailResponse.instances:type_name -> nagipath.api.v1.Instance
+	4,  // 12: nagipath.api.v1.NodeDetailResponse.selected:type_name -> nagipath.api.v1.Instance
+	5,  // 13: nagipath.api.v1.NodeDetailResponse.host_keys:type_name -> nagipath.api.v1.HostKey
+	6,  // 14: nagipath.api.v1.NodeDetailResponse.pending_keys:type_name -> nagipath.api.v1.PendingHostKey
+	7,  // 15: nagipath.api.v1.NodeDetailResponse.stats:type_name -> nagipath.api.v1.NodeStats
+	21, // 16: nagipath.api.v1.NodeDetailResponse.tabs:type_name -> nagipath.api.v1.NodeTabItem
+	20, // 17: nagipath.api.v1.NodeDetailResponse.inst:type_name -> nagipath.api.v1.Inst
+	8,  // 18: nagipath.api.v1.NodeDetailResponse.upstreams:type_name -> nagipath.api.v1.UpstreamPool
+	8,  // 19: nagipath.api.v1.NodeDetailResponse.selected_pool:type_name -> nagipath.api.v1.UpstreamPool
+	9,  // 20: nagipath.api.v1.NodeDetailResponse.pool_members:type_name -> nagipath.api.v1.UpstreamMember
+	10, // 21: nagipath.api.v1.NodeDetailResponse.certificates:type_name -> nagipath.api.v1.NodeCertBinding
+	11, // 22: nagipath.api.v1.NodeDetailResponse.files:type_name -> nagipath.api.v1.FileRef
+	12, // 23: nagipath.api.v1.NodeDetailResponse.snapshot:type_name -> nagipath.api.v1.Snapshot
+	11, // 24: nagipath.api.v1.NodeDetailResponse.selected_file:type_name -> nagipath.api.v1.FileRef
+	13, // 25: nagipath.api.v1.NodeDetailResponse.drift_runs:type_name -> nagipath.api.v1.DriftRun
+	15, // 26: nagipath.api.v1.NodeDetailResponse.drift_findings:type_name -> nagipath.api.v1.DriftFinding
+	24, // 27: nagipath.api.v1.NodeDetailResponse.drift_by_object:type_name -> nagipath.api.v1.NodeDetailResponse.DriftByObjectEntry
+	16, // 28: nagipath.api.v1.NodeDetailResponse.selected_route:type_name -> nagipath.api.v1.Route
+	22, // 29: nagipath.api.v1.NodeDetailResponse.route_effect:type_name -> nagipath.api.v1.RouteEffect
+	30, // [30:30] is the sub-list for method output_type
+	30, // [30:30] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_nagipath_api_v1_nodes_proto_init() }
@@ -2772,7 +2934,7 @@ func file_nagipath_api_v1_nodes_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_nodes_proto_rawDesc), len(file_nagipath_api_v1_nodes_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   24,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -162,6 +162,29 @@ message DriftRun {
   string baseline_label = 4;
   string computed_at = 5;
   int32 finding_count = 6;
+  // The rest are unused by the node detail drift tab, populated for the
+  // fleet-wide Drift screen's "what was compared" panel (drift.proto).
+  string instance_name = 7;
+  string node_name = 8;
+  string vendor = 9;
+  int32 parser_version = 10;
+  int32 ignored_count = 11;
+  bool is_golden_peer = 12;
+}
+
+// Provenance is the file and byte offset a derived fact was parsed from —
+// the product's trust mechanism (internal/web/templates/parts/prov.html),
+// present on rules, routes, sites, listeners, upstreams, certificate
+// bindings and drift findings without exception. link is precomputed here
+// (empty when there's no file recorded — parsed before provenance was
+// tracked) rather than built client-side from the raw ids, matching this
+// package's "no business logic recomputed in TypeScript" rule (ADR-0018).
+message Provenance {
+  string path = 1;
+  int64 snapshot_id = 2;
+  int64 file_id = 3;
+  int64 byte_start = 4;
+  string link = 5;
 }
 
 message DriftFinding {
@@ -173,6 +196,7 @@ message DriftFinding {
   string baseline_text = 6;
   string subject_text = 7;
   string action_class = 8;
+  Provenance provenance = 9;
 }
 
 // Route mirrors internal/trace.Route: one match rule inside a site, possibly

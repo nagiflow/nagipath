@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+import "nagipath/api/v1/drift.proto";
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+message CertificateListItem {
+  int64 id = 1;
+  string fingerprint = 2;
+  string subject_cn = 3;
+  string issuer_dn = 4;
+  string not_before = 5;
+  string not_after = 6;
+  bool is_ca = 7;
+  int32 bindings = 8;
+  string hosts = 9;
+  repeated string serves = 10;
+}
+
+message CertificatesListResponse {
+  repeated CertificateListItem list = 1;
+  string expires = 2;
+  string issuer = 3;
+  string cluster = 4;
+  bool include_cas = 5;
+  repeated string issuers = 6;
+  repeated DriftClusterOption clusters = 7;
+  string summary = 8;
+}
+
+message Certificate {
+  int64 id = 1;
+  string fingerprint = 2;
+  string subject_cn = 3;
+  string subject_dn = 4;
+  repeated string sans = 5;
+  string issuer_dn = 6;
+  string serial = 7;
+  string not_before = 8;
+  string not_after = 9;
+  string key_algorithm = 10;
+  int32 key_bits = 11;
+  string sig_algorithm = 12;
+  bool self_signed = 13;
+  bool is_ca = 14;
+}
+
+message CertBinding {
+  int64 instance_id = 1;
+  string instance = 2;
+  string node = 3;
+  string cluster_name = 4;
+  int64 snapshot_id = 5;
+  int64 file_id = 6;
+  string file_path = 7;
+  string site_names = 8;
+  int32 port = 9;
+  bool combined_pem = 10;
+}
+
+message CertFilePath {
+  string path = 1;
+  int32 node_count = 2;
+  string bundle_type = 3;
+}
+
+message CertificateDetailResponse {
+  Certificate cert = 1;
+  repeated CertBinding bindings = 2;
+  repeated CertFilePath file_paths = 3;
+  string active_tab = 4;
+  int32 binding_count = 5;
+  int32 file_count = 6;
+}

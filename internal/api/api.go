@@ -54,6 +54,16 @@ func New(db *store.DB, licenseStatus func(context.Context) (license.Status, stri
 	m.HandleFunc("POST /nodes/{id}/delete", s.requireAdmin(s.postDeleteNode))
 	m.HandleFunc("POST /nodes/{id}/credential", s.requireAdmin(s.postChangeNodeCredential))
 	m.HandleFunc("POST /hostkeys/{id}/decide", s.requireAdmin(s.postDecideHostKey))
+	m.HandleFunc("GET /drift", s.requireAuth(s.getDrift))
+	m.HandleFunc("GET /drift/review/{instanceID}", s.requireAuth(s.getDriftReview))
+	m.HandleFunc("POST /drift/recompute", s.requireAdmin(s.postDriftRecompute))
+	m.HandleFunc("POST /drift/ignore", s.requireAdmin(s.postDriftIgnore))
+	m.HandleFunc("POST /drift/ignore/{id}/delete", s.requireAdmin(s.postDriftUnignore))
+	m.HandleFunc("POST /drift/golden", s.requireAdmin(s.postDriftGolden))
+	m.HandleFunc("GET /certificates", s.requireAuth(s.getCertificates))
+	m.HandleFunc("GET /certificates/{id}", s.requireAuth(s.getCertificate))
+	m.HandleFunc("GET /snapshots", s.requireAuth(s.getSnapshots))
+	m.HandleFunc("GET /snapshots/{id}/file/{fileID}", s.requireAuth(s.getSnapshotFile))
 	s.mux = m
 	return s
 }

@@ -174,13 +174,13 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 	// /instances removed: it redirects to /nodes, which is already tested.
 	// "/", "/clusters", "/sites" and "/nodes" removed: all four serve the React
 	// SPA shell now (TestDashboardServesSPAShell, TestClustersServesSPAShell,
-	// TestSitesServesSPAShell, TestNodesServesSPAShell), not a server-rendered
-	// page with the class="pnl"/class="empty" chrome below.
+	// TestSitesServesSPAShell, TestNodesServesSPAShell, TestAnalysisServesSPAShell),
+	// not a server-rendered page with the class="pnl"/class="empty" chrome below.
 	for _, path := range []string{"/collections",
-		"/certificates", "/certificates?cert=1", "/search",
+		"/search",
 		"/search?q=proxy_pass", "/search?q=proxy_pass&vendor=nginx&page=2", "/trace",
-		"/trace/history", "/snapshots",
-		"/rules", "/rules?hostname=shop.example.com&path=/api", "/drift", "/nodes/import",
+		"/trace/history",
+		"/rules", "/rules?hostname=shop.example.com&path=/api", "/nodes/import",
 		"/settings/credentials", "/settings/users", "/settings/audit",
 		"/settings/hostkeys", "/settings/masterkey", "/settings/retention",
 		"/settings/license", "/settings/system",
@@ -377,8 +377,9 @@ func TestNotFoundIsAPageInsideTheShell(t *testing.T) {
 	// /instances/4242 removed: it redirects (301) rather than 404ing. /nodes/4242
 	// removed: /nodes/{id} is the SPA now (docs/adr/0017) and always 200s at the
 	// Go level — a bad id is a 404 from GET /api/ui/nodes/4242 instead, which
-	// NodeDetailPage renders as its own not-found state client-side.
-	for _, path := range []string{"/settings/account", "/snapshots/4242/file/1"} {
+	// NodeDetailPage renders as its own not-found state client-side. Same for
+	// /snapshots/4242/file/1 — that route is the SPA now too.
+	for _, path := range []string{"/settings/account"} {
 		w := c.get(path)
 		if w.Code != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, w.Code)
@@ -1386,41 +1387,57 @@ func TestDriftRendersItsFindingsAndProvenance(t *testing.T) {
 
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-	w := c.get("/drift?cluster=all")
-	if w.Code != http.StatusOK {
-		t.Fatalf("GET /drift?cluster=all with findings = %d\n%s", w.Code, w.Body.String())
+
+	// Drift is the React SPA now (docs/adr/0017); the same guarantees are
+	// asserted against GET /api/ui/drift and /api/ui/drift/review/{id}
+	// (docs/adr/0018) instead of rendered HTML.
+	var driftResp pb.DriftResponse
+	if err := protojson.Unmarshal(c.get("/api/ui/drift?cluster=all").Body.Bytes(), &driftResp); err != nil {
+		t.Fatalf("decode /api/ui/drift?cluster=all: %v", err)
 	}
-	body := w.Body.String()
 	// /drift is the summary: which nodes are off baseline and by how much. The
 	// findings themselves live one click deeper, on the review screen.
-	if !strings.Contains(body, "Nodes off baseline") || strings.Contains(body, "No divergences") {
-		t.Errorf("/drift rendered no divergence panel despite stored findings\n%s", body)
+	if len(driftResp.InstancesWithDrift) == 0 {
+		t.Errorf("/api/ui/drift rendered no divergence despite stored findings: %+v", driftResp.InstancesWithDrift)
 	}
 	// The node, for the same reason every fleet-wide list needs it: "nginx
 	// nginx.conf" is what every host running stock nginx is called, so a finding
 	// that does not name the host says "1 of 5 instances" and nothing more.
-	if !strings.Contains(body, "web02") {
-		t.Error("/drift rendered a finding without naming the node it is on")
+	foundWeb02 := false
+	for _, iw := range driftResp.InstancesWithDrift {
+		if iw.NodeDisplayName == "web02" {
+			foundWeb02 = true
+		}
 	}
-	review := c.get("/drift/review/" + itoa(instID))
-	if review.Code != http.StatusOK {
-		t.Fatalf("GET /drift/review/%d = %d\n%s", instID, review.Code, review.Body.String())
+	if !foundWeb02 {
+		t.Errorf("/api/ui/drift rendered a finding without naming the node it is on: %+v", driftResp.InstancesWithDrift)
 	}
-	// The link has to be well formed, not merely present. Handing the finding
-	// straight to the "prov" template put its sql.NullInt64 fields into the URL —
-	// "/snapshots/{5 true}/file/{3 true}" — because a struct is always truthy in a
-	// Go template, so the no-file branch was never taken either.
-	rbody := review.Body.String()
-	if !regexp.MustCompile(`/snapshots/\d+/file/\d+`).MatchString(rbody) {
-		t.Errorf("the review screen rendered no usable provenance link; the hrefs it did render were %v",
-			regexp.MustCompile(`href="/snapshots/[^"]*"`).FindAllString(rbody, 3))
+
+	var reviewResp pb.DriftReviewResponse
+	if err := protojson.Unmarshal(c.get("/api/ui/drift/review/"+itoa(instID)).Body.Bytes(), &reviewResp); err != nil {
+		t.Fatalf("decode /api/ui/drift/review/%d: %v", instID, err)
+	}
+	// The link has to be well formed, not merely present. Handing the finding's
+	// raw sql.NullInt64 fields straight to a template put "{5 true}" in the URL,
+	// because a struct is always truthy — the equivalent bug here would be a
+	// non-empty Link on a Provenance with no FileId.
+	foundLink := false
+	for _, g := range reviewResp.ObjectGroups {
+		for _, f := range g.Findings {
+			if f.Provenance != nil && regexp.MustCompile(`^/snapshots/\d+/file/\d+`).MatchString(f.Provenance.Link) {
+				foundLink = true
+			}
+		}
+	}
+	if !foundLink {
+		t.Errorf("the review response carries no usable provenance link: %+v", reviewResp.ObjectGroups)
 	}
 
 	// Two more identical hosts, which is a cluster, and a cluster whose members match
 	// has no divergences. Landing on /drift with no scope must still show the one
 	// instance that did diverge: it is not in any cluster — divergence is what took it
-	// out of one — and defaulting to the first cluster put "No divergences" in front
-	// of an operator who arrived from a nav badge reading "Drift · 1".
+	// out of one — and defaulting to the first cluster returned an empty
+	// InstancesWithDrift to an operator who arrived from a nav badge reading "Drift · 1".
 	seedNginx(t, db, "web07", "10.90.4.17")
 	seedNginx(t, db, "web08", "10.90.4.18")
 	if err := db.ReconcileClusters(ctx); err != nil {
@@ -1429,12 +1446,12 @@ func TestDriftRendersItsFindingsAndProvenance(t *testing.T) {
 	if cl, err := db.Clusters(ctx); err != nil || len(cl) == 0 {
 		t.Fatalf("two byte-identical hosts formed no cluster (%v), so this test proves nothing", err)
 	}
-	landing := c.get("/drift")
-	if landing.Code != http.StatusOK {
-		t.Fatalf("GET /drift = %d\n%s", landing.Code, landing.Body.String())
+	var landing pb.DriftResponse
+	if err := protojson.Unmarshal(c.get("/api/ui/drift").Body.Bytes(), &landing); err != nil {
+		t.Fatalf("decode /api/ui/drift: %v", err)
 	}
-	if !strings.Contains(landing.Body.String(), "Nodes off baseline") {
-		t.Error("/drift with no scope landed on a scope with nothing in it while the fleet had a divergence")
+	if len(landing.InstancesWithDrift) == 0 {
+		t.Error("/api/ui/drift with no scope landed on a scope with nothing in it while the fleet had a divergence")
 	}
 }
 
@@ -1514,28 +1531,32 @@ func TestSnapshotFileHighlightsTheByteOffsetFromTheQuery(t *testing.T) {
 
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-	path := fmt.Sprintf("/snapshots/1/file/%d?b=%d", files[0].ID, off)
+
+	// The file viewer is the React SPA now (docs/adr/0017); the byte-offset ->
+	// line resolution is asserted against GET /api/ui/snapshots/.../file/...
+	// (docs/adr/0018) instead of rendered HTML.
+	path := fmt.Sprintf("/api/ui/snapshots/1/file/%d?b=%d", files[0].ID, off)
 	w := c.get(path)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET %s = %d", path, w.Code)
 	}
-	if !strings.Contains(w.Body.String(), `class="cl on"`) {
-		t.Error("no line was highlighted, so a provenance link still lands in a file with nothing marked")
+	var withOffset pb.SnapshotFileResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &withOffset); err != nil {
+		t.Fatalf("decode %s: %v", path, err)
 	}
-	// And the anchor the link scrolls to is on that line. A byte offset does not
-	// land on a line boundary, so #b<offset> — what these links used to carry —
-	// matched no element and scrolled nowhere.
-	if !strings.Contains(w.Body.String(), `<span id="hl">`) {
-		t.Error("the highlighted line carries no anchor, so the link cannot scroll to it")
+	if !withOffset.HasAnchor || withOffset.LineStart == 0 {
+		t.Errorf("no line was resolved (has_anchor=%v line_start=%d), so a provenance link still lands in a file with nothing marked",
+			withOffset.HasAnchor, withOffset.LineStart)
 	}
+
 	// And without an offset, which is the other branch of the same panel — the one
 	// reached by browsing an instance's files rather than following a claim.
-	plain := c.get(fmt.Sprintf("/snapshots/1/file/%d", files[0].ID))
-	if plain.Code != http.StatusOK {
-		t.Fatalf("GET the same file with no offset = %d", plain.Code)
+	var plain pb.SnapshotFileResponse
+	if err := protojson.Unmarshal(c.get(fmt.Sprintf("/api/ui/snapshots/1/file/%d", files[0].ID)).Body.Bytes(), &plain); err != nil {
+		t.Fatalf("decode file with no offset: %v", err)
 	}
-	if strings.Contains(plain.Body.String(), `class="cl on"`) {
-		t.Error("a file opened with no provenance offset highlighted a line anyway")
+	if plain.HasAnchor {
+		t.Error("a file opened with no provenance offset resolved an anchor anyway")
 	}
 }
 

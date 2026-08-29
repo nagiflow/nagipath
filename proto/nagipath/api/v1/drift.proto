@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+import "nagipath/api/v1/nodes.proto";
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+message DriftBaselineOption {
+  string kind = 1;
+  string label = 2;
+}
+
+message DriftInstanceRow {
+  int64 id = 1;
+  string display_name = 2;
+  string node_display_name = 3;
+  int32 divergence_count = 4;
+  string object_breakdown = 5;
+  string first_seen = 6;
+}
+
+message DriftClusterGroup {
+  string cluster_name = 1;
+  string baseline_name = 2;
+  int32 nodes_with_drift = 3;
+  int32 total_nodes = 4;
+  repeated DriftInstanceRow instances = 5;
+}
+
+message DriftClusterOption {
+  int64 id = 1;
+  string name = 2;
+  int32 members = 3;
+}
+
+message IgnoreRule {
+  int64 id = 1;
+  int64 cluster_id = 2;
+  string object_kind = 3;
+  string field = 4;
+  string pattern = 5;
+  string reason = 6;
+  string created_at = 7;
+  int32 matched = 8;
+}
+
+message DriftResponse {
+  repeated DriftClusterOption clusters = 1;
+  int64 cluster_id = 2;
+  string cluster_name = 3;
+  string baseline = 4;
+  repeated DriftBaselineOption baselines = 5;
+  bool all_scope = 6;
+  string scope = 7;
+  string scope_filter = 8;
+  repeated IgnoreRule ignores = 9;
+  repeated DriftInstanceRow instances_with_drift = 10;
+  repeated DriftClusterGroup cluster_groups = 11;
+  repeated DriftRun runs = 12;
+  int32 total_divergent_objects = 13;
+  int32 clusters_without_baseline = 14;
+  int32 member_count = 15;
+  bool empty = 16;
+}
+
+message DriftObjectGroup {
+  string kind = 1;
+  repeated DriftFinding findings = 2;
+}
+
+message DriftReviewResponse {
+  int64 instance_id = 1;
+  string instance_display_name = 2;
+  string node_display_name = 3;
+  int64 node_id = 4;
+  int32 object_count = 5;
+  string baseline_label = 6;
+  string subject_time = 7;
+  string baseline_time = 8;
+  repeated DriftObjectGroup object_groups = 9;
+  int64 next_instance_id = 10;
+  int32 conforming_count = 11;
+  int32 ignored_count = 12;
+}

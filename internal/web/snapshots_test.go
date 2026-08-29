@@ -13,7 +13,9 @@ import (
 // The Export link on a list screen is a promise that what you narrowed to is
 // what you get. It is also the one path on the page that never renders a
 // template, so a wrong content type or a dropped filter is invisible on screen
-// and lands in somebody's spreadsheet instead.
+// and lands in somebody's spreadsheet instead. Snapshots is the React SPA now
+// (docs/adr/0017); the list itself is asserted against GET /api/ui/snapshots
+// (docs/adr/0018), the export stays a real CSV download either way.
 func TestSnapshotsExportIsTheFilteredSet(t *testing.T) {
 	s, db := newTestServer(t)
 	if _, err := db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false); err != nil {
@@ -24,12 +26,19 @@ func TestSnapshotsExportIsTheFilteredSet(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	if w := c.get("/snapshots"); w.Code != http.StatusOK ||
-		!strings.Contains(w.Body.String(), "Recent captures") {
-		t.Fatalf("GET /snapshots = %d\n%s", w.Code, w.Body.String())
+	w := c.get("/api/ui/snapshots")
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /api/ui/snapshots = %d\n%s", w.Code, w.Body.String())
+	}
+	var resp pb.SnapshotsListResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode /api/ui/snapshots: %v", err)
+	}
+	if len(resp.List) != 1 {
+		t.Fatalf("List = %+v, want one capture", resp.List)
 	}
 
-	w := c.get("/snapshots?export=csv")
+	w = c.get("/api/ui/snapshots?export=csv")
 	if got := w.Header().Get("Content-Type"); !strings.HasPrefix(got, "text/csv") {
 		t.Errorf("export Content-Type = %q, want text/csv", got)
 	}
@@ -53,7 +62,7 @@ func TestSnapshotsExportIsTheFilteredSet(t *testing.T) {
 	// The filter has to travel with the download. It used to be read, printed
 	// back into the select and never applied, so every export was the whole
 	// window regardless of what the operator had narrowed to.
-	empty := c.get("/snapshots?export=csv&trigger=scheduled")
+	empty := c.get("/api/ui/snapshots?export=csv&trigger=scheduled")
 	if got := strings.Count(strings.TrimSpace(empty.Body.String()), "\n"); got != 0 {
 		t.Errorf("filtering to scheduled runs exported %d row(s); the capture was manual", got+1)
 	}
@@ -73,17 +82,28 @@ func TestFleetListsNameTheNode(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	for _, path := range []string{"/snapshots", "/search?q=proxy_pass"} {
-		body := c.get(path).Body.String()
-		for _, host := range []string{"lb01", "lb02"} {
-			if !strings.Contains(body, host) {
-				t.Errorf("GET %s never names %s, so its two nginx rows are indistinguishable", path, host)
+	// /search is still server-rendered; /snapshots and /nodes are the React
+	// SPA now (docs/adr/0017), asserted against their JSON APIs instead.
+	if body := c.get("/search?q=proxy_pass").Body.String(); !strings.Contains(body, "lb01") || !strings.Contains(body, "lb02") {
+		t.Errorf("GET /search?q=proxy_pass does not name both nodes: missing lb01/lb02")
+	}
+
+	var snapshots pb.SnapshotsListResponse
+	if err := protojson.Unmarshal(c.get("/api/ui/snapshots").Body.Bytes(), &snapshots); err != nil {
+		t.Fatalf("decode /api/ui/snapshots: %v", err)
+	}
+	for _, host := range []string{"lb01", "lb02"} {
+		found := false
+		for _, row := range snapshots.List {
+			if row.Node == host {
+				found = true
 			}
+		}
+		if !found {
+			t.Errorf("GET /api/ui/snapshots never names %s, so its two nginx rows are indistinguishable", host)
 		}
 	}
 
-	// Nodes is the React SPA now (docs/adr/0017); same check against the JSON
-	// API (protojson, docs/adr/0018) instead of rendered HTML.
 	var nodes pb.NodesListResponse
 	if err := protojson.Unmarshal(c.get("/api/ui/nodes").Body.Bytes(), &nodes); err != nil {
 		t.Fatalf("decode /api/ui/nodes: %v", err)
