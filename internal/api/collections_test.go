@@ -54,7 +54,7 @@ func TestGetCollectionsFiltersAndExport(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(all.Rows) != 2 || all.Total != 2 {
-		t.Fatalf("unfiltered collections = %+v", all)
+		t.Fatalf("unfiltered collections: rows=%d total=%d", len(all.Rows), all.Total)
 	}
 
 	w = httptest.NewRecorder()
