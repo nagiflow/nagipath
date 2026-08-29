@@ -22,12 +22,3 @@
 {{define "bd"}}<div class="bd{{if eq (print .) "row"}} flex-row{{end}}">{{end}}
 
 {{define "bd-end"}}</div>{{end}}
-
-{{/* A tab strip or a settings sub-list, both from []navItem. */}}
-{{define "tabs"}}<nav class="tabs" aria-label="Sections">
-  {{range .}}<a class="tab{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Label}}{{if .Count}} <span class="mus m">{{num .Count}}</span>{{end}}</a>{{end}}
-</nav>{{end}}
-
-{{define "sidelist"}}<div class="pnl p-2">
-  {{range .}}<a class="ni{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}><span class="ic" aria-hidden="true"></span>{{.Label}}{{if .Count}}<span class="ct{{if .Warn}} warn{{end}}">{{num .Count}}</span>{{end}}</a>{{end}}
-</div>{{end}}

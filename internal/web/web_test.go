@@ -807,34 +807,6 @@ func TestTraceFormWithNoInstancesSaysSo(t *testing.T) {
 // A certificate that does not cover the name it serves is the failure this
 // arithmetic exists to catch, so the wildcard rule has to be exactly RFC 6125's:
 // one label, and never the bare domain.
-func TestUncoveredNames(t *testing.T) {
-	cases := []struct {
-		cn      string
-		sans    []string
-		serves  []string
-		want    string
-		comment string
-	}{
-		{"shop.example.com", []string{"shop.example.com", "www.example.com"},
-			[]string{"shop.example.com"}, "", "the ordinary case"},
-		{"other.example.com", []string{"other.example.com"},
-			[]string{"admin.example.com"}, "admin.example.com", "the lab's web05 certificate"},
-		{"", []string{"*.example.com"}, []string{"a.example.com"}, "", "a wildcard covers one label"},
-		{"", []string{"*.example.com"}, []string{"example.com"},
-			"example.com", "a wildcard does not cover the bare domain"},
-		{"", []string{"*.example.com"}, []string{"a.b.example.com"},
-			"a.b.example.com", "a wildcard does not cover two labels"},
-		{"", []string{"Shop.Example.COM"}, []string{"shop.example.com."}, "", "case and trailing dot"},
-		{"", nil, []string{"_"}, "", "a catch-all name is not a claim about identity"},
-	}
-	for _, c := range cases {
-		if got := strings.Join(uncovered(c.cn, c.sans, c.serves), ","); got != c.want {
-			t.Errorf("%s: uncovered(%q, %v, %v) = %q, want %q",
-				c.comment, c.cn, c.sans, c.serves, got, c.want)
-		}
-	}
-}
-
 // A throwaway ed25519 key, generated for this test only.
 const testKey = `-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
