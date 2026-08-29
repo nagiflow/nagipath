@@ -24,6 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nagiflow/nagipath/internal/api"
 	"github.com/nagiflow/nagipath/internal/collect"
 	"github.com/nagiflow/nagipath/internal/keys"
 	"github.com/nagiflow/nagipath/internal/license"
@@ -76,6 +77,10 @@ type Server struct {
 	tpl       *template.Template
 	collector *collect.Collector
 	mux       *http.ServeMux
+	// api is the JSON surface the SPA calls, mounted at /api/v1/ (docs/adr/0017).
+	// It shares s.DB and reads license state through s.LicenseStatus rather than
+	// holding its own copy — see internal/api.Server's doc comment.
+	api *api.Server
 
 	// Live Probes, keyed by a counter. See probelive.go for why they are in memory.
 	probeMu   sync.Mutex
@@ -99,6 +104,7 @@ func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode b
 	s.collector = &collect.Collector{DB: db, Dialer: collect.SSH{
 		Dialer: &sshx.Dialer{DB: db, Master: master, Timeout: 20 * time.Second},
 	}}
+	s.api = api.New(db, s.LicenseStatus)
 	s.routes()
 	return s, nil
 }
@@ -248,6 +254,11 @@ func (s *Server) routesCore(m *http.ServeMux) {
 	m.HandleFunc("GET /api/v1/nodes", s.apiAuth(s.apiNodes))
 	m.HandleFunc("GET /api/v1/clusters", s.apiAuth(s.apiClusters))
 	m.HandleFunc("GET /api/v1/drift", s.apiAuth(s.apiDrift))
+	// The SPA's session-cookie JSON surface. Registered after the three Bearer
+	// routes above but matches the same regardless of order: ServeMux prefers
+	// the most specific pattern, so GET /api/v1/nodes still goes to apiNodes
+	// and everything else under /api/v1/ falls through to internal/api.
+	m.Handle("/api/v1/", http.StripPrefix("/api/v1", s.api))
 
 	m.HandleFunc("GET /password", s.auth(s.getPassword))
 	m.HandleFunc("POST /password", s.auth(s.postPassword))

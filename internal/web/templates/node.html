@@ -63,6 +63,30 @@
       </div>
     </div>
 
+    {{if and $.User.IsAdmin .PendingKeys}}
+    <div class="pnl z" style="padding:10px 12px">
+      <div class="lbl" style="margin-bottom:6px">Host key awaiting approval</div>
+      <form method="post" action="/hostkeys/approve">
+        {{template "csrf" $.CSRF}}
+        <input type="hidden" name="back" value="/nodes/{{.Node.ID}}">
+        {{range .PendingKeys}}
+        <input type="hidden" name="key" value="{{.ID}}">
+        <div class="m mus" style="font-size:11px;margin-bottom:6px">
+          {{.Algorithm}} <span class="keyfp">{{.Fingerprint}}</span>
+          {{if .Previous}}
+          <div style="margin-top:4px"><span class="bdg {{bdg "err"}}">{{label "changed"}}</span>
+            replaces an approved key. A rekey and an interception look identical — compare against the host before approving.
+            <div style="margin-top:2px"><b>was:</b> {{.Previous}}</div>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+        <button type="submit" name="decision" value="approve" class="btn p sm">Approve</button>
+        <button type="submit" name="decision" value="reject" class="btn dgr sm">Reject</button>
+      </form>
+    </div>
+    {{end}}
+
     {{if $.User.IsAdmin}}
     <div class="pnl" style="padding:10px 12px">
       <div class="lbl" style="margin-bottom:6px">Access</div>

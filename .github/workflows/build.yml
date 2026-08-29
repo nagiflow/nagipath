@@ -1,0 +1,68 @@
+name: Build binary
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and package Linux binary
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Build UI and check committed dist for drift
+        run: |
+          make ui
+          git diff --exit-code -- internal/web/ui/dist || {
+            echo "::error::internal/web/ui/dist is stale — run 'make ui' and commit the result." >&2
+            exit 1
+          }
+
+      - name: Test UI
+        run: cd ui && bun run test
+
+      - name: Vet and test
+        run: |
+          go vet ./...
+          go test ./...
+
+      - name: Build binary
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          mkdir -p dist
+          go build -trimpath \
+            -ldflags "-s -w -X main.Version=${GITHUB_SHA}" \
+            -o dist/nagipath-linux-amd64 \
+            ./cmd/nagipath
+          chmod +x dist/nagipath-linux-amd64
+          ./dist/nagipath-linux-amd64 version
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nagipath-linux-amd64
+          path: dist/nagipath-linux-amd64
+          if-no-files-found: error
+          retention-days: 14

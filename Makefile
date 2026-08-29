@@ -1,4 +1,4 @@
-.PHONY: build test css css-watch dev dev-logs dev-down lab lab-collect lab-logs lab-down clean
+.PHONY: build test css css-watch ui ui-dev dev dev-logs dev-down lab lab-collect lab-logs lab-down clean
 
 build:
 	CGO_ENABLED=0 go build -ldflags "-X main.Version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o nagipath ./cmd/nagipath
@@ -27,6 +27,19 @@ css: $(TAILWIND)
 
 css-watch: $(TAILWIND)
 	$(TAILWIND) -i $(CSS_SRC) -o $(CSS_OUT) --watch
+
+# ---------------------------------------------------------------------- ui
+#
+# internal/web/ui/dist is the built React SPA, generated from ui/ and
+# COMMITTED — the same "go build needs no toolchain beyond Go" property css
+# established (ADR-0016), extended to the whole UI (ADR-0017). Run `make ui`
+# after any change under ui/src.
+
+ui:
+	cd ui && bun install --frozen-lockfile && bun run build
+
+ui-dev:
+	cd ui && bun run dev
 
 # Development server: source is bind-mounted into Docker and Air rebuilds it on
 # changes. This has its own data volume; it never touches the test-lab state.

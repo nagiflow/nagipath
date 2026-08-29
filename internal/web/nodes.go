@@ -135,6 +135,9 @@ type nodeDetailData struct {
 	Instances   []store.Instance
 	Selected    *store.Instance
 	HostKeys    []store.HostKey
+	// PendingKeys carries Previous (the approved fingerprint it would replace, if
+	// any) so a rekey and an interception don't look identical on this page either.
+	PendingKeys []store.PendingHostKey
 	Collections []store.Collection
 	Stats       store.NodeStats
 	Running     bool
@@ -213,6 +216,16 @@ func (s *Server) nodeDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d.HostKeys, _ = s.DB.HostKeys(ctx, nodeID)
+
+	// ponytail: filter the fleet-wide pending list rather than a by-node query.
+	// Reuses the query that already joins in Previous; add a WHERE node_id when
+	// the fleet-wide list is too large to scan here.
+	allPending, _ := s.DB.PendingHostKeys(ctx)
+	for _, k := range allPending {
+		if k.NodeID == nodeID {
+			d.PendingKeys = append(d.PendingKeys, k)
+		}
+	}
 
 	// Not `, _`: every tab on this page renders off the selected process, so a query
 	// error here empties all of them and the page still answers 200. A bad column
