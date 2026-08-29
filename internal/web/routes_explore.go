@@ -6,7 +6,7 @@ import "net/http"
 // screens that answer a question rather than list an inventory.
 func (s *Server) routesExplore(m *http.ServeMux) {
 	// Dashboard is the SPA now (docs/adr/0017): served from the embedded React
-	// build, backed by GET /api/v1/dashboard (internal/api/dashboard.go).
+	// build, backed by GET /api/ui/dashboard (internal/api/dashboard.go).
 	m.HandleFunc("GET /{$}", s.auth(s.serveSPA))
 
 	// Trace accepts POST as well as GET so a long entry point can come out of a

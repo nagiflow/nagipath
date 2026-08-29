@@ -27,10 +27,9 @@ func (s *Server) routesInventory(m *http.ServeMux) {
 	m.HandleFunc("GET /instances/{id}", s.auth(s.instanceRedirect))
 	m.HandleFunc("GET /instances/{id}/{tab}", s.auth(s.instanceRedirect))
 
-	// A Cluster is discovered from the configuration, so there is no membership
-	// form — only a name, and a Golden Peer designation on /drift.
-	m.HandleFunc("GET /clusters", s.auth(s.clusters))
-	m.HandleFunc("POST /clusters/rename", s.admin(s.renameCluster))
+	// Clusters is the SPA now (docs/adr/0017): GET /api/ui/clusters and
+	// POST /api/ui/clusters/rename (internal/api/clusters.go).
+	m.HandleFunc("GET /clusters", s.auth(s.serveSPA))
 
 	// /fleet was Nodes, Instances and Clusters on one screen.
 	m.HandleFunc("GET /fleet", moved("/nodes"))

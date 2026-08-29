@@ -41,3 +41,22 @@ func TestDashboardServesSPAShell(t *testing.T) {
 		t.Errorf("GET /favicon.svg = %d, want 200", got)
 	}
 }
+
+// TestClustersServesSPAShell mirrors TestDashboardServesSPAShell for the
+// second route cut over to the SPA (docs/adr/0017, Phase 2).
+func TestClustersServesSPAShell(t *testing.T) {
+	s, _ := newTestServer(t)
+	c := &client{t: t, s: s}
+	c.post("/setup", url.Values{
+		"username": {"admin"}, "password": {"a good long password"},
+		"confirm": {"a good long password"},
+	})
+
+	w := c.get("/clusters")
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /clusters = %d", w.Code)
+	}
+	if body := w.Body.String(); !strings.Contains(body, `id="root"`) {
+		t.Errorf("GET /clusters did not return the SPA shell:\n%s", body)
+	}
+}

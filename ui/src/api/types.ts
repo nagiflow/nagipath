@@ -80,6 +80,44 @@ export interface DashboardResponse {
   avg_collection_duration_seconds: number
 }
 
+export interface ClusterListItem {
+  id: number
+  name: string
+  members: number
+  vendor: string
+  golden_peer_name?: string
+  drift_count: number
+  certs_expiring_30d: number
+  last_collected?: string
+  instances_collected: number
+}
+
+export interface ClusterMemberItem {
+  id: number
+  display_name: string
+  divergence?: number
+  is_golden: boolean
+}
+
+export interface ClusterDetail {
+  id: number
+  name: string
+  members: number
+  vendor?: string
+  golden_peer_name?: string
+  last_collected?: string
+  member_list: ClusterMemberItem[]
+}
+
+export interface ClustersResponse {
+  clusters: ClusterListItem[]
+  total: number
+  query: string
+  drift_filter: string
+  sort: string
+  selected?: ClusterDetail
+}
+
 export interface SessionResponse {
   user: SessionUser
   csrf_token: string

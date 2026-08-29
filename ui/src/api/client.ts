@@ -27,7 +27,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (method !== 'GET' && method !== 'HEAD') {
     headers.set('X-CSRF-Token', csrfToken)
   }
-  const res = await fetch(`/api/v1${path}`, { ...init, method, headers, credentials: 'same-origin' })
+  const res = await fetch(`/api/ui${path}`, { ...init, method, headers, credentials: 'same-origin' })
   if (res.status === 401) {
     window.location.assign('/login')
     throw new APIError(401, 'unauthenticated', 'Session expired')

@@ -3,7 +3,7 @@
 // business logic in its template FuncMap, this package returns plain JSON
 // and every field on a response is meant to be display-ready — computed
 // here, not recomputed in TypeScript. It is mounted into internal/web's
-// mux at /api/v1/, so panic recovery and security headers are inherited
+// mux at /api/ui/, so panic recovery and security headers are inherited
 // from internal/web.Server.ServeHTTP; this package adds neither.
 package api
 
@@ -35,6 +35,8 @@ func New(db *store.DB, licenseStatus func(context.Context) (license.Status, stri
 	m := http.NewServeMux()
 	m.HandleFunc("GET /session", s.requireAuth(s.getSession))
 	m.HandleFunc("GET /dashboard", s.requireAuth(s.getDashboard))
+	m.HandleFunc("GET /clusters", s.requireAuth(s.getClusters))
+	m.HandleFunc("POST /clusters/rename", s.requireAdmin(s.postRenameCluster))
 	s.mux = m
 	return s
 }

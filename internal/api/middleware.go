@@ -73,3 +73,15 @@ func (s *Server) requireAuth(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// requireAdmin wraps requireAuth and additionally requires the admin role —
+// the same split internal/web's admin() enforces: viewers read, admins write.
+func (s *Server) requireAdmin(h http.HandlerFunc) http.HandlerFunc {
+	return s.requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if !userOf(r).IsAdmin() {
+			apiError(w, http.StatusForbidden, "forbidden", "This action requires an admin account.")
+			return
+		}
+		h(w, r)
+	})
+}
+

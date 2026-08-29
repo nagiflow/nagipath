@@ -16,8 +16,8 @@ func TestAPISessionEndpoint(t *testing.T) {
 	s, _ := newTestServer(t)
 	c := &client{t: t, s: s}
 
-	if got := c.get("/api/v1/session").Code; got != http.StatusUnauthorized {
-		t.Fatalf("GET /api/v1/session with no session = %d, want 401", got)
+	if got := c.get("/api/ui/session").Code; got != http.StatusUnauthorized {
+		t.Fatalf("GET /api/ui/session with no session = %d, want 401", got)
 	}
 
 	c.post("/setup", url.Values{
@@ -28,9 +28,9 @@ func TestAPISessionEndpoint(t *testing.T) {
 		t.Fatal("setup did not establish a session")
 	}
 
-	w := c.get("/api/v1/session")
+	w := c.get("/api/ui/session")
 	if w.Code != http.StatusOK {
-		t.Fatalf("GET /api/v1/session after setup = %d, body %q", w.Code, w.Body.String())
+		t.Fatalf("GET /api/ui/session after setup = %d, body %q", w.Code, w.Body.String())
 	}
 	var resp struct {
 		User struct {

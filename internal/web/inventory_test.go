@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -150,35 +151,46 @@ func TestClustersRendersDetailPanel(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	// Render without selection: should show "Pick a cluster" panel.
-	w := c.get("/clusters")
-	if w.Code != http.StatusOK {
-		t.Fatalf("GET /clusters = %d, want 200", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Pick a cluster") {
-		t.Errorf("no-selection state did not render: missing 'Pick a cluster'")
+	// Clusters is the React SPA now (docs/adr/0017); what used to be "the
+	// template doesn't 500 on this shape" is now "the JSON API doesn't 500 on
+	// this shape" against GET /api/ui/clusters, with and without ?cluster=.
+	type apiClustersDetail struct {
+		Selected *struct {
+			Name       string `json:"name"`
+			MemberList []any  `json:"member_list"`
+		} `json:"selected"`
 	}
 
-	// Render with selection: should show cluster detail panel. The cluster may
-	// have zero members after ReconcileClusters runs (it clears cluster_id for
-	// instances without parsed config), but the panel should still render.
-	w = c.get("/clusters?cluster=" + strconv.FormatInt(clusterID, 10))
+	w := c.get("/api/ui/clusters")
 	if w.Code != http.StatusOK {
-		t.Fatalf("GET /clusters?cluster=%d = %d, want 200", clusterID, w.Code)
+		t.Fatalf("GET /api/ui/clusters = %d, want 200", w.Code)
 	}
-	body = w.Body.String()
-	if !strings.Contains(body, "test-cluster") {
-		t.Errorf("cluster detail did not render: missing cluster name 'test-cluster'")
+	var noSel apiClustersDetail
+	if err := json.Unmarshal(w.Body.Bytes(), &noSel); err != nil {
+		t.Fatalf("decode /api/ui/clusters: %v", err)
 	}
-	if !strings.Contains(body, "Members") {
-		t.Errorf("cluster detail did not render: missing 'Members' section")
+	if noSel.Selected != nil {
+		t.Errorf("no ?cluster= given but a selection was returned: %+v", noSel.Selected)
 	}
-	// The template rendering is what we're testing here — content varies
-	// based on ReconcileClusters behavior, but both the empty and populated
-	// states must render without a 500 (which would happen if a template
-	// field reference was wrong).
-	if !strings.Contains(body, "</html>") {
-		t.Errorf("page did not complete rendering (template error mid-render)")
+
+	// The selected cluster may have zero members after ReconcileClusters runs
+	// (it clears cluster_id for instances without parsed config), but the
+	// response must still describe it, not 500.
+	w = c.get("/api/ui/clusters?cluster=" + strconv.FormatInt(clusterID, 10))
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /api/ui/clusters?cluster=%d = %d, want 200, body %q", clusterID, w.Code, w.Body.String())
+	}
+	var withSel apiClustersDetail
+	if err := json.Unmarshal(w.Body.Bytes(), &withSel); err != nil {
+		t.Fatalf("decode /api/ui/clusters?cluster=%d: %v", clusterID, err)
+	}
+	if withSel.Selected == nil {
+		t.Fatalf("?cluster=%d given but no selection was returned", clusterID)
+	}
+	if withSel.Selected.Name != "test-cluster" {
+		t.Errorf("selected.name = %q, want %q", withSel.Selected.Name, "test-cluster")
+	}
+	if withSel.Selected.MemberList == nil {
+		t.Errorf("selected.member_list = nil, want [] even with zero members")
 	}
 }

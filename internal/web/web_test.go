@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -144,9 +145,10 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 	// be executed by something — and an empty fleet is the state every install
 	// starts in.
 	// /instances removed: it redirects to /nodes, which is already tested.
-	// "/" removed: it serves the React SPA shell now (TestDashboardServesSPAShell),
-	// not a server-rendered page with the class="pnl"/class="empty" chrome below.
-	for _, path := range []string{"/nodes", "/clusters", "/collections",
+	// "/" and "/clusters" removed: both serve the React SPA shell now
+	// (TestDashboardServesSPAShell, TestClustersServesSPAShell), not a
+	// server-rendered page with the class="pnl"/class="empty" chrome below.
+	for _, path := range []string{"/nodes", "/collections",
 		"/sites",
 		"/certificates", "/certificates?cert=1", "/search",
 		"/search?q=proxy_pass", "/search?q=proxy_pass&vendor=nginx&page=2", "/trace",
@@ -1156,17 +1158,29 @@ func TestClustersAreDiscoveredFromIdenticalConfiguration(t *testing.T) {
 
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-	// The row, not the sentence next to it: the copy on this page is the design's to
-	// change, and a test that reads prose fails on a wording pass while the fact it
-	// meant to check is still on screen. One cluster, two members, vendor nginx.
-	body := c.get("/clusters").Body.String()
-	for _, want := range []string{"1 cluster", ">nginx<"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("the clusters page is missing %q\n%s", want, body)
-		}
+
+	// Clusters is the React SPA now (docs/adr/0017); the fact it used to read off
+	// rendered HTML is asserted against GET /api/ui/clusters instead. One cluster,
+	// two members, vendor nginx, the third (different-vendor) host excluded.
+	type apiClusters struct {
+		Clusters []struct {
+			Name    string `json:"name"`
+			Vendor  string `json:"vendor"`
+			Members int    `json:"members"`
+		} `json:"clusters"`
 	}
-	if strings.Contains(body, "No clusters discovered") {
-		t.Error("the clusters page showed its empty state with a cluster discovered")
+	getClusters := func() apiClusters {
+		t.Helper()
+		var got apiClusters
+		if err := json.Unmarshal(c.get("/api/ui/clusters").Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode /api/ui/clusters: %v", err)
+		}
+		return got
+	}
+
+	got := getClusters()
+	if len(got.Clusters) != 1 || got.Clusters[0].Members != 2 || got.Clusters[0].Vendor != "nginx" {
+		t.Fatalf("api/v1/clusters = %+v, want one cluster of two nginx instances", got.Clusters)
 	}
 
 	clusters, err := db.Clusters(ctx)
@@ -1181,8 +1195,8 @@ func TestClustersAreDiscoveredFromIdenticalConfiguration(t *testing.T) {
 	if err := db.RenameCluster(ctx, clusters[0].ID, "edge-eu", nil); err != nil {
 		t.Fatal(err)
 	}
-	if body := c.get("/clusters").Body.String(); !strings.Contains(body, "edge-eu") {
-		t.Error("the rename did not survive cluster discovery")
+	if got := getClusters(); len(got.Clusters) != 1 || got.Clusters[0].Name != "edge-eu" {
+		t.Errorf("the rename did not survive cluster discovery: %+v", got.Clusters)
 	}
 
 	// Diverge one member: the cluster it was in no longer describes it.
