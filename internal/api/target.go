@@ -2,12 +2,24 @@ package api
 
 import (
 	"fmt"
+	"net"
+	"net/http"
 	neturl "net/url"
 	"strconv"
 	"strings"
 
 	"github.com/nagiflow/nagipath/internal/trace"
 )
+
+// remoteAddr is internal/web/web.go's own copy, ported here for postStartProbe's
+// audit trail — see this file's doc comment on parseTarget/targetURL.
+func remoteAddr(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
 
 // parseTarget and targetURL are internal/web/trace.go's own copies, ported
 // here for getRules — Trace itself isn't ported until Phase 6, at which

@@ -11,6 +11,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/nagiflow/nagipath/internal/collect"
@@ -52,6 +53,12 @@ type Server struct {
 	// TLSEnabled: New's parameter list is long enough already).
 	Collector *collect.Collector
 	Log       *slog.Logger
+
+	// Live Probes, keyed by a counter. See probelive.go for why they are in
+	// memory rather than the database until they finish.
+	probeMu   sync.Mutex
+	probeRuns map[int64]*probeRun
+	probeSeq  int64
 
 	mux *http.ServeMux
 }
@@ -107,6 +114,13 @@ func New(db *store.DB, licenseStatus func(context.Context) (license.Status, stri
 	m.HandleFunc("GET /collections", s.requireAuth(s.getCollections))
 	m.HandleFunc("GET /rules", s.requireAuth(s.getRules))
 	m.HandleFunc("GET /search", s.requireAuth(s.getSearch))
+
+	m.HandleFunc("GET /trace", s.requireAuth(s.getTrace))
+	m.HandleFunc("POST /trace", s.requireAuth(s.postTrace))
+	m.HandleFunc("POST /trace/probe", s.requireAdmin(s.postStartProbe))
+	m.HandleFunc("GET /trace/probe/{id}", s.requireAdmin(s.getProbeDetail))
+	m.HandleFunc("GET /trace/run/{id}", s.requireAuth(s.getProbeRun))
+	m.HandleFunc("GET /trace/history", s.requireAuth(s.getProbeHistory))
 
 	s.mux = m
 	return s

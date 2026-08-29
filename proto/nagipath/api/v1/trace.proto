@@ -1,0 +1,158 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+message RuleFiredPB {
+  int64 rule_id = 1;
+  string directive = 2;
+  string args = 3;
+  string action_class = 4;
+}
+
+// TraceHopPB is one hop the request passed through (internal/trace.Hop),
+// pre-rendered with everything the Path graph and the Rules fired panel need
+// — the label, the fired (non-global) rules, the site/route in words — so
+// none of it is recomputed in TypeScript (docs/adr/0017).
+message TraceHopPB {
+  int32 ordinal = 1;
+  string label = 2; // "0", "1-a", "1-b" — hopLabels
+  bool is_external = 3;
+  string external_target = 4;
+  string external_reason = 5;
+  int64 inst_id = 6;
+  string inst_node_name = 7;
+  string inst_display_name = 8;
+  string inst_vendor = 9;
+  int32 listener_port = 10;
+  string site_kind = 11;
+  string site_name = 12;
+  string route_kind = 13;
+  string route_pattern = 14;
+  string confidence = 15;
+  string inbound_path = 16;
+  string effective_path = 17;
+  string cluster_name = 18;
+  repeated RuleFiredPB fired_rules = 19;
+  // ArrivedFrom is the ordinal of the hop that reached this one, -1 at the
+  // entry.
+  int32 arrived_from = 20;
+  // Level is the hop's distance from the entry (hopLevels' depth) — hops
+  // sharing a level are alternatives a balancer picks between, stacked side
+  // by side in the graph rather than in sequence.
+  int32 level = 21;
+}
+
+message TraceCandidate {
+  int64 inst_id = 1;
+  string inst_display_name = 2;
+  string inst_node_address = 3;
+  int32 listener_port = 4;
+  bool selected = 5;
+  string reason = 6;
+}
+
+message ProbedHopPB {
+  int32 ordinal = 1;
+  string label = 2;
+  string evidence = 3;
+  string before = 4;
+  string after = 5;
+}
+
+// LastProbePB is internal/probe.Past, reduced to what the Trace page shows
+// beside the graph: the outcome badge and the per-hop evidence table.
+message LastProbePB {
+  string outcome = 1;
+  string method = 2;
+  string requested_at = 3;
+  string error = 4;
+  repeated ProbedHopPB probed = 5;
+}
+
+message ProbeStepPB {
+  string text = 1;
+  int32 ordinal = 2;
+  string instance = 3;
+  string state = 4;
+}
+
+// ProbeRunPB is a live, in-progress Probe's snapshot (internal/web's
+// probeRun.view()) — polled every couple of seconds until Done, the same
+// cadence the old htmx page used (docs/adr/0017: a boolean poll is already
+// the right mechanism; SSE for it would be over-engineering).
+message ProbeRunPB {
+  int64 id = 1;
+  string url = 2;
+  string method = 3;
+  repeated ProbeStepPB steps = 4;
+  map<int32, string> state = 5;
+  bool done = 6;
+  string error = 7;
+}
+
+message TraceRecent {
+  int64 id = 1;
+  string scheme = 2;
+  string hostname = 3;
+  string path = 4;
+  int32 port = 5;
+  string computed_at = 6;
+  int32 hop_count = 7;
+  string confidence = 8;
+  string terminal_reason = 9;
+}
+
+message ProvenanceLine {
+  int32 n = 1;
+  string text = 2;
+  bool on = 3;
+}
+
+// ProvenancePB is one rule's provenance panel (internal/web's provView): the
+// configuration lines it was parsed from, or why there are none to show.
+message ProvenancePB {
+  int64 rule_id = 1;
+  string instance = 2;
+  string object = 3;
+  string rule = 4;
+  string path = 5;
+  string digest = 6;
+  int64 snapshot_id = 7;
+  int64 file_id = 8;
+  int32 byte_start = 9;
+  int32 line = 10;
+  repeated ProvenanceLine lines = 11;
+  string missing = 12;
+}
+
+message TraceResponse {
+  string scheme = 1;
+  string hostname = 2;
+  string path = 3;
+  int32 port = 4;
+  string method = 5;
+  string url = 6;
+  bool empty = 7; // nothing collected at all
+  bool asked = 8; // a hostname/path was given, so a Result was computed
+  repeated TraceRecent recent = 9;
+
+  int64 trace_id = 10;
+  repeated TraceHopPB hops = 11;
+  int32 fired_count = 12;
+  int32 scope_count = 13;
+  int32 collapsed_count = 14;
+  int32 verified_count = 15;
+  int32 inferred_count = 16;
+  int32 degraded_count = 17;
+  int32 external_count = 18;
+  string terminal_reason = 19;
+  repeated TraceCandidate entry_candidates = 20;
+
+  int32 probes_count = 21;
+  LastProbePB last_probe = 22;
+  ProbeRunPB run = 23;
+  ProvenancePB prov = 24;
+  bool prov_picked = 25;
+}

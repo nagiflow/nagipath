@@ -82,11 +82,6 @@ type Server struct {
 	// holding its own copy — see internal/api.Server's doc comment.
 	api *api.Server
 
-	// Live Probes, keyed by a counter. See probelive.go for why they are in memory.
-	probeMu   sync.Mutex
-	probeRuns map[int64]*probeRun
-	probeSeq  int64
-
 	// Process-lifetime request counters for /metrics. atomic because every
 	// request touches them, with no other synchronisation.
 	httpRequests        atomic.Int64

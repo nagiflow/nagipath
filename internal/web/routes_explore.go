@@ -9,17 +9,13 @@ func (s *Server) routesExplore(m *http.ServeMux) {
 	// build, backed by GET /api/ui/dashboard (internal/api/dashboard.go).
 	m.HandleFunc("GET /{$}", s.auth(s.serveSPA))
 
-	// Trace accepts POST as well as GET so a long entry point can come out of a
-	// form body; both render the same screen.
-	m.HandleFunc("GET /trace", s.auth(s.trace))
-	m.HandleFunc("POST /trace", s.auth(s.trace))
-	// Probe screen: full detail of one stored probe. Admin-only.
-	m.HandleFunc("GET /trace/probe", s.admin(s.probeScreen))
-	// A Probe is always operator-initiated and always audited, so it is a POST
-	// by an admin and never a side effect of loading a page.
-	m.HandleFunc("POST /trace/probe", s.admin(s.startTraceProbe))
-	// Probe history for a given URL or all probes
-	m.HandleFunc("GET /trace/history", s.auth(s.probeHistory))
+	// Trace, Probe and Probe history are the SPA now (docs/adr/0017, Phase 6):
+	// GET/POST /api/ui/trace, POST /api/ui/trace/probe, GET /api/ui/trace/run/{id},
+	// GET /api/ui/trace/probe/{id} and GET /api/ui/trace/history
+	// (internal/api/{trace,probe,probelive}.go).
+	m.HandleFunc("GET /trace", s.auth(s.serveSPA))
+	m.HandleFunc("GET /trace/probe", s.auth(s.serveSPA))
+	m.HandleFunc("GET /trace/history", s.auth(s.serveSPA))
 
 	// Rule lookup and Config search are the SPA now (docs/adr/0017, Phase 5):
 	// GET /api/ui/rules and GET /api/ui/search (internal/api/{rules,search}.go).

@@ -159,7 +159,8 @@ func TestSettingsServesSPAShell(t *testing.T) {
 }
 
 // TestExploreServesSPAShell mirrors TestDashboardServesSPAShell for Rule
-// lookup and Config search, cut over to the SPA (docs/adr/0017, Phase 5).
+// lookup, Config search, Trace and Probe history, cut over to the SPA
+// (docs/adr/0017, Phase 5 and Phase 6).
 func TestExploreServesSPAShell(t *testing.T) {
 	s, _ := newTestServer(t)
 	c := &client{t: t, s: s}
@@ -171,6 +172,8 @@ func TestExploreServesSPAShell(t *testing.T) {
 	for _, path := range []string{
 		"/rules", "/rules?hostname=shop.example.com&path=/api",
 		"/search", "/search?q=proxy_pass",
+		"/trace", "/trace?url=shop.example.com/api/v2", "/trace/probe",
+		"/trace/history",
 	} {
 		w := c.get(path)
 		if w.Code != http.StatusOK {

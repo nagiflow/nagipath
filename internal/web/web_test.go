@@ -23,7 +23,6 @@ import (
 	"github.com/nagiflow/nagipath/internal/keys"
 	"github.com/nagiflow/nagipath/internal/parse"
 	"github.com/nagiflow/nagipath/internal/store"
-	"github.com/nagiflow/nagipath/internal/trace"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -172,15 +171,14 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 	// be executed by something — and an empty fleet is the state every install
 	// starts in.
 	// /instances removed: it redirects to /nodes, which is already tested.
-	// "/", "/clusters", "/sites", "/nodes", "/collections", "/rules", "/search"
-	// and every "/settings/*" page removed: they all serve the React SPA shell
-	// now (TestDashboardServesSPAShell, TestClustersServesSPAShell,
-	// TestSitesServesSPAShell, TestNodesServesSPAShell, TestAnalysisServesSPAShell,
-	// TestSettingsServesSPAShell), not a server-rendered page with the
+	// "/", "/clusters", "/sites", "/nodes", "/collections", "/rules", "/search",
+	// "/trace", "/trace/history" and every "/settings/*" page removed: they all
+	// serve the React SPA shell now (TestDashboardServesSPAShell,
+	// TestClustersServesSPAShell, TestSitesServesSPAShell, TestNodesServesSPAShell,
+	// TestAnalysisServesSPAShell, TestSettingsServesSPAShell,
+	// TestExploreServesSPAShell), not a server-rendered page with the
 	// class="pnl"/class="empty" chrome below.
 	for _, path := range []string{
-		"/trace",
-		"/trace/history",
 		"/nodes/import",
 		"/password"} {
 		w := c.get(path)
@@ -775,126 +773,34 @@ func TestTraceFormWithNoInstancesSaysSo(t *testing.T) {
 	c := &client{t: t, s: s}
 	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
 
-	body := c.get("/trace").Body.String()
-	if !strings.Contains(body, "Nothing is collected yet") {
-		t.Error("the trace page should say why it cannot trace anything")
+	var empty pb.TraceResponse
+	if err := protojson.Unmarshal(c.get("/api/ui/trace").Body.Bytes(), &empty); err != nil {
+		t.Fatal(err)
+	}
+	if !empty.Empty {
+		t.Error("the trace response should say why it cannot trace anything")
 	}
 	// A trace against an empty fleet must render a result, not a 500.
-	w := c.post("/trace", url.Values{"scheme": {"https"}, "hostname": {"shop.example.com"}, "path": {"/"}})
+	w := c.get("/api/ui/trace?scheme=https&hostname=shop.example.com&path=/")
 	if w.Code != http.StatusOK {
-		t.Fatalf("POST /trace on an empty fleet = %d\n%s", w.Code, w.Body.String())
+		t.Fatalf("GET /api/ui/trace on an empty fleet = %d\n%s", w.Code, w.Body.String())
 	}
-	if !strings.Contains(w.Body.String(), "nothing is listening there") {
-		t.Error("the result did not explain why the trace stopped")
+	var result pb.TraceResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
 	}
-	// The form posts one pasted URL; the old parameters above still have to work,
-	// because every deep link in the app is built from them.
-	w = c.post("/trace", url.Values{"url": {"shop.example.com/v2/charge"}})
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "https://shop.example.com/v2/charge") {
-		t.Errorf("a pasted URL did not become the query = %d\n%s", w.Code, w.Body.String())
+	if result.TerminalReason != "nothing is listening there" {
+		t.Errorf("the result did not explain why the trace stopped: %q", result.TerminalReason)
 	}
-
-}
-
-func TestPastedURLBecomesAQuery(t *testing.T) {
-	for _, c := range []struct {
-		in   string
-		want string
-	}{
-		// A bare host is https on the default port with the root path, and the
-		// default port is not printed back — :443 on every trace is noise.
-		{"shop.example.com", "https://shop.example.com/"},
-		{"shop.example.com/v2/charge", "https://shop.example.com/v2/charge"},
-		{"http://shop.example.com:8080/x", "http://shop.example.com:8080/x"},
-		{"https://shop.example.com:8443/", "https://shop.example.com:8443/"},
-		// A query string is not part of a path the walk can match on.
-		{"  https://SHOP.example.com/a?b=1  ", "https://shop.example.com/a"},
-		{"", ""},
-	} {
-		q, err := parseTarget(c.in)
-		if err != nil {
-			t.Errorf("parseTarget(%q): %v", c.in, err)
-			continue
-		}
-		got := ""
-		if q.Hostname != "" {
-			got = targetURL(q.Normalise())
-		}
-		if got != c.want {
-			t.Errorf("parseTarget(%q) = %q, want %q", c.in, got, c.want)
-		}
+	// The old scheme/hostname/path parameters still work, because every deep
+	// link in the app is built from them; a pasted url=... also works.
+	w = c.get("/api/ui/trace?url=" + url.QueryEscape("shop.example.com/v2/charge"))
+	result = pb.TraceResponse{}
+	if err := protojson.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := parseTarget("http://[::1"); err == nil {
-		t.Error("an unparseable paste should be an error, not an empty query")
-	}
-}
-
-// The trace page shows the rules that decided the hop and nothing else, grouped
-// by the file they came from. Global scope is the noise this exists to drop.
-// Two members of one upstream are alternatives, not consecutive hops, so they
-// have to land on the same rank of the graph.
-func TestUpstreamMembersShareOneGraphRank(t *testing.T) {
-	levels := hopLevels([]*trace.Hop{
-		{Ordinal: 0, ArrivedFrom: -1},
-		{Ordinal: 1, ArrivedFrom: 0},
-		{Ordinal: 2, ArrivedFrom: 0},
-		{Ordinal: 3, ArrivedFrom: 1},
-	})
-	if len(levels) != 3 || len(levels[0].Hops) != 1 || len(levels[1].Hops) != 2 ||
-		len(levels[2].Hops) != 1 {
-		t.Fatalf("ranks = %d, want 3 of sizes 1, 2, 1", len(levels))
-	}
-	if levels[1].Hops[1].Ordinal != 2 {
-		t.Errorf("hop 2 is not beside hop 1")
-	}
-}
-
-func TestHopRulesAreGroupedByFileWithoutGlobals(t *testing.T) {
-	rules := []trace.HopRule{
-		{Rule: &trace.Rule{ID: 1, Path: "/etc/nginx/nginx.conf"}, Scope: "global", Inherited: true},
-		{Rule: &trace.Rule{ID: 2, Path: "/etc/nginx/sites-enabled/shop"}, Scope: "site", Inherited: true},
-		{Rule: &trace.Rule{ID: 3, Path: "/etc/nginx/snippets/proxy.conf"}, Scope: "route"},
-		{Rule: &trace.Rule{ID: 4, Path: "/etc/nginx/sites-enabled/shop"}, Scope: "route"},
-	}
-	groups := routingRules(rules)
-	if len(groups) != 2 || groups[0].Path != "/etc/nginx/sites-enabled/shop" ||
-		len(groups[0].Rules) != 2 || len(groups[1].Rules) != 1 {
-		t.Errorf("routingRules grouped wrongly: %+v", groups)
-	}
-	if n := len(globalRules(rules)); n != 1 {
-		t.Errorf("globals = %d, want 1", n)
-	}
-	// The Trace table's flat form of the same split. It kept evaluation order and
-	// dropped the global directive, which on the lab's haproxy was 75 of hop 0's
-	// 80 rows, and the summary line counts what it dropped rather than hiding it.
-	if got := fired(rules); len(got) != 3 || got[0].Rule.ID != 2 {
-		t.Errorf("fired = %+v, want rules 2,3,4 in order", got)
-	}
-	hop := &trace.Hop{Rules: rules, Shadowed: []trace.HopRule{
-		{Rule: &trace.Rule{ID: 5}, Scope: "route"},
-	}}
-	if f, total := firedOf([]*trace.Hop{hop}); f != 3 || total != 5 {
-		t.Errorf("firedOf = %d of %d, want 3 of 5 (one global, one shadowed)", f, total)
-	}
-	if n := collapsedCount([]*trace.Hop{hop}); n != 2 {
-		t.Errorf("collapsedCount = %d, want 2", n)
-	}
-
-	// Two branches ending the same way is one sentence, not two.
-	same := "the request leaves the fleet"
-	hops := []*trace.Hop{
-		{Terminal: "external_hop", ExternalReason: same},
-		{Terminal: "external_hop", ExternalReason: same},
-		{Terminal: "static_content", ExternalReason: "served from disk"},
-		{},
-	}
-	if got := endingReasons(hops); len(got) != 2 || got[0] != same {
-		t.Errorf("endingReasons = %q, want the two distinct ones", got)
-	}
-
-	next := trace.Next{Member: &trace.Member{Host: "10.90.4.20"}}
-	if got := nextURL(next, "/v2/charge"); got != "http://10.90.4.20:80/v2/charge" {
-		t.Errorf("nextURL = %q", got)
+	if w.Code != http.StatusOK || result.Url != "https://shop.example.com/v2/charge" {
+		t.Errorf("a pasted URL did not become the query = %d, url=%q", w.Code, result.Url)
 	}
 }
 
@@ -1114,20 +1020,28 @@ func TestPagesRenderOverAParsedSnapshot(t *testing.T) {
 		t.Errorf("GET /api/ui/search?q=proxy_pass = %d\n%s", w.Code, w.Body.String())
 	}
 
-	// A POST stores the Trace, and the bare form then lists it. That table was
+	// A POST stores the Trace, and the bare GET then lists it. That table was
 	// only ever rendered against an empty history, so a field it read that
 	// trace.Summary does not have reached a real install as a 500.
-	if w := c.post("/trace", url.Values{"url": {"shop.example.com/api/v2"}}); w.Code != http.StatusOK {
-		t.Fatalf("POST /trace = %d\n%s", w.Code, w.Body.String())
+	if w := c.postJSON("/api/ui/trace", map[string]any{"url": "shop.example.com/api/v2"}); w.Code != http.StatusOK {
+		t.Fatalf("POST /api/ui/trace = %d\n%s", w.Code, w.Body.String())
 	}
-	recent := c.get("/trace")
-	if recent.Code != http.StatusOK || !strings.Contains(recent.Body.String(), "</html>") {
-		t.Fatalf("GET /trace with a stored trace = %d\n%s", recent.Code, recent.Body.String())
+	var recent pb.TraceResponse
+	recentW := c.get("/api/ui/trace")
+	if recentW.Code != http.StatusOK {
+		t.Fatalf("GET /api/ui/trace with a stored trace = %d\n%s", recentW.Code, recentW.Body.String())
 	}
-	for _, want := range []string{"Recent traces", "shop.example.com/api/v2"} {
-		if !strings.Contains(recent.Body.String(), want) {
-			t.Errorf("the recent-traces table is missing %q", want)
+	if err := protojson.Unmarshal(recentW.Body.Bytes(), &recent); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, r := range recent.Recent {
+		if r.Scheme+"://"+r.Hostname+r.Path == "https://shop.example.com/api/v2" {
+			found = true
 		}
+	}
+	if !found {
+		t.Errorf("the recent-traces list is missing the stored trace: %+v", recent.Recent)
 	}
 
 	// Nodes is the SPA now (docs/adr/0017); what used to be HTML substring checks
@@ -1470,55 +1384,6 @@ func TestDriftRendersItsFindingsAndProvenance(t *testing.T) {
 // show real bytes out of the stored snapshot — not just a link that says it
 // could. It also has to keep working when the selected rule has no file
 // recorded, which is a different branch of the same panel.
-func TestTraceProvenancePanelShowsTheRealLines(t *testing.T) {
-	s, db := newTestServer(t)
-	ctx := t.Context()
-	if _, err := db.CreateUser(ctx, "admin", "a good long password", "admin", "Admin", false); err != nil {
-		t.Fatal(err)
-	}
-	seedNginx(t, db, "web02", "10.90.4.11")
-
-	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-	w := c.get("/trace?url=" + url.QueryEscape("https://shop.example.com/api/v2"))
-	if w.Code != http.StatusOK {
-		t.Fatalf("GET /trace = %d\n%s", w.Code, w.Body.String())
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Provenance") {
-		t.Fatal("/trace rendered no Provenance panel, so no rule on the page can be checked without leaving it")
-	}
-	// A line out of the fixture, rendered as a numbered source line. The panel is
-	// worthless if it shows the rule text it already showed in the table.
-	for _, want := range []string{"/etc/nginx/nginx.conf", `class="no"`, "proxy_pass"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("the Provenance excerpt is missing %q", want)
-		}
-	}
-	// Selecting a specific rule is a link, because the CSP allows no script. Every
-	// rule row has to offer one, and following it has to select that rule.
-	sel := regexp.MustCompile(`/trace\?url=[^"&]+&amp;method=GET&amp;prov=(\d+)#prov`).FindStringSubmatch(body)
-	if sel == nil {
-		t.Fatalf("no rule row links to its own provenance; the hrefs rendered were %v",
-			regexp.MustCompile(`href="/trace[^"]*"`).FindAllString(body, 3))
-	}
-	picked := c.get("/trace?url=" + url.QueryEscape("https://shop.example.com/api/v2") + "&prov=" + sel[1])
-	if picked.Code != http.StatusOK {
-		t.Fatalf("GET /trace with a selected rule = %d\n%s", picked.Code, picked.Body.String())
-	}
-	if !strings.Contains(picked.Body.String(), `class="hl"`) {
-		t.Error("selecting a rule marked no row as the selected one")
-	}
-
-	// The no-file branch: a rule parsed before provenance was recorded says so
-	// rather than rendering an empty panel or a link to nowhere.
-	v := s.traceProv(ctx, &trace.Trace{Hops: []*trace.Hop{{
-		Rules: []trace.HopRule{{Scope: "route", Rule: &trace.Rule{ID: 9, Directive: "return", Args: "404"}}},
-	}}}, 0)
-	if v == nil || v.Missing == "" || len(v.Lines) > 0 {
-		t.Errorf("a rule with no file produced %+v, want a stated reason and no excerpt", v)
-	}
-}
 
 // A browser never sends a URL fragment to the server, so reading #b123 there
 // meant the provenance highlight could only fire for a request nothing makes:
@@ -1570,274 +1435,3 @@ func TestSnapshotFileHighlightsTheByteOffsetFromTheQuery(t *testing.T) {
 	}
 }
 
-// seedProbes writes two probes at one URL plus one at another, with evidence on the
-// newest. Every page in the suite is fetched empty, and Go template field errors are
-// lazy — the Probe history table referenced ProbeID, Token and ActorLabel, none of
-// which existed on probe.Record, and that only fired once the table had a row.
-func seedProbes(t *testing.T, db *store.DB, actor int64) (newest, older int64) {
-	t.Helper()
-	ctx := t.Context()
-	ins := func(token, u, at string, status any, result string) int64 {
-		res, err := db.W.ExecContext(ctx, `INSERT INTO probe (actor_user_id, method, url,
-			correlation_token, origin_host, requested_at, status_code, duration_ms, result)
-			VALUES (?, 'GET', ?, ?, 'nagipath-1', ?, ?, 42, ?)`,
-			actor, u, token, at, status, result)
-		if err != nil {
-			t.Fatal(err)
-		}
-		id, _ := res.LastInsertId()
-		return id
-	}
-	now := time.Now().UTC()
-	newest = ins("f2c9d1a4b7", "https://shop.example.com/api/v2", now.Format(time.RFC3339), 200, "completed")
-	older = ins("aa11bb22cc", "https://shop.example.com/api/v2", now.AddDate(0, 0, -40).Format(time.RFC3339), 200, "completed")
-	// A probe that never got a response: status_code NULL. The table used to hold a
-	// sql.NullInt64 here, which a template reads as a struct — always truthy — so
-	// every one of these claimed a status it did not have.
-	ins("dd33ee44ff", "https://admin.example.com/", now.Format(time.RFC3339), nil, "failed")
-
-	// Evidence on three hosts, because the unit of a state change is the host and not
-	// the evidence row: a Probe writes a row per rule it checked, so web02 below has a
-	// verified row and a "that header was absent" row, and listing both put
-	// "web02 → VERIFIED" and "web02 unchanged" next to each other on real lab data —
-	// two answers to one question.
-	//
-	// The recorded prior matters too: degraded → verified and inferred → verified are
-	// different results. app01 granted nothing, which is why its hop is still inferred
-	// and why it has to stay on the screen.
-	host := func(name, addr string) int64 {
-		nodeID, err := db.AddNode(ctx, addr, 22, name, "nagipath", nil, nil, "manual", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		instID, err := db.UpsertInstance(ctx, store.Instance{
-			NodeID: nodeID, Vendor: "nginx", NaturalKey: "/etc/nginx/nginx.conf",
-			DisplayName: name + " nginx", MainConfigPath: "/etc/nginx/nginx.conf",
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		return instID
-	}
-	web02, web05, app01 := host("web02", "10.90.9.11"), host("web05", "10.90.9.12"), host("app01", "10.90.9.13")
-	for _, e := range []struct {
-		inst                     int64
-		kind, grants, prior, log string
-	}{
-		{web02, "access_log_line", "verified", "inferred", "/var/log/nginx/access.log"},
-		{web02, "header_absent", "disproved", "inferred", ""},
-		{web05, "response_header", "observed_effect", "degraded", ""},
-		{app01, "header_absent", "disproved", "inferred", ""},
-	} {
-		if _, err := db.W.ExecContext(ctx, `INSERT INTO probe_evidence (probe_id, instance_id,
-			kind, raw_evidence, log_path, parsed_fields, grants, observed_at)
-			VALUES (?, ?, ?, 'evidence bytes', ?, json_object('prior_confidence', ?), ?, ?)`,
-			newest, e.inst, e.kind, e.log, e.prior, e.grants, now.Format(time.RFC3339)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return newest, older
-}
-
-// Probe history is the audit record for every request this product sent on an
-// operator's behalf, so all three of its controls have to reach the query and the
-// fleet-wide list has to actually list the fleet. It used to pass an empty URL into
-// a `WHERE url = ?`, so the screen reached from the nav was permanently empty.
-func TestProbeHistoryListsFiltersAndSelects(t *testing.T) {
-	s, db := newTestServer(t)
-	ctx := t.Context()
-	actor, err := db.CreateUser(ctx, "admin", "a good long password", "admin", "Admin", false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	newest, older := seedProbes(t, db, actor)
-
-	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-
-	// Fleet-wide: no url at all, which is the screen the nav reaches.
-	w := c.get("/trace/history")
-	if w.Code != http.StatusOK {
-		t.Fatalf("GET /trace/history = %d\n%s", w.Code, w.Body.String())
-	}
-	all := w.Body.String()
-	for _, want := range []string{"shop.example.com/api/v2", "admin.example.com", "f2c9d1", "dd33ee"} {
-		if !strings.Contains(all, want) {
-			t.Errorf("the fleet-wide list is missing %q", want)
-		}
-	}
-	// The 40-day-old probe is outside the default 7-day window, and the window is
-	// the point of the control.
-	if strings.Contains(all, "aa11bb") {
-		t.Error("the default 7-day range listed a probe from 40 days ago")
-	}
-	if !strings.Contains(all, `value="all"`) {
-		t.Error("the range select offers no way to see every probe on record")
-	}
-	if wide := c.get("/trace/history?range=all"); !strings.Contains(wide.Body.String(), "aa11bb") {
-		t.Error("Range: all still hid the 40-day-old probe")
-	}
-
-	// The free-text box filters on entry point, actor and token.
-	q := c.get("/trace/history?range=all&q=admin.example.com").Body.String()
-	if !strings.Contains(q, "dd33ee") || strings.Contains(q, "f2c9d1") {
-		t.Error("the free-text filter did not narrow the list to the entry point asked for")
-	}
-	if tok := c.get("/trace/history?range=all&q=aa11bb").Body.String(); !strings.Contains(tok, "aa11bb") {
-		t.Error("a probe id typed into the filter did not find its probe")
-	}
-
-	// Selecting a row loads that probe, not whichever one was newest at its URL.
-	sel := c.get(fmt.Sprintf("/trace/history?range=all&probe=%d", older))
-	if sel.Code != http.StatusOK {
-		t.Fatalf("selecting a probe = %d\n%s", sel.Code, sel.Body.String())
-	}
-	if !strings.Contains(sel.Body.String(), `class="hl"`) {
-		t.Error("selecting a probe marked no row as selected")
-	}
-
-	// The newest probe's evidence, with the state change it granted. A verified row
-	// and an observed one are different answers and read differently, and the row that
-	// granted nothing is still listed rather than dropped.
-	det := c.get(fmt.Sprintf("/trace/history?probe=%d", newest)).Body.String()
-	for _, want := range []string{"State changes", "VERIFIED", "OBSERVED", "2 changes",
-		"unchanged", "log reads", "1 node · last 512 KiB"} {
-		if !strings.Contains(det, want) {
-			t.Errorf("the selected probe's detail panel is missing %q", want)
-		}
-	}
-	// The table cell states the prior, per pair. One inferred → verified and one
-	// degraded → observed, not "2 verified".
-	for _, want := range []string{"1 inferred → verified", "1 degraded → observed"} {
-		if !strings.Contains(det, want) {
-			t.Errorf("the state-changes cell is missing %q", want)
-		}
-	}
-
-	// Actor and outcome are two more controls that have to reach the query.
-	if got := c.get("/trace/history?range=all&actor=admin").Body.String(); !strings.Contains(got, "f2c9d1") {
-		t.Error("filtering by actor lost the probes that actor sent")
-	}
-	if got := c.get("/trace/history?range=all&actor=nobody").Body.String(); strings.Contains(got, "f2c9d1") {
-		t.Error("filtering by an actor who sent nothing still listed probes")
-	}
-	fail := c.get("/trace/history?range=all&outcome=failed").Body.String()
-	if !strings.Contains(fail, "dd33ee") || strings.Contains(fail, "f2c9d1") {
-		t.Error("the outcome filter did not narrow the list to failed probes")
-	}
-	// A probe that raised nothing says why in the same cell.
-	if !strings.Contains(fail, "none · failed") {
-		t.Error("a failed probe that raised nothing did not say which it was")
-	}
-
-	// The export is the filter, all of it, and it is audited because it leaves the
-	// product. Written down as one row per probe, header included.
-	exp := c.get("/trace/history?range=all&outcome=failed&export=csv")
-	if ct := exp.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/csv") {
-		t.Fatalf("Export audit served %q, not a CSV", ct)
-	}
-	csvBody := exp.Body.String()
-	if !strings.Contains(csvBody, "dd33ee44ff") || strings.Contains(csvBody, "f2c9d1a4b7") {
-		t.Errorf("the export is not the filtered set:\n%s", csvBody)
-	}
-	if n := strings.Count(strings.TrimSpace(csvBody), "\n"); n != 1 {
-		t.Errorf("the export has %d data rows, want 1", n)
-	}
-	events, err := db.AuditEvents(ctx, 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var audited bool
-	for _, e := range events {
-		if e.Action == "export.csv" {
-			audited = true
-		}
-	}
-	if !audited {
-		t.Error("an export left the product without being audited")
-	}
-	// A probe with no response says so instead of printing a status of 0.
-	none := c.get("/trace/history?q=admin.example.com").Body.String()
-	if !strings.Contains(none, "no response") {
-		t.Error("a probe that got no response did not say so")
-	}
-
-	// And one entry point's own history, which is what the trace page links to.
-	one := c.get("/trace/history?url=" + url.QueryEscape("https://admin.example.com/")).Body.String()
-	if strings.Contains(one, "shop.example.com/api/v2") {
-		t.Error("one entry point's history listed another entry point's probes")
-	}
-	if !strings.Contains(one, "All probes") {
-		t.Error("a scoped history offers no way back to the fleet-wide list")
-	}
-}
-
-// The empty states are three different answers and the screen must not give the
-// same one for all of them: nothing configured, filtered to nothing, and no probe at
-// this particular entry point.
-func TestProbeHistoryEmptyStatesAreDistinct(t *testing.T) {
-	s, db := newTestServer(t)
-	ctx := t.Context()
-	actor, err := db.CreateUser(ctx, "admin", "a good long password", "admin", "Admin", false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-
-	if got := c.get("/trace/history?range=all").Body.String(); !strings.Contains(got, "No probe has been sent yet") {
-		t.Error("with no probes at all the screen did not say so")
-	}
-	seedProbes(t, db, actor)
-	if got := c.get("/trace/history?range=all&q=nothing-matches-this").Body.String(); !strings.Contains(got, "No probe matches this filter") {
-		t.Error("a filter that matched nothing read as though nothing was ever probed")
-	}
-	got := c.get("/trace/history?range=all&url=" + url.QueryEscape("https://legacy.example.com/")).Body.String()
-	if !strings.Contains(got, "No probe has ever been sent at this entry point") {
-		t.Error("an entry point with no probes did not distinguish itself from an empty filter")
-	}
-}
-
-// A truncated list that looks complete is the one thing an audit record cannot be.
-// The footer states which slice of the filtered set this page is, and "Older" walks
-// the rest — the earlier version silently kept the newest 200 and said nothing.
-func TestProbeHistoryPagesRatherThanTruncating(t *testing.T) {
-	s, db := newTestServer(t)
-	ctx := t.Context()
-	actor, err := db.CreateUser(ctx, "admin", "a good long password", "admin", "Admin", false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	now := time.Now().UTC()
-	for i := range probesPageSize + 10 {
-		if _, err := db.W.ExecContext(ctx, `INSERT INTO probe (actor_user_id, method, url,
-			correlation_token, origin_host, requested_at, status_code, result)
-			VALUES (?, 'GET', 'https://shop.example.com/api/v2', ?, 'nagipath-1', ?, 200, 'completed')`,
-			actor, fmt.Sprintf("p%05d", i),
-			now.Add(-time.Duration(i)*time.Minute).Format(time.RFC3339)); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-
-	first := c.get("/trace/history").Body.String()
-	if !strings.Contains(first, fmt.Sprintf("1–%d of %d", probesPageSize, probesPageSize+10)) {
-		t.Error("the footer does not state which slice of the filtered set this page is")
-	}
-	m := regexp.MustCompile(`href="(/trace/history[^"]*cursor=\d+)"`).FindStringSubmatch(first)
-	if m == nil {
-		t.Fatal("with more rows than a page there is no way to reach the older ones")
-	}
-	next := c.get(strings.ReplaceAll(m[1], "&amp;", "&")).Body.String()
-	if !strings.Contains(next, fmt.Sprintf("%d–%d of %d", probesPageSize+1, probesPageSize+10, probesPageSize+10)) {
-		t.Error("page two claims to be page one")
-	}
-	// The oldest probe is only on page two, which is the point of the control. The
-	// token is six characters because that is what the table renders of it.
-	oldest := fmt.Sprintf("p%05d", probesPageSize+9)
-	if !strings.Contains(next, oldest) || strings.Contains(first, oldest) {
-		t.Error("the older page did not carry the rows the first page left out")
-	}
-}

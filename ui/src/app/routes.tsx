@@ -26,6 +26,9 @@ import { SystemPage } from '../pages/settings/SystemPage'
 import { CollectionsPage } from '../pages/settings/CollectionsPage'
 import { RulesPage } from '../pages/rules/RulesPage'
 import { SearchPage } from '../pages/search/SearchPage'
+import { TracePage } from '../pages/trace/TracePage'
+import { ProbeHistoryPage } from '../pages/trace/ProbeHistoryPage'
+import { ProbeDetailPage } from '../pages/trace/ProbeDetailPage'
 
 // Every other nav link in AppShell still points at an internal/web
 // server-rendered page — a plain <a href>, a normal full-page navigation
@@ -59,6 +62,9 @@ export function AppRoutes() {
       <Route path="/settings/system" element={<AppShell><SystemPage /></AppShell>} />
       <Route path="/rules" element={<AppShell><RulesPage /></AppShell>} />
       <Route path="/search" element={<AppShell><SearchPage /></AppShell>} />
+      <Route path="/trace" element={<AppShell><TracePage /></AppShell>} />
+      <Route path="/trace/probe" element={<AppShell><ProbeDetailPage /></AppShell>} />
+      <Route path="/trace/history" element={<AppShell><ProbeHistoryPage /></AppShell>} />
     </Routes>
   )
 }
