@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
+
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
 
 // LookupRulePB is one rule in evaluation order, with the scope it came from
@@ -47,6 +49,10 @@ message LookupResultPB {
   string reason = 14;
   repeated LookupRulePB rules = 15;
   repeated LookupBranchPB undetermined = 16;
+  // trace.Inst carries both and the group band names the cluster the way
+  // design/'s screen 2b does; node_id is what the node page is keyed by.
+  int64 node_id = 17;
+  string cluster_name = 18;
 }
 
 message RuleGroup {
@@ -87,4 +93,23 @@ message RulesResponse {
   // Silent is every instance that was checked and had no candidate rule —
   // shown collapsed, so it is clear the question was answered, not skipped.
   repeated LookupResultPB silent = 23;
+}
+
+message GetRulesRequest {
+  string url = 1;
+  string path = 2;
+  string scheme = 3;
+  string hostname = 4;
+  int32 port = 5;
+  repeated string class = 6;
+  repeated string vendor = 7;
+  int32 page = 8;
+}
+
+// RuleService: GET /rules. GET /rules?export=csv stays outside this service
+// (api.go) — see SiteService's doc comment in sites.proto.
+service RuleService {
+  rpc GetRules(GetRulesRequest) returns (RulesResponse) {
+    option (google.api.http) = { get: "/rules" };
+  }
 }

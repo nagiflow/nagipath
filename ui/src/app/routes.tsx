@@ -1,11 +1,15 @@
 import { Route, Routes } from 'react-router-dom'
 import { AppShell } from '../components/layout/AppShell'
+import { LoginPage } from '../pages/auth/LoginPage'
+import { SetupPage } from '../pages/auth/SetupPage'
+import { PasswordPage } from '../pages/auth/PasswordPage'
+import { NotFoundPage } from '../pages/NotFoundPage'
 import { Dashboard } from '../pages/dashboard/Dashboard'
-import { ClustersPage } from '../pages/clusters/ClustersPage'
 import { SitesListPage } from '../pages/sites/SitesListPage'
 import { SiteDetailPage } from '../pages/sites/SiteDetailPage'
 import { NodesListPage } from '../pages/nodes/NodesListPage'
 import { NodeDetailPage } from '../pages/nodes/NodeDetailPage'
+import { ImportNodesPage } from '../pages/nodes/ImportNodesPage'
 import { DriftPage } from '../pages/drift/DriftPage'
 import { DriftReviewPage } from '../pages/drift/DriftReviewPage'
 import { CertificatesListPage } from '../pages/certificates/CertificatesListPage'
@@ -30,17 +34,22 @@ import { TracePage } from '../pages/trace/TracePage'
 import { ProbeHistoryPage } from '../pages/trace/ProbeHistoryPage'
 import { ProbeDetailPage } from '../pages/trace/ProbeDetailPage'
 
-// Every other nav link in AppShell still points at an internal/web
-// server-rendered page — a plain <a href>, a normal full-page navigation
-// away from the SPA — until its own phase ports it (docs/adr/0017).
+// Every navigable page is the SPA now (docs/adr/0017, Phase 8) — the only
+// page internal/web still server-renders is Import inventory (a plain
+// <a href> from the Nodes page, deliberately not ported: it's the user's own
+// separate in-progress work).
 export function AppRoutes() {
   return (
     <Routes>
+      {/* Login and Setup are bare — no AppShell, no session's chrome to draw yet. */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/setup" element={<SetupPage />} />
+      <Route path="/password" element={<AppShell><PasswordPage /></AppShell>} />
       <Route path="/" element={<AppShell><Dashboard /></AppShell>} />
-      <Route path="/clusters" element={<AppShell><ClustersPage /></AppShell>} />
       <Route path="/sites" element={<AppShell><SitesListPage /></AppShell>} />
       <Route path="/sites/:name" element={<AppShell><SiteDetailPage /></AppShell>} />
       <Route path="/nodes" element={<AppShell><NodesListPage /></AppShell>} />
+      <Route path="/nodes/import" element={<AppShell><ImportNodesPage /></AppShell>} />
       <Route path="/nodes/:id" element={<AppShell><NodeDetailPage /></AppShell>} />
       <Route path="/drift" element={<AppShell><DriftPage /></AppShell>} />
       <Route path="/drift/review/:instanceID" element={<AppShell><DriftReviewPage /></AppShell>} />
@@ -65,6 +74,7 @@ export function AppRoutes() {
       <Route path="/trace" element={<AppShell><TracePage /></AppShell>} />
       <Route path="/trace/probe" element={<AppShell><ProbeDetailPage /></AppShell>} />
       <Route path="/trace/history" element={<AppShell><ProbeHistoryPage /></AppShell>} />
+      <Route path="*" element={<AppShell><NotFoundPage /></AppShell>} />
     </Routes>
   )
 }

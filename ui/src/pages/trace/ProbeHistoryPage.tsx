@@ -1,13 +1,35 @@
-import { EuiBadge, EuiButton, EuiFieldSearch, EuiFlexGroup, EuiFlexItem, EuiLoadingChart, EuiPanel, EuiSelect, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useProbeHistory } from '../../api/queries/trace'
+import type { ProbeRecordPB } from '../../api/pb/nagipath/api/v1/probe_pb'
+import { StateBadge } from '../../components/shared/StateBadge'
+import { PageHeader } from '../../components/shared/PageHeader'
+import { PanelHeader } from '../../components/shared/PanelHeader'
+import { Badge, Button, Disclosure, Field, Loading, Panel, Select, Table, type Column } from '../../components/ui'
+
+// "04:33:02Z" for today, "Aug 23 21:40Z" for anything older — design/'s 2w Ran
+// column, which reads as a same-shift audit trail rather than six identical
+// full timestamps.
+function ran(iso: string): string {
+  const d = new Date(iso)
+  const t = d.toISOString()
+  return t.slice(0, 10) === new Date().toISOString().slice(0, 10)
+    ? `${t.slice(11, 19)}Z`
+    : `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${t.slice(11, 16)}Z`
+}
 
 // Ported from internal/web/templates/probe_history.html against
-// GET /api/ui/trace/history (internal/api/probe.go).
+// GET /api/trace/history (internal/api/probe.go), laid out as design/'s screen
+// 2w: the filter strip, the probe table, and the selected probe's audit record +
+// state changes expanded under its own row.
+// Omitted from that screen: the numbered pager — GetProbeHistory is
+// cursor-paged (next_cursor), so there is no page count to render; "Older ↓"
+// is what the cursor actually supports.
 export function ProbeHistoryPage() {
   const [params, setParams] = useSearchParams()
   const url = params.get('url') ?? ''
   const q = params.get('q') ?? ''
+  const [qInput, setQInput] = useState(q)
   const range = params.get('range') ?? '7'
   const actor = params.get('actor') ?? ''
   const outcome = params.get('outcome') ?? ''
@@ -16,142 +38,146 @@ export function ProbeHistoryPage() {
 
   const { data, isPending, isError, error } = useProbeHistory({ url, q, range, actor, outcome, probe, cursor })
 
-  const exportURL = `/api/ui/trace/history?export=csv&range=${range}${url ? `&url=${encodeURIComponent(url)}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}${actor ? `&actor=${actor}` : ''}${outcome ? `&outcome=${outcome}` : ''}`
+  const exportURL = `/api/trace/history?export=csv&range=${range}${url ? `&url=${encodeURIComponent(url)}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}${actor ? `&actor=${actor}` : ''}${outcome ? `&outcome=${outcome}` : ''}`
+
+  const submitQuery = () => setParams((p) => { p.set('q', qInput); p.delete('cursor'); return p })
+
+  const rowLink = (p: ProbeRecordPB) => {
+    const rowParams = new URLSearchParams()
+    if (url) rowParams.set('url', url)
+    if (q) rowParams.set('q', q)
+    rowParams.set('range', range)
+    if (actor) rowParams.set('actor', actor)
+    if (outcome) rowParams.set('outcome', outcome)
+    rowParams.set('probe', String(p.probeId))
+    return `?${rowParams.toString()}`
+  }
+
+  const columns: Column<ProbeRecordPB>[] = [
+    {
+      name: 'Ran', width: 130,
+      render: (r) => <span className="m"><Disclosure open={probe === String(r.probeId)} />{ran(r.requestedAt)}</span>,
+    },
+    { name: 'Entry point', render: (r) => <a className="m" href={rowLink(r)} title={r.url}>{r.url}</a> },
+    { name: 'Probe id', width: 80, render: (r) => <span className="m mu">{r.token.slice(0, 6)}</span> },
+    { name: 'Status', width: 64, render: (r) => <span className="m">{r.status || '—'}</span> },
+    {
+      name: 'State changes', width: 150,
+      render: (r) => <span className="m mu">{r.changes.length > 0 ? r.changes.join('; ') : `none${r.result !== 'completed' ? ` · ${r.result}` : ''}`}</span>,
+    },
+    { name: 'Actor', width: 100, render: (r) => <span className="m mu">{r.actorLabel || '—'}</span> },
+  ]
 
   return (
     <>
-      <EuiFlexGroup alignItems="center" justifyContent="spaceBetween">
-        <EuiFlexItem grow={false}><EuiTitle size="m"><h1>Probe history{url && ` — ${url}`}</h1></EuiTitle></EuiFlexItem>
-        <EuiFlexItem grow={false}>
-          <EuiFlexGroup gutterSize="s">
-            {url && <EuiFlexItem grow={false}><EuiButton size="s" href={`/trace?url=${encodeURIComponent(url)}`}>Back to trace</EuiButton></EuiFlexItem>}
-            {url && <EuiFlexItem grow={false}><EuiButton size="s" href="/trace/history">All probes</EuiButton></EuiFlexItem>}
-            {data && data.probes.length > 0 && <EuiFlexItem grow={false}><EuiButton size="s" href={exportURL} iconType="download">Export audit</EuiButton></EuiFlexItem>}
-          </EuiFlexGroup>
-        </EuiFlexItem>
-      </EuiFlexGroup>
-      <EuiSpacer />
+      <PageHeader
+        title={`Probe history${url ? ` — ${url}` : ''}`}
+        actions={
+          <>
+            {url && <Button small href={`/trace?url=${encodeURIComponent(url)}`}>Back to trace</Button>}
+            {url && <Button small href="/trace/history">All probes</Button>}
+            {data && data.probes.length > 0 && <Button small href={exportURL}>Export audit</Button>}
+          </>
+        }
+      />
 
-      <EuiFlexGroup gutterSize="s">
-        <EuiFlexItem grow={false} style={{ width: 260 }}>
-          <EuiFieldSearch placeholder="filter by entry point, actor or probe id" defaultValue={q}
-            onSearch={(v) => setParams((p) => { p.set('q', v); p.delete('cursor'); return p })} />
-        </EuiFlexItem>
-        <EuiFlexItem grow={false}>
-          <EuiSelect options={[{ value: '7', text: 'Range: 7 days' }, { value: '30', text: 'Range: 30 days' }, { value: '90', text: 'Range: 90 days' }, { value: 'all', text: 'Range: all' }]}
-            value={range} onChange={(e) => setParams((p) => { p.set('range', e.target.value); p.delete('cursor'); return p })} />
-        </EuiFlexItem>
+      <div className="qbar">
+        <Field grow placeholder="filter by entry point, actor or probe id" value={qInput} onChange={setQInput} onEnter={submitQuery} />
+        <Select
+          options={[{ value: '7', text: 'Range: 7 days' }, { value: '30', text: 'Range: 30 days' }, { value: '90', text: 'Range: 90 days' }, { value: 'all', text: 'Range: all' }]}
+          value={range} onChange={(v) => setParams((p) => { p.set('range', v); p.delete('cursor'); return p })}
+        />
         {data && data.actors.length > 0 && (
-          <EuiFlexItem grow={false}>
-            <EuiSelect options={[{ value: '', text: 'Actor: any' }, ...data.actors.map((a) => ({ value: a, text: a }))]}
-              value={actor} onChange={(e) => setParams((p) => { p.set('actor', e.target.value); p.delete('cursor'); return p })} />
-          </EuiFlexItem>
+          <Select
+            options={[{ value: '', text: 'Actor: any' }, ...data.actors.map((a) => ({ value: a, text: a }))]}
+            value={actor} onChange={(v) => setParams((p) => { p.set('actor', v); p.delete('cursor'); return p })}
+          />
         )}
-        <EuiFlexItem grow={false}>
-          <EuiSelect options={[{ value: '', text: 'Outcome: any' }, { value: 'completed', text: 'Completed' }, { value: 'failed', text: 'Failed' }, { value: 'blocked', text: 'Blocked' }, { value: 'running', text: 'Running' }]}
-            value={outcome} onChange={(e) => setParams((p) => { p.set('outcome', e.target.value); p.delete('cursor'); return p })} />
-        </EuiFlexItem>
-      </EuiFlexGroup>
-      <EuiSpacer />
+        <Select
+          options={[{ value: '', text: 'Outcome: any' }, { value: 'completed', text: 'Completed' }, { value: 'failed', text: 'Failed' }, { value: 'blocked', text: 'Blocked' }, { value: 'running', text: 'Running' }]}
+          value={outcome} onChange={(v) => setParams((p) => { p.set('outcome', v); p.delete('cursor'); return p })}
+        />
+        <div style={{ flex: 1 }} />
+        {data && <span className="m mu">{data.total} probe(s){data.actorCount > 0 && ` · ${data.actorCount} actor(s)`}</span>}
+      </div>
 
-      {isPending && <EuiLoadingChart size="xl" />}
-      {isError && <EuiText color="danger">{error.message}</EuiText>}
+      <div className="bd">
+        {isPending && <Loading label="Loading probe history…" />}
+        {isError && <div className="m" style={{ color: '#a1231c' }}>{error.message}</div>}
 
-      {data && (
-        <EuiFlexGroup alignItems="flexStart">
-          <EuiFlexItem>
-            <EuiPanel>
-              <EuiText size="s" color="subdued">{data.total} probe(s){data.actorCount > 0 && ` · ${data.actorCount} actor(s)`}</EuiText>
-              <EuiSpacer size="s" />
-              {data.probes.length === 0 ? (
-                <EuiText size="s" color="subdued">
-                  {q || actor || outcome || range !== 'all'
-                    ? <>No probe matches this filter. <a href={`/trace/history?range=all${url ? `&url=${encodeURIComponent(url)}` : ''}`}>Widen it to every probe on record</a>.</>
-                    : url ? <>No probe has ever been sent at this entry point. <a href={`/trace?url=${encodeURIComponent(url)}`}>Trace it</a> and use Probe to send one.</>
+        {data && (
+          <Panel z style={{ flex: 1 }}>
+            <PanelHeader title="Probes" meta="one request each, operator-triggered · open a row for its audit record" />
+            {data.probes.length === 0 ? (
+              <div className="m mus" style={{ padding: '8px 12px' }}>
+                {q || actor || outcome || range !== 'all'
+                  ? <>No probe matches this filter. <a href={`/trace/history?range=all${url ? `&url=${encodeURIComponent(url)}` : ''}`}>Widen it to every probe on record</a>.</>
+                  : url ? <>No probe has ever been sent at this entry point. <a href={`/trace?url=${encodeURIComponent(url)}`}>Trace it</a> and use Probe to send one.</>
                     : 'No probe has been sent yet.'}
-                </EuiText>
-              ) : (
-                <table style={{ width: '100%', fontSize: 12 }}>
-                  <thead><tr style={{ textAlign: 'left' }}><th>Ran</th><th>Entry point</th><th>Probe id</th><th>Status</th><th>State changes</th><th>Actor</th></tr></thead>
-                  <tbody>
-                    {data.probes.map((p) => {
-                      const rowParams = new URLSearchParams()
-                      if (url) rowParams.set('url', url)
-                      if (q) rowParams.set('q', q)
-                      rowParams.set('range', range)
-                      if (actor) rowParams.set('actor', actor)
-                      if (outcome) rowParams.set('outcome', outcome)
-                      rowParams.set('probe', String(p.probeId))
-                      return (
-                      <tr key={p.probeId.toString()} style={probe === String(p.probeId) ? { background: 'rgba(0,119,204,0.08)' } : undefined}>
-                        <td>{new Date(p.requestedAt).toLocaleString()}</td>
-                        <td><a href={`?${rowParams.toString()}`} title={p.url}>{p.url}</a></td>
-                        <td>{p.token.slice(0, 6)}</td>
-                        <td>{p.status || '—'}</td>
-                        <td>{p.changes.length > 0 ? p.changes.join('; ') : `none${p.result !== 'completed' ? ` · ${p.result}` : ''}`}</td>
-                        <td>{p.actorLabel || '—'}</td>
-                      </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              )}
-              {data.probes.length > 0 && (
-                <>
-                  <EuiSpacer size="s" />
-                  <EuiFlexGroup alignItems="center">
-                    <EuiFlexItem grow={false}><EuiText size="xs" color="subdued">{data.from}–{data.to} of {data.total}</EuiText></EuiFlexItem>
-                    {data.hasMore && <EuiFlexItem grow={false}><EuiButton size="s" onClick={() => setParams((p) => { p.set('cursor', data.nextCursor); return p })}>Older ↓</EuiButton></EuiFlexItem>}
-                  </EuiFlexGroup>
-                </>
-              )}
-            </EuiPanel>
-          </EuiFlexItem>
-
-          <EuiFlexItem grow={false} style={{ width: 340 }}>
-            {data.selected ? (
-              <>
-                <EuiPanel>
-                  <EuiFlexGroup alignItems="center" gutterSize="s">
-                    <EuiFlexItem><EuiText size="s"><strong>{data.selected.token.slice(0, 6)}</strong></EuiText></EuiFlexItem>
-                    {data.selected.status ? <EuiBadge>{data.selected.status}</EuiBadge> : <EuiBadge color="default">no response</EuiBadge>}
-                    <EuiFlexItem grow={false}><EuiButton size="s" href={`/trace?url=${encodeURIComponent(data.selected.url)}`}>Open trace</EuiButton></EuiFlexItem>
-                  </EuiFlexGroup>
-                  <EuiSpacer size="s" />
-                  <EuiText size="xs">
-                    <p>entry: {data.selected.url}</p>
-                    <p>actor: {data.selected.actorLabel || '—'}</p>
-                    <p>source: {data.selected.originHost || '—'}</p>
-                    <p>method: {data.selected.method}{data.selected.redirectCount > 0 && ` · ${data.selected.redirectCount} redirect(s)`}</p>
-                    {Number(data.selected.durationMs) > 0 && <p>latency: {Number(data.selected.durationMs)} ms</p>}
-                    {data.selected.logReads && <p>log reads: {data.selected.logReads}</p>}
-                    <p>requested: {new Date(data.selected.requestedAt).toLocaleString()}</p>
-                  </EuiText>
-                  {data.selected.error && <EuiText size="s" color="danger">{data.selected.error}</EuiText>}
-                </EuiPanel>
-                <EuiSpacer size="s" />
-                <EuiPanel>
-                  <EuiFlexGroup alignItems="center"><EuiFlexItem><EuiTitle size="xs"><h2>State changes</h2></EuiTitle></EuiFlexItem><EuiText size="xs" color="subdued">{data.selected.changeCount} change(s)</EuiText></EuiFlexGroup>
-                  <EuiSpacer size="s" />
-                  {data.selected.changes.length === 0 ? (
-                    <EuiText size="s" color="subdued">This probe produced no evidence at any hop, so it raised nothing.</EuiText>
-                  ) : (
-                    data.selected.changes.map((c, i) => (
-                      <EuiFlexGroup key={i} gutterSize="s" alignItems="center">
-                        <EuiFlexItem><EuiText size="s">{c.host}</EuiText></EuiFlexItem>
-                        <EuiBadge color="primary">{c.prior.toUpperCase()}</EuiBadge>
-                        {c.to ? <><EuiText size="xs">→</EuiText><EuiBadge color={c.to === 'verified' ? 'success' : 'warning'}>{c.to.toUpperCase()}</EuiBadge></> : <EuiText size="xs" color="subdued">unchanged</EuiText>}
-                      </EuiFlexGroup>
-                    ))
-                  )}
-                </EuiPanel>
-              </>
+              </div>
             ) : (
-              <EuiPanel><EuiText size="s" color="subdued">Select a probe from the table to see its details and evidence.</EuiText></EuiPanel>
+              <Table<ProbeRecordPB>
+                items={data.probes}
+                columns={columns}
+                rowKey={(r) => String(r.probeId)}
+                rowClassName={(r) => (probe === String(r.probeId) ? 'hl' : undefined)}
+                onRowClick={(r) => setParams((p) => {
+                  if (probe === String(r.probeId)) p.delete('probe'); else p.set('probe', String(r.probeId))
+                  return p
+                })}
+                renderExpanded={(r) => {
+                  // GetProbeHistory only hydrates the row named by ?probe=, so
+                  // exactly one row can be open at a time.
+                  const sel = data.selected
+                  if (!sel || probe !== String(r.probeId)) return null
+                  return (
+                    <div className="row" style={{ alignItems: 'flex-start' }}>
+                      <div className="col" style={{ flex: 1, gap: 6 }}>
+                        <div className="row" style={{ alignItems: 'center' }}>
+                          <span className="lbl">audit record</span>
+                          <Badge cls={!sel.status ? 'n' : sel.status < 400 ? 'v' : 'r'}>{sel.status || 'no response'}</Badge>
+                          <div style={{ flex: 1 }} />
+                          <Button small subtle href={`/trace/probe?probe=${sel.probeId}`}>Evidence</Button>
+                          <Button small href={`/trace?url=${encodeURIComponent(sel.url)}`}>Open trace</Button>
+                        </div>
+                        <div className="kv m" style={{ display: 'grid', gridTemplateColumns: '92px 1fr', gap: '4px 8px' }}>
+                          <span className="mus">entry</span><span>{sel.url}</span>
+                          <span className="mus">actor</span><span>{sel.actorLabel || '—'}</span>
+                          <span className="mus">source</span><span>{sel.originHost || '—'}</span>
+                          <span className="mus">method</span><span>{sel.method}{sel.redirectCount > 0 && ` · ${sel.redirectCount} redirect(s)`}</span>
+                          {Number(sel.durationMs) > 0 && <><span className="mus">latency</span><span>{Number(sel.durationMs)} ms</span></>}
+                          {sel.logReads && <><span className="mus">log reads</span><span>{sel.logReads}</span></>}
+                          <span className="mus">requested</span><span>{new Date(sel.requestedAt).toLocaleString()}</span>
+                        </div>
+                        {sel.error && <div className="m" style={{ color: '#a1231c' }}>{sel.error}</div>}
+                      </div>
+                      <div className="col" style={{ flex: 1, gap: 5 }}>
+                        <span className="lbl">state changes · {sel.changeCount}</span>
+                        {sel.changes.length === 0 ? (
+                          <div className="m mus">This probe produced no evidence at any hop, so it raised nothing.</div>
+                        ) : sel.changes.map((c, i) => (
+                          <div key={i} className="fct">
+                            <span className="m" style={{ width: 150 }}>{c.host}</span>
+                            <StateBadge state={c.prior} />
+                            {c.to ? <><span className="m mus">→</span><StateBadge state={c.to} /></> : <span className="m mus">unchanged</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                }}
+              />
             )}
-          </EuiFlexItem>
-        </EuiFlexGroup>
-      )}
+            {data.probes.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderTop: '1px solid #d3dae6', marginTop: 'auto' }}>
+                <span className="m mus">read-only record · {data.from}–{data.to} of {data.total}</span>
+                <div style={{ flex: 1 }} />
+                {data.hasMore && <Button small onClick={() => setParams((p) => { p.set('cursor', data.nextCursor); return p })}>Older ↓</Button>}
+              </div>
+            )}
+          </Panel>
+        )}
+      </div>
     </>
   )
 }

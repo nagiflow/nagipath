@@ -2,15 +2,18 @@
 // @generated from file nagipath/api/v1/session.proto (package nagipath.api.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_api_annotations } from "../../../google/api/annotations_pb";
+import type { EmptySchema, OkSchema } from "./common_pb";
+import { file_nagipath_api_v1_common } from "./common_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file nagipath/api/v1/session.proto.
  */
 export const file_nagipath_api_v1_session: GenFile = /*@__PURE__*/
-  fileDesc("Ch1uYWdpcGF0aC9hcGkvdjEvc2Vzc2lvbi5wcm90bxIPbmFnaXBhdGguYXBpLnYxImAKCU5hdkNvdW50cxINCgVub2RlcxgBIAEoBRINCgVzaXRlcxgCIAEoBRIQCghjbHVzdGVycxgDIAEoBRINCgVkcmlmdBgEIAEoBRIUCgxjZXJ0aWZpY2F0ZXMYBSABKAUiOQoLU2Vzc2lvblVzZXISCgoCaWQYASABKAMSEAoIdXNlcm5hbWUYAiABKAkSDAoEcm9sZRgDIAEoCSLKAQoPU2Vzc2lvblJlc3BvbnNlEioKBHVzZXIYASABKAsyHC5uYWdpcGF0aC5hcGkudjEuU2Vzc2lvblVzZXISEgoKY3NyZl90b2tlbhgCIAEoCRIcChRtdXN0X2NoYW5nZV9wYXNzd29yZBgDIAEoCBIuCgpuYXZfY291bnRzGAQgASgLMhoubmFnaXBhdGguYXBpLnYxLk5hdkNvdW50cxIWCg5saWNlbnNlX25vdGljZRgFIAEoCRIRCglkZW1vX21vZGUYBiABKAhCMVovZ2l0aHViLmNvbS9uYWdpZmxvdy9uYWdpcGF0aC9pbnRlcm5hbC9hcGkvcGI7cGJiBnByb3RvMw");
+  fileDesc("Ch1uYWdpcGF0aC9hcGkvdjEvc2Vzc2lvbi5wcm90bxIPbmFnaXBhdGguYXBpLnYxImAKCU5hdkNvdW50cxINCgVub2RlcxgBIAEoBRINCgVzaXRlcxgCIAEoBRIQCghjbHVzdGVycxgDIAEoBRINCgVkcmlmdBgEIAEoBRIUCgxjZXJ0aWZpY2F0ZXMYBSABKAUiOQoLU2Vzc2lvblVzZXISCgoCaWQYASABKAMSEAoIdXNlcm5hbWUYAiABKAkSDAoEcm9sZRgDIAEoCSL5AQoPU2Vzc2lvblJlc3BvbnNlEioKBHVzZXIYASABKAsyHC5uYWdpcGF0aC5hcGkudjEuU2Vzc2lvblVzZXISEgoKY3NyZl90b2tlbhgCIAEoCRIcChRtdXN0X2NoYW5nZV9wYXNzd29yZBgDIAEoCBIuCgpuYXZfY291bnRzGAQgASgLMhoubmFnaXBhdGguYXBpLnYxLk5hdkNvdW50cxIWCg5saWNlbnNlX25vdGljZRgFIAEoCRIRCglkZW1vX21vZGUYBiABKAgSFQoNYXV0aGVudGljYXRlZBgHIAEoCBIWCg5zZXR1cF9yZXF1aXJlZBgIIAEoCCJDCgxTZXR1cFJlcXVlc3QSEAoIdXNlcm5hbWUYASABKAkSEAoIcGFzc3dvcmQYAiABKAkSDwoHY29uZmlybRgDIAEoCSIyCgxMb2dpblJlcXVlc3QSEAoIdXNlcm5hbWUYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiRgoVQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0Eg8KB2N1cnJlbnQYASABKAkSCwoDbmV3GAIgASgJEg8KB2NvbmZpcm0YAyABKAkyhAMKDlNlc3Npb25TZXJ2aWNlElsKBVNldHVwEh0ubmFnaXBhdGguYXBpLnYxLlNldHVwUmVxdWVzdBogLm5hZ2lwYXRoLmFwaS52MS5TZXNzaW9uUmVzcG9uc2UiEYLT5JMCCzoBKiIGL3NldHVwElsKBUxvZ2luEh0ubmFnaXBhdGguYXBpLnYxLkxvZ2luUmVxdWVzdBogLm5hZ2lwYXRoLmFwaS52MS5TZXNzaW9uUmVzcG9uc2UiEYLT5JMCCzoBKiIGL2xvZ2luEkYKBkxvZ291dBIWLm5hZ2lwYXRoLmFwaS52MS5FbXB0eRoTLm5hZ2lwYXRoLmFwaS52MS5PayIPgtPkkwIJIgcvbG9nb3V0EnAKDkNoYW5nZVBhc3N3b3JkEiYubmFnaXBhdGguYXBpLnYxLkNoYW5nZVBhc3N3b3JkUmVxdWVzdBogLm5hZ2lwYXRoLmFwaS52MS5TZXNzaW9uUmVzcG9uc2UiFILT5JMCDjoBKiIJL3Bhc3N3b3JkQjFaL2dpdGh1Yi5jb20vbmFnaWZsb3cvbmFnaXBhdGgvaW50ZXJuYWwvYXBpL3BiO3BiYgZwcm90bzM", [file_google_api_annotations, file_nagipath_api_v1_common]);
 
 /**
  * @generated from message nagipath.api.v1.NavCounts
@@ -109,6 +112,20 @@ export type SessionResponse = Message<"nagipath.api.v1.SessionResponse"> & {
    * @generated from field: bool demo_mode = 6;
    */
   demoMode: boolean;
+
+  /**
+   * authenticated and setup_required let GET /session serve an anonymous
+   * caller a 200 instead of a 401 — the SPA's Login/Setup pages need to know
+   * which of themselves to render before any session exists at all.
+   *
+   * @generated from field: bool authenticated = 7;
+   */
+  authenticated: boolean;
+
+  /**
+   * @generated from field: bool setup_required = 8;
+   */
+  setupRequired: boolean;
 };
 
 /**
@@ -117,4 +134,136 @@ export type SessionResponse = Message<"nagipath.api.v1.SessionResponse"> & {
  */
 export const SessionResponseSchema: GenMessage<SessionResponse> = /*@__PURE__*/
   messageDesc(file_nagipath_api_v1_session, 2);
+
+/**
+ * @generated from message nagipath.api.v1.SetupRequest
+ */
+export type SetupRequest = Message<"nagipath.api.v1.SetupRequest"> & {
+  /**
+   * @generated from field: string username = 1;
+   */
+  username: string;
+
+  /**
+   * @generated from field: string password = 2;
+   */
+  password: string;
+
+  /**
+   * @generated from field: string confirm = 3;
+   */
+  confirm: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.SetupRequest.
+ * Use `create(SetupRequestSchema)` to create a new message.
+ */
+export const SetupRequestSchema: GenMessage<SetupRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_session, 3);
+
+/**
+ * @generated from message nagipath.api.v1.LoginRequest
+ */
+export type LoginRequest = Message<"nagipath.api.v1.LoginRequest"> & {
+  /**
+   * @generated from field: string username = 1;
+   */
+  username: string;
+
+  /**
+   * @generated from field: string password = 2;
+   */
+  password: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.LoginRequest.
+ * Use `create(LoginRequestSchema)` to create a new message.
+ */
+export const LoginRequestSchema: GenMessage<LoginRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_session, 4);
+
+/**
+ * @generated from message nagipath.api.v1.ChangePasswordRequest
+ */
+export type ChangePasswordRequest = Message<"nagipath.api.v1.ChangePasswordRequest"> & {
+  /**
+   * @generated from field: string current = 1;
+   */
+  current: string;
+
+  /**
+   * Named to match the wire field the frontend already sends
+   * (ui/src/api/queries/session.ts posts plain JSON, not protobuf toJson,
+   * for this one request body — {current, new, confirm}), not proto/Go
+   * naming convention.
+   *
+   * @generated from field: string new = 2;
+   */
+  new: string;
+
+  /**
+   * @generated from field: string confirm = 3;
+   */
+  confirm: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.ChangePasswordRequest.
+ * Use `create(ChangePasswordRequestSchema)` to create a new message.
+ */
+export const ChangePasswordRequestSchema: GenMessage<ChangePasswordRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_session, 5);
+
+/**
+ * SessionService is login/setup/logout/password-change — everything except
+ * GET /session itself (internal/api/session.go), which stays a plain
+ * net/http handler: it is the one endpoint in this whole API an anonymous
+ * caller (no cookie, or one SessionUser rejects) must still get a 200 from,
+ * peeking at the cookie rather than requiring it the way requireAuth does,
+ * so it does not fit this package's usual gateway-plus-requireAuth shape.
+ * Setup and Login aren't requireAuth-wrapped either (there is no session yet
+ * to check) — see api.go's registration of these routes. Both mutate the
+ * session cookie via grpc.SetHeader (internal/api/sessionservice.go), since
+ * an RPC method has no http.ResponseWriter to call http.SetCookie on
+ * directly.
+ *
+ * @generated from service nagipath.api.v1.SessionService
+ */
+export const SessionService: GenService<{
+  /**
+   * @generated from rpc nagipath.api.v1.SessionService.Setup
+   */
+  setup: {
+    methodKind: "unary";
+    input: typeof SetupRequestSchema;
+    output: typeof SessionResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.SessionService.Login
+   */
+  login: {
+    methodKind: "unary";
+    input: typeof LoginRequestSchema;
+    output: typeof SessionResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.SessionService.Logout
+   */
+  logout: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof OkSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.SessionService.ChangePassword
+   */
+  changePassword: {
+    methodKind: "unary";
+    input: typeof ChangePasswordRequestSchema;
+    output: typeof SessionResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_nagipath_api_v1_session, 0);
 

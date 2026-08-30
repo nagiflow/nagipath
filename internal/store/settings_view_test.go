@@ -242,6 +242,13 @@ func TestAPITokensFiltered(t *testing.T) {
 		if len(tokens) != tt.want {
 			t.Errorf("filter=%s: expected %d tokens, got %d", tt.filter, tt.want, len(tokens))
 		}
+		// The prefix is the only handle the UI has on a key it can never show
+		// again, so the filtered query has to return it, not just select it.
+		for _, tok := range tokens {
+			if tok.Prefix == "" {
+				t.Errorf("filter=%s: token %q came back with no prefix", tt.filter, tok.Name)
+			}
+		}
 	}
 }
 

@@ -5,14 +5,11 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-  cmd = "make css && go build -o ./tmp/nagipath ./cmd/nagipath"
+  cmd = "go build -o ./tmp/nagipath ./cmd/nagipath"
   entrypoint = ["./tmp/nagipath", "server", "-data", "/data", "-listen", "0.0.0.0:8080"]
-  include_ext = ["go", "html", "css", "js", "sql"]
+  include_ext = ["go", "sql"]
   exclude_dir = [".git", "data", "design", "testlab", "tmp"]
-  # app.src.css is watched; app.css is its generated output, so watching both
-  # would cause a rebuild loop after every CSS edit.
-  exclude_file = ["internal/web/static/app.css"]
-  exclude_regex = ["_test\\.go", "internal/web/static/app\\.css$"]
+  exclude_regex = ["_test\\.go"]
   exclude_unchanged = true
   poll = true
   poll_interval = 500

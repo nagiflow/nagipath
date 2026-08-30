@@ -1,0 +1,5 @@
+.pnl{background:#fff;border:1px solid #d3dae6;border-radius:6px;padding:12px;min-width:0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+/* overflow:hidden is what design/ puts inline on every `pnl z`: a panel clips its
+   own content, so a table taller than the panel scrolls inside it (see .tw)
+   instead of painting over the panels stacked below. */
+.pnl.z{padding:0;display:flex;flex-direction:column;min-height:0;overflow:hidden}

@@ -1,0 +1,53 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+import { ScreenIndex } from './support/screenIndex'
+
+<Meta title="Design/Screens" />
+
+# The 35 screens
+
+Built from the story files themselves: the screen ids come from
+`screens.json`, the routes and page names from each page story's
+`pageMeta({ screen })`. If a screen says *not ported*, no page story claims it.
+
+<ScreenIndex />
+
+## How the design breaks down
+
+Five recurring shapes cover all 35 screens. Learning them is most of learning
+the product's UI:
+
+1. **Question → answer** (`2a` Trace, `2b` Rule lookup, `2g` Config search).
+   A form at the top, an answer below, both in the URL so an answer is a link.
+   Each has three states worth designing: *unasked*, *answered*, *nothing found*
+   — all three are stories.
+2. **Inventory list** (`3a` Sites, `2c` Nodes, `2f` Certificates, `2r` Snapshots,
+   `8d` Collection jobs, `2w` Probe history). `.qbar` filters, one wide table, a
+   footer with counts and paging. Row detail **expands under the row** — no
+   right-hand preview pane exists anywhere in the design, deliberately.
+3. **Entity detail with tabs** (`3c`+`5a`/`2o`/`2p`/`5b` Node, `7a` Site,
+   `7b` Certificate). Header with name, state badge and actions; tabs as URL
+   params so every tab is linkable; panels of key/value plus one table.
+4. **Settings sub-page** (`8a`–`8j`). Fixed 200px sub-nav with the "This
+   install" panel pinned under it, form panels on the right, viewer-visible but
+   read-only.
+5. **Single-purpose page** (`6a` Drift review, `2s` Snapshot file, `2q` Import,
+   `8k`/`9a`/`9b` auth). One job, one column, no filters.
+
+## Cross-cutting rules the design keeps
+
+- **Evidence is always reachable.** Any derived claim (a drift finding, a rule,
+  a hop) links to the config file, snapshot and byte offset it came from —
+  screen `2s` is the destination of all of those links.
+- **State is a word, not a colour.** Six badge buckets, no free-form colours.
+- **Nothing destructive happens immediately.** Retention prunes via a background
+  job, drift is ignored rather than deleted, import writes rows but collects
+  nothing.
+- **Mono means "this came from a machine".** Hostnames, paths, counts, times.
+- **Role differences shrink, never rearrange.** A viewer sees the same layout
+  with controls disabled — never a different page.
+
+## Screens that are not pages
+
+`2v` Settings is the design's overview of the settings area, not a route: the
+app redirects `/settings` to the first sub-page. Its shape lives in
+`SettingsLayout`, and it is the screen quoted by *Pages › Settings › Users*.

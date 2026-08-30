@@ -2,7 +2,6 @@ package web
 
 import (
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 
@@ -10,15 +9,15 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// GET /api/ui/settings/system behaves like every other JSON route behind
+// GET /api/settings/system behaves like every other JSON route behind
 // requireAuth: signed out, it 401s rather than returning anything.
 func TestDiagnosticsPageRequiresAuth(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	w := c.get("/api/ui/settings/system")
+	w := c.get("/api/settings/system")
 	if w.Code != http.StatusUnauthorized {
-		t.Errorf("GET /api/ui/settings/system while signed out = %d, want 401", w.Code)
+		t.Errorf("GET /api/settings/system while signed out = %d, want 401", w.Code)
 	}
 }
 
@@ -28,13 +27,13 @@ func TestViewerCannotReachDiagnostics(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "viewer", "a good long password", "viewer", "Viewer", false)
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"viewer"}, "password": {"a good long password"}})
+	c.login("viewer", "a good long password")
 	if c.cookie == "" {
 		t.Fatal("viewer could not sign in")
 	}
 
-	if got := c.get("/api/ui/settings/system").Code; got != http.StatusForbidden {
-		t.Errorf("GET /api/ui/settings/system as a viewer = %d, want 403", got)
+	if got := c.get("/api/settings/system").Code; got != http.StatusForbidden {
+		t.Errorf("GET /api/settings/system as a viewer = %d, want 403", got)
 	}
 	if got := c.get("/settings/system/bundle").Code; got != http.StatusForbidden {
 		t.Errorf("GET /diagnostics/bundle as a viewer = %d, want 403", got)
@@ -47,12 +46,12 @@ func TestAdminSeesDiagnosticsPanel(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
 	var resp pb.DiagnosticsResponse
-	w := c.get("/api/ui/settings/system")
+	w := c.get("/api/settings/system")
 	if w.Code != http.StatusOK {
-		t.Fatalf("GET /api/ui/settings/system as an admin = %d, want 200: %s", w.Code, w.Body.String())
+		t.Fatalf("GET /api/settings/system as an admin = %d, want 200: %s", w.Code, w.Body.String())
 	}
 	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
@@ -70,7 +69,7 @@ func TestDiagnosticsBundleDownloadsAsAttachment(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
 	w := c.get("/settings/system/bundle")
 	if w.Code != http.StatusOK {

@@ -1,0 +1,73 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+
+<Meta title="Design/Contributing" />
+
+# Working in here
+
+```bash
+bun run storybook          # dev, port 6006
+bun run build-storybook    # static build (storybook-static/)
+bun run test               # includes the story smoke test
+```
+
+## Changing how something looks
+
+1. Edit the component or page, and its story if the change affects props or
+   fixtures.
+2. Reuse the classes and values already in `src/theme/theme.css` — a
+   colour, radius or type size that isn't already there gets added to that
+   file, never invented inline in a `style={{}}`.
+3. Compare the result against the page's story and against `Design › Canvas`
+   to make sure nothing else moved.
+
+## Adding a page story
+
+`title` sits next to the `pageMeta()` spread, not inside it: Storybook indexes
+story files statically and cannot read a title returned from a function call.
+
+```tsx
+export default {
+  title: 'Pages/Nodes/List',
+  ...pageMeta({
+    component: NodesListPage,
+    screen: '2c',                        // wireframe id — pulls in its design notes
+    route: '/nodes',                     // MemoryRouter entry
+    path: '/nodes/:id',                  // only if the page reads useParams()
+    api: { '/nodes': nodesListFixture }, // keys are API paths without /api
+  }),
+} satisfies Meta
+
+export const Default: StoryObj = {}
+```
+
+Fixture keys match by longest prefix and ignore the query string, so `/nodes`
+answers `/nodes?q=edge` while `/nodes/41` still wins for the detail call.
+`/session` and `/settings/system` are provided for every story by
+`.storybook/preview.tsx`; override them in `parameters.api` when the story is
+about a different role or a fresh install.
+
+Cover the states that are hard to reach in a browser, not every permutation:
+empty, error, viewer role, and whatever the screen's design notes single out.
+
+## Adding a component
+
+New visual element? Give it its own file in `src/components/ui/` (component
++ its CSS, e.g. `Button.tsx` + `Button.css`) and a story in `Components/`.
+Compose an existing primitive (`Panel`, `Button`, …) for shared chrome rather
+than hardcoding its class. Never a one-off `style={{}}` inside a page for
+something two pages will need, and never a colour that is not in **Design
+tokens**.
+
+## Fixtures
+
+One module per domain in `src/stories/fixtures/`, all built with
+`pb(Schema, {...})`. Keep the fleet consistent across modules — the same five
+clusters, the same node 41 (`app-iad3-17`), the same certificate 701 — so
+stories read like one system rather than a pile of unrelated mock data.
+`int64` fields are `bigint`: write `41n`.
+
+## The check
+
+`src/test/stories.test.tsx` renders every story and fails if any of them shows
+the "no story fixture" error, so a fixture that stops matching its endpoint
+breaks the test run rather than quietly rendering an error state.

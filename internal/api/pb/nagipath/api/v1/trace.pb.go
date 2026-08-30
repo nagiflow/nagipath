@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -303,13 +304,16 @@ func (x *TraceHopPB) GetLevel() int32 {
 }
 
 type TraceCandidate struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	InstId          int64                  `protobuf:"varint,1,opt,name=inst_id,json=instId,proto3" json:"inst_id,omitempty"`
-	InstDisplayName string                 `protobuf:"bytes,2,opt,name=inst_display_name,json=instDisplayName,proto3" json:"inst_display_name,omitempty"`
-	InstNodeAddress string                 `protobuf:"bytes,3,opt,name=inst_node_address,json=instNodeAddress,proto3" json:"inst_node_address,omitempty"`
-	ListenerPort    int32                  `protobuf:"varint,4,opt,name=listener_port,json=listenerPort,proto3" json:"listener_port,omitempty"`
-	Selected        bool                   `protobuf:"varint,5,opt,name=selected,proto3" json:"selected,omitempty"`
-	Reason          string                 `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	InstId int64                  `protobuf:"varint,1,opt,name=inst_id,json=instId,proto3" json:"inst_id,omitempty"`
+	// The candidate list links to the node page, which is keyed by node id;
+	// store.Instance already carries it.
+	NodeId          int64  `protobuf:"varint,7,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	InstDisplayName string `protobuf:"bytes,2,opt,name=inst_display_name,json=instDisplayName,proto3" json:"inst_display_name,omitempty"`
+	InstNodeAddress string `protobuf:"bytes,3,opt,name=inst_node_address,json=instNodeAddress,proto3" json:"inst_node_address,omitempty"`
+	ListenerPort    int32  `protobuf:"varint,4,opt,name=listener_port,json=listenerPort,proto3" json:"listener_port,omitempty"`
+	Selected        bool   `protobuf:"varint,5,opt,name=selected,proto3" json:"selected,omitempty"`
+	Reason          string `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -347,6 +351,13 @@ func (*TraceCandidate) Descriptor() ([]byte, []int) {
 func (x *TraceCandidate) GetInstId() int64 {
 	if x != nil {
 		return x.InstId
+	}
+	return 0
+}
+
+func (x *TraceCandidate) GetNodeId() int64 {
+	if x != nil {
+		return x.NodeId
 	}
 	return 0
 }
@@ -1242,11 +1253,367 @@ func (x *TraceResponse) GetProvPicked() bool {
 	return false
 }
 
+type GetTraceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Scheme        string                 `protobuf:"bytes,2,opt,name=scheme,proto3" json:"scheme,omitempty"`
+	Hostname      string                 `protobuf:"bytes,3,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	Path          string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
+	Port          int32                  `protobuf:"varint,5,opt,name=port,proto3" json:"port,omitempty"`
+	Method        string                 `protobuf:"bytes,6,opt,name=method,proto3" json:"method,omitempty"`
+	Run           int64                  `protobuf:"varint,7,opt,name=run,proto3" json:"run,omitempty"`
+	Prov          int64                  `protobuf:"varint,8,opt,name=prov,proto3" json:"prov,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTraceRequest) Reset() {
+	*x = GetTraceRequest{}
+	mi := &file_nagipath_api_v1_trace_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTraceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTraceRequest) ProtoMessage() {}
+
+func (x *GetTraceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_trace_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTraceRequest.ProtoReflect.Descriptor instead.
+func (*GetTraceRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_trace_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetTraceRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *GetTraceRequest) GetScheme() string {
+	if x != nil {
+		return x.Scheme
+	}
+	return ""
+}
+
+func (x *GetTraceRequest) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+func (x *GetTraceRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GetTraceRequest) GetPort() int32 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
+func (x *GetTraceRequest) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *GetTraceRequest) GetRun() int64 {
+	if x != nil {
+		return x.Run
+	}
+	return 0
+}
+
+func (x *GetTraceRequest) GetProv() int64 {
+	if x != nil {
+		return x.Prov
+	}
+	return 0
+}
+
+type PostTraceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Scheme        string                 `protobuf:"bytes,2,opt,name=scheme,proto3" json:"scheme,omitempty"`
+	Hostname      string                 `protobuf:"bytes,3,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	Path          string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
+	Port          int32                  `protobuf:"varint,5,opt,name=port,proto3" json:"port,omitempty"`
+	Method        string                 `protobuf:"bytes,6,opt,name=method,proto3" json:"method,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PostTraceRequest) Reset() {
+	*x = PostTraceRequest{}
+	mi := &file_nagipath_api_v1_trace_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PostTraceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PostTraceRequest) ProtoMessage() {}
+
+func (x *PostTraceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_trace_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PostTraceRequest.ProtoReflect.Descriptor instead.
+func (*PostTraceRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_trace_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *PostTraceRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *PostTraceRequest) GetScheme() string {
+	if x != nil {
+		return x.Scheme
+	}
+	return ""
+}
+
+func (x *PostTraceRequest) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+func (x *PostTraceRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *PostTraceRequest) GetPort() int32 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
+func (x *PostTraceRequest) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+type StartProbeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Method        string                 `protobuf:"bytes,2,opt,name=method,proto3" json:"method,omitempty"`
+	Trace         int64                  `protobuf:"varint,3,opt,name=trace,proto3" json:"trace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartProbeRequest) Reset() {
+	*x = StartProbeRequest{}
+	mi := &file_nagipath_api_v1_trace_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartProbeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartProbeRequest) ProtoMessage() {}
+
+func (x *StartProbeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_trace_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartProbeRequest.ProtoReflect.Descriptor instead.
+func (*StartProbeRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_trace_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *StartProbeRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *StartProbeRequest) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *StartProbeRequest) GetTrace() int64 {
+	if x != nil {
+		return x.Trace
+	}
+	return 0
+}
+
+type StartProbeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	RunId         int64                  `protobuf:"varint,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	TraceId       int64                  `protobuf:"varint,3,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
+	Url           string                 `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartProbeResponse) Reset() {
+	*x = StartProbeResponse{}
+	mi := &file_nagipath_api_v1_trace_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartProbeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartProbeResponse) ProtoMessage() {}
+
+func (x *StartProbeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_trace_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartProbeResponse.ProtoReflect.Descriptor instead.
+func (*StartProbeResponse) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_trace_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *StartProbeResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *StartProbeResponse) GetRunId() int64 {
+	if x != nil {
+		return x.RunId
+	}
+	return 0
+}
+
+func (x *StartProbeResponse) GetTraceId() int64 {
+	if x != nil {
+		return x.TraceId
+	}
+	return 0
+}
+
+func (x *StartProbeResponse) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type GetProbeRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProbeRunRequest) Reset() {
+	*x = GetProbeRunRequest{}
+	mi := &file_nagipath_api_v1_trace_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProbeRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProbeRunRequest) ProtoMessage() {}
+
+func (x *GetProbeRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_trace_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProbeRunRequest.ProtoReflect.Descriptor instead.
+func (*GetProbeRunRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_trace_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetProbeRunRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
 var File_nagipath_api_v1_trace_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_trace_proto_rawDesc = "" +
 	"\n" +
-	"\x1bnagipath/api/v1/trace.proto\x12\x0fnagipath.api.v1\"{\n" +
+	"\x1bnagipath/api/v1/trace.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\"{\n" +
 	"\vRuleFiredPB\x12\x17\n" +
 	"\arule_id\x18\x01 \x01(\x03R\x06ruleId\x12\x1c\n" +
 	"\tdirective\x18\x02 \x01(\tR\tdirective\x12\x12\n" +
@@ -1281,9 +1648,10 @@ const file_nagipath_api_v1_trace_proto_rawDesc = "" +
 	"\vfired_rules\x18\x13 \x03(\v2\x1c.nagipath.api.v1.RuleFiredPBR\n" +
 	"firedRules\x12!\n" +
 	"\farrived_from\x18\x14 \x01(\x05R\varrivedFrom\x12\x14\n" +
-	"\x05level\x18\x15 \x01(\x05R\x05level\"\xda\x01\n" +
+	"\x05level\x18\x15 \x01(\x05R\x05level\"\xf3\x01\n" +
 	"\x0eTraceCandidate\x12\x17\n" +
-	"\ainst_id\x18\x01 \x01(\x03R\x06instId\x12*\n" +
+	"\ainst_id\x18\x01 \x01(\x03R\x06instId\x12\x17\n" +
+	"\anode_id\x18\a \x01(\x03R\x06nodeId\x12*\n" +
 	"\x11inst_display_name\x18\x02 \x01(\tR\x0finstDisplayName\x12*\n" +
 	"\x11inst_node_address\x18\x03 \x01(\tR\x0finstNodeAddress\x12#\n" +
 	"\rlistener_port\x18\x04 \x01(\x05R\flistenerPort\x12\x1a\n" +
@@ -1382,7 +1750,40 @@ const file_nagipath_api_v1_trace_proto_rawDesc = "" +
 	"\x03run\x18\x17 \x01(\v2\x1b.nagipath.api.v1.ProbeRunPBR\x03run\x121\n" +
 	"\x04prov\x18\x18 \x01(\v2\x1d.nagipath.api.v1.ProvenancePBR\x04prov\x12\x1f\n" +
 	"\vprov_picked\x18\x19 \x01(\bR\n" +
-	"provPickedB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	"provPicked\"\xbd\x01\n" +
+	"\x0fGetTraceRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x16\n" +
+	"\x06scheme\x18\x02 \x01(\tR\x06scheme\x12\x1a\n" +
+	"\bhostname\x18\x03 \x01(\tR\bhostname\x12\x12\n" +
+	"\x04path\x18\x04 \x01(\tR\x04path\x12\x12\n" +
+	"\x04port\x18\x05 \x01(\x05R\x04port\x12\x16\n" +
+	"\x06method\x18\x06 \x01(\tR\x06method\x12\x10\n" +
+	"\x03run\x18\a \x01(\x03R\x03run\x12\x12\n" +
+	"\x04prov\x18\b \x01(\x03R\x04prov\"\x98\x01\n" +
+	"\x10PostTraceRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x16\n" +
+	"\x06scheme\x18\x02 \x01(\tR\x06scheme\x12\x1a\n" +
+	"\bhostname\x18\x03 \x01(\tR\bhostname\x12\x12\n" +
+	"\x04path\x18\x04 \x01(\tR\x04path\x12\x12\n" +
+	"\x04port\x18\x05 \x01(\x05R\x04port\x12\x16\n" +
+	"\x06method\x18\x06 \x01(\tR\x06method\"S\n" +
+	"\x11StartProbeRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x16\n" +
+	"\x06method\x18\x02 \x01(\tR\x06method\x12\x14\n" +
+	"\x05trace\x18\x03 \x01(\x03R\x05trace\"h\n" +
+	"\x12StartProbeResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\x03R\x05runId\x12\x19\n" +
+	"\btrace_id\x18\x03 \x01(\x03R\atraceId\x12\x10\n" +
+	"\x03url\x18\x04 \x01(\tR\x03url\"$\n" +
+	"\x12GetProbeRunRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id2\xa9\x03\n" +
+	"\fTraceService\x12\\\n" +
+	"\bGetTrace\x12 .nagipath.api.v1.GetTraceRequest\x1a\x1e.nagipath.api.v1.TraceResponse\"\x0e\x82\xd3\xe4\x93\x02\b\x12\x06/trace\x12a\n" +
+	"\tPostTrace\x12!.nagipath.api.v1.PostTraceRequest\x1a\x1e.nagipath.api.v1.TraceResponse\"\x11\x82\xd3\xe4\x93\x02\v:\x01*\"\x06/trace\x12n\n" +
+	"\n" +
+	"StartProbe\x12\".nagipath.api.v1.StartProbeRequest\x1a#.nagipath.api.v1.StartProbeResponse\"\x17\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/trace/probe\x12h\n" +
+	"\vGetProbeRun\x12#.nagipath.api.v1.GetProbeRunRequest\x1a\x1b.nagipath.api.v1.ProbeRunPB\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/trace/run/{id}B1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_trace_proto_rawDescOnce sync.Once
@@ -1396,26 +1797,31 @@ func file_nagipath_api_v1_trace_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_trace_proto_rawDescData
 }
 
-var file_nagipath_api_v1_trace_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_nagipath_api_v1_trace_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_nagipath_api_v1_trace_proto_goTypes = []any{
-	(*RuleFiredPB)(nil),    // 0: nagipath.api.v1.RuleFiredPB
-	(*TraceHopPB)(nil),     // 1: nagipath.api.v1.TraceHopPB
-	(*TraceCandidate)(nil), // 2: nagipath.api.v1.TraceCandidate
-	(*ProbedHopPB)(nil),    // 3: nagipath.api.v1.ProbedHopPB
-	(*LastProbePB)(nil),    // 4: nagipath.api.v1.LastProbePB
-	(*ProbeStepPB)(nil),    // 5: nagipath.api.v1.ProbeStepPB
-	(*ProbeRunPB)(nil),     // 6: nagipath.api.v1.ProbeRunPB
-	(*TraceRecent)(nil),    // 7: nagipath.api.v1.TraceRecent
-	(*ProvenanceLine)(nil), // 8: nagipath.api.v1.ProvenanceLine
-	(*ProvenancePB)(nil),   // 9: nagipath.api.v1.ProvenancePB
-	(*TraceResponse)(nil),  // 10: nagipath.api.v1.TraceResponse
-	nil,                    // 11: nagipath.api.v1.ProbeRunPB.StateEntry
+	(*RuleFiredPB)(nil),        // 0: nagipath.api.v1.RuleFiredPB
+	(*TraceHopPB)(nil),         // 1: nagipath.api.v1.TraceHopPB
+	(*TraceCandidate)(nil),     // 2: nagipath.api.v1.TraceCandidate
+	(*ProbedHopPB)(nil),        // 3: nagipath.api.v1.ProbedHopPB
+	(*LastProbePB)(nil),        // 4: nagipath.api.v1.LastProbePB
+	(*ProbeStepPB)(nil),        // 5: nagipath.api.v1.ProbeStepPB
+	(*ProbeRunPB)(nil),         // 6: nagipath.api.v1.ProbeRunPB
+	(*TraceRecent)(nil),        // 7: nagipath.api.v1.TraceRecent
+	(*ProvenanceLine)(nil),     // 8: nagipath.api.v1.ProvenanceLine
+	(*ProvenancePB)(nil),       // 9: nagipath.api.v1.ProvenancePB
+	(*TraceResponse)(nil),      // 10: nagipath.api.v1.TraceResponse
+	(*GetTraceRequest)(nil),    // 11: nagipath.api.v1.GetTraceRequest
+	(*PostTraceRequest)(nil),   // 12: nagipath.api.v1.PostTraceRequest
+	(*StartProbeRequest)(nil),  // 13: nagipath.api.v1.StartProbeRequest
+	(*StartProbeResponse)(nil), // 14: nagipath.api.v1.StartProbeResponse
+	(*GetProbeRunRequest)(nil), // 15: nagipath.api.v1.GetProbeRunRequest
+	nil,                        // 16: nagipath.api.v1.ProbeRunPB.StateEntry
 }
 var file_nagipath_api_v1_trace_proto_depIdxs = []int32{
 	0,  // 0: nagipath.api.v1.TraceHopPB.fired_rules:type_name -> nagipath.api.v1.RuleFiredPB
 	3,  // 1: nagipath.api.v1.LastProbePB.probed:type_name -> nagipath.api.v1.ProbedHopPB
 	5,  // 2: nagipath.api.v1.ProbeRunPB.steps:type_name -> nagipath.api.v1.ProbeStepPB
-	11, // 3: nagipath.api.v1.ProbeRunPB.state:type_name -> nagipath.api.v1.ProbeRunPB.StateEntry
+	16, // 3: nagipath.api.v1.ProbeRunPB.state:type_name -> nagipath.api.v1.ProbeRunPB.StateEntry
 	8,  // 4: nagipath.api.v1.ProvenancePB.lines:type_name -> nagipath.api.v1.ProvenanceLine
 	7,  // 5: nagipath.api.v1.TraceResponse.recent:type_name -> nagipath.api.v1.TraceRecent
 	1,  // 6: nagipath.api.v1.TraceResponse.hops:type_name -> nagipath.api.v1.TraceHopPB
@@ -1423,8 +1829,16 @@ var file_nagipath_api_v1_trace_proto_depIdxs = []int32{
 	4,  // 8: nagipath.api.v1.TraceResponse.last_probe:type_name -> nagipath.api.v1.LastProbePB
 	6,  // 9: nagipath.api.v1.TraceResponse.run:type_name -> nagipath.api.v1.ProbeRunPB
 	9,  // 10: nagipath.api.v1.TraceResponse.prov:type_name -> nagipath.api.v1.ProvenancePB
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
+	11, // 11: nagipath.api.v1.TraceService.GetTrace:input_type -> nagipath.api.v1.GetTraceRequest
+	12, // 12: nagipath.api.v1.TraceService.PostTrace:input_type -> nagipath.api.v1.PostTraceRequest
+	13, // 13: nagipath.api.v1.TraceService.StartProbe:input_type -> nagipath.api.v1.StartProbeRequest
+	15, // 14: nagipath.api.v1.TraceService.GetProbeRun:input_type -> nagipath.api.v1.GetProbeRunRequest
+	10, // 15: nagipath.api.v1.TraceService.GetTrace:output_type -> nagipath.api.v1.TraceResponse
+	10, // 16: nagipath.api.v1.TraceService.PostTrace:output_type -> nagipath.api.v1.TraceResponse
+	14, // 17: nagipath.api.v1.TraceService.StartProbe:output_type -> nagipath.api.v1.StartProbeResponse
+	6,  // 18: nagipath.api.v1.TraceService.GetProbeRun:output_type -> nagipath.api.v1.ProbeRunPB
+	15, // [15:19] is the sub-list for method output_type
+	11, // [11:15] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
 	11, // [11:11] is the sub-list for extension extendee
 	0,  // [0:11] is the sub-list for field type_name
@@ -1441,9 +1855,9 @@ func file_nagipath_api_v1_trace_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_trace_proto_rawDesc), len(file_nagipath_api_v1_trace_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   17,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_nagipath_api_v1_trace_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_trace_proto_depIdxs,

@@ -1,0 +1,109 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+
+<Meta title="Design/Design tokens" />
+
+# Design tokens
+
+Every value below is in `src/theme/theme.css`, lifted from the design file.
+There is no theme object and no CSS variables — the wireframe uses literal hex,
+so the app does too, and a diff against the design file stays readable. Treat
+this page as the palette: if a colour is not here, it is not in the product.
+
+export const Swatch = ({ hex, name, use }) => (
+  <tr>
+    <td><span style={{ display: 'inline-block', width: 22, height: 22, background: hex, border: '1px solid #d3dae6', borderRadius: 3, verticalAlign: 'middle' }} /></td>
+    <td><code>{hex}</code></td>
+    <td>{name}</td>
+    <td>{use}</td>
+  </tr>
+)
+
+## Surfaces and lines
+
+<table>
+  <thead><tr><th /><th>Hex</th><th>Name</th><th>Where</th></tr></thead>
+  <tbody>
+    <Swatch hex="#fafbfd" name="page" use="body background" />
+    <Swatch hex="#fff" name="surface" use=".pnl, .hdr, .ptitle, .qbar" />
+    <Swatch hex="#f7f8fc" name="surface sunken" use=".nav, table header, disabled field" />
+    <Swatch hex="#fcfcfd" name="zebra" use="every second table row (.zz)" />
+    <Swatch hex="#d3dae6" name="border" use="panel, field and button borders" />
+    <Swatch hex="#edf0f5" name="border light" use="row separators, panel header rule" />
+  </tbody>
+</table>
+
+## Text
+
+<table>
+  <thead><tr><th /><th>Hex</th><th>Name</th><th>Where</th></tr></thead>
+  <tbody>
+    <Swatch hex="#1d1e24" name="title" use=".h1, .ph2, .crumb b, logo" />
+    <Swatch hex="#343741" name="body" use="default body text" />
+    <Swatch hex="#535966" name="subdued" use=".btn.s, secondary labels" />
+    <Swatch hex="#69707d" name="muted" use=".mu, table headers, counts" />
+    <Swatch hex="#98a2b3" name="faint" use=".mus, .lbl, placeholders, icons" />
+  </tbody>
+</table>
+
+## Accent and state
+
+The six badge buckets (`.bg.v/.i/.d/.e/.r/.n`) are the whole state palette —
+see **Components › Badge** for which words map to which bucket.
+
+<table>
+  <thead><tr><th /><th>Hex</th><th>Name</th><th>Where</th></tr></thead>
+  <tbody>
+    <Swatch hex="#0077cc" name="accent" use="links, .btn text, .btn.p background" />
+    <Swatch hex="#0061a6" name="accent deep" use=".ni.on text, .bg.n text" />
+    <Swatch hex="#e6f1fa" name="accent wash" use="selected nav item, highlighted row" />
+    <Swatch hex="#00726b" name="verified" use=".bg.v" />
+    <Swatch hex="#8a5300" name="attention" use=".bg.d" />
+    <Swatch hex="#a15c00" name="attention count" use=".ni .ct.warn" />
+    <Swatch hex="#a1231c" name="failed" use=".bg.r, .btn.danger" />
+    <Swatch hex="#343741" name="external" use=".bg.e (left the fleet)" />
+  </tbody>
+</table>
+
+## Type
+
+Two families only: **Inter** for UI, **Roboto Mono** for anything that is data —
+hostnames, paths, counts, timestamps, config text. If a value came out of a
+config file or a database, it is mono.
+
+| Role | Rule |
+| --- | --- |
+| Page title | `.h1` — 700 19px/1.2, `-.01em` |
+| Panel title | `.ph2` — 600 12px |
+| Body | 14px/1.4 Inter |
+| Table | 12.5px, headers 600 10.5px mono uppercase `.06em` |
+| Data | `.m` — 12px mono; `.mu` muted, `.mus` fainter |
+| Section label | `.lbl` — 600 10.5px mono uppercase `.07em` |
+| Badge | 600 10.5px mono `.03em` |
+
+## Spacing, radius, elevation
+
+| Token | Value | Where |
+| --- | --- | --- |
+| Page padding | `12px 16px` | `.bd` |
+| Gap between panels | `10px` | `.row`, `.col`, `.bd` |
+| Panel padding | `12px` | `.pnl` (`.pnl.z` is `0`; its header pads itself) |
+| Control padding | `5px 9px` (small `3px 8px`) | `.fld`, `.sel`, `.btn` |
+| Table cell | `5px 8px`, header `6px 8px` | `.t` |
+| Radius | `3px` badge · `4px` control · `6px` panel | — |
+| Elevation | `0 1px 2px rgba(0,0,0,.03)` | `.pnl` only; nothing else casts a shadow |
+| Sidebar width | `210px` | `.nav` |
+
+## Layout skeleton
+
+```
+.hdr        46px, fixed          logo · breadcrumb · search · avatar
+.wrap       flex, min-height:0
+  .nav      210px, scrolls
+  .main     flex 1, scrolls
+    .ptitle title + badges + actions
+    .qbar    filters (optional)
+    .bd      panels
+```
+
+`min-height: 0` on `.wrap` and `.main` is load-bearing: it is what makes a table
+scroll inside its own panel instead of stretching the page.

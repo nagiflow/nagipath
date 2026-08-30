@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -258,9 +259,12 @@ func (x *HostKeyStatsPB) GetAlgorithms() map[string]int32 {
 }
 
 type HostKeysResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Stats         *HostKeyStatsPB        `protobuf:"bytes,1,opt,name=stats,proto3" json:"stats,omitempty"`
-	Keys          []*PendingHostKey      `protobuf:"bytes,2,rep,name=keys,proto3" json:"keys,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Stats *HostKeyStatsPB        `protobuf:"bytes,1,opt,name=stats,proto3" json:"stats,omitempty"`
+	Keys  []*PendingHostKey      `protobuf:"bytes,2,rep,name=keys,proto3" json:"keys,omitempty"`
+	// Cluster names for the Cluster filter, which has to list clusters the
+	// current filter has already excluded.
+	Clusters      []string `protobuf:"bytes,3,rep,name=clusters,proto3" json:"clusters,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -305,6 +309,13 @@ func (x *HostKeysResponse) GetStats() *HostKeyStatsPB {
 func (x *HostKeysResponse) GetKeys() []*PendingHostKey {
 	if x != nil {
 		return x.Keys
+	}
+	return nil
+}
+
+func (x *HostKeysResponse) GetClusters() []string {
+	if x != nil {
+		return x.Clusters
 	}
 	return nil
 }
@@ -1969,11 +1980,1035 @@ func (x *CollectionsResponse) GetEmpty() bool {
 	return false
 }
 
+type ListCollectionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Node          string                 `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Trigger       string                 `protobuf:"bytes,3,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	Range         string                 `protobuf:"bytes,4,opt,name=range,proto3" json:"range,omitempty"`
+	Cursor        string                 `protobuf:"bytes,5,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCollectionsRequest) Reset() {
+	*x = ListCollectionsRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCollectionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCollectionsRequest) ProtoMessage() {}
+
+func (x *ListCollectionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCollectionsRequest.ProtoReflect.Descriptor instead.
+func (*ListCollectionsRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ListCollectionsRequest) GetNode() string {
+	if x != nil {
+		return x.Node
+	}
+	return ""
+}
+
+func (x *ListCollectionsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ListCollectionsRequest) GetTrigger() string {
+	if x != nil {
+		return x.Trigger
+	}
+	return ""
+}
+
+func (x *ListCollectionsRequest) GetRange() string {
+	if x != nil {
+		return x.Range
+	}
+	return ""
+}
+
+func (x *ListCollectionsRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+type GetCredentialsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCredentialsRequest) Reset() {
+	*x = GetCredentialsRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCredentialsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCredentialsRequest) ProtoMessage() {}
+
+func (x *GetCredentialsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCredentialsRequest.ProtoReflect.Descriptor instead.
+func (*GetCredentialsRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetCredentialsRequest) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+type AddCredentialRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	AuthKind      string                 `protobuf:"bytes,2,opt,name=auth_kind,json=authKind,proto3" json:"auth_kind,omitempty"`
+	Username      string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
+	PrivateKey    string                 `protobuf:"bytes,4,opt,name=private_key,json=privateKey,proto3" json:"private_key,omitempty"`
+	Passphrase    string                 `protobuf:"bytes,5,opt,name=passphrase,proto3" json:"passphrase,omitempty"`
+	Certificate   string                 `protobuf:"bytes,6,opt,name=certificate,proto3" json:"certificate,omitempty"`
+	Password      string                 `protobuf:"bytes,7,opt,name=password,proto3" json:"password,omitempty"`
+	ExternalRef   string                 `protobuf:"bytes,8,opt,name=external_ref,json=externalRef,proto3" json:"external_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddCredentialRequest) Reset() {
+	*x = AddCredentialRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddCredentialRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddCredentialRequest) ProtoMessage() {}
+
+func (x *AddCredentialRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddCredentialRequest.ProtoReflect.Descriptor instead.
+func (*AddCredentialRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *AddCredentialRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AddCredentialRequest) GetAuthKind() string {
+	if x != nil {
+		return x.AuthKind
+	}
+	return ""
+}
+
+func (x *AddCredentialRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *AddCredentialRequest) GetPrivateKey() string {
+	if x != nil {
+		return x.PrivateKey
+	}
+	return ""
+}
+
+func (x *AddCredentialRequest) GetPassphrase() string {
+	if x != nil {
+		return x.Passphrase
+	}
+	return ""
+}
+
+func (x *AddCredentialRequest) GetCertificate() string {
+	if x != nil {
+		return x.Certificate
+	}
+	return ""
+}
+
+func (x *AddCredentialRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+func (x *AddCredentialRequest) GetExternalRef() string {
+	if x != nil {
+		return x.ExternalRef
+	}
+	return ""
+}
+
+type GetHostKeysRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	State         string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	Cluster       string                 `protobuf:"bytes,2,opt,name=cluster,proto3" json:"cluster,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetHostKeysRequest) Reset() {
+	*x = GetHostKeysRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHostKeysRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHostKeysRequest) ProtoMessage() {}
+
+func (x *GetHostKeysRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHostKeysRequest.ProtoReflect.Descriptor instead.
+func (*GetHostKeysRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GetHostKeysRequest) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *GetHostKeysRequest) GetCluster() string {
+	if x != nil {
+		return x.Cluster
+	}
+	return ""
+}
+
+type SetRetentionRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	SnapshotDays   *int32                 `protobuf:"varint,1,opt,name=snapshot_days,json=snapshotDays,proto3,oneof" json:"snapshot_days,omitempty"`
+	MinPerInstance *int32                 `protobuf:"varint,2,opt,name=min_per_instance,json=minPerInstance,proto3,oneof" json:"min_per_instance,omitempty"`
+	JobLogDays     *int32                 `protobuf:"varint,3,opt,name=job_log_days,json=jobLogDays,proto3,oneof" json:"job_log_days,omitempty"`
+	ProbeDays      *int32                 `protobuf:"varint,4,opt,name=probe_days,json=probeDays,proto3,oneof" json:"probe_days,omitempty"`
+	AuditDays      *int32                 `protobuf:"varint,5,opt,name=audit_days,json=auditDays,proto3,oneof" json:"audit_days,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SetRetentionRequest) Reset() {
+	*x = SetRetentionRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetRetentionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetRetentionRequest) ProtoMessage() {}
+
+func (x *SetRetentionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetRetentionRequest.ProtoReflect.Descriptor instead.
+func (*SetRetentionRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *SetRetentionRequest) GetSnapshotDays() int32 {
+	if x != nil && x.SnapshotDays != nil {
+		return *x.SnapshotDays
+	}
+	return 0
+}
+
+func (x *SetRetentionRequest) GetMinPerInstance() int32 {
+	if x != nil && x.MinPerInstance != nil {
+		return *x.MinPerInstance
+	}
+	return 0
+}
+
+func (x *SetRetentionRequest) GetJobLogDays() int32 {
+	if x != nil && x.JobLogDays != nil {
+		return *x.JobLogDays
+	}
+	return 0
+}
+
+func (x *SetRetentionRequest) GetProbeDays() int32 {
+	if x != nil && x.ProbeDays != nil {
+		return *x.ProbeDays
+	}
+	return 0
+}
+
+func (x *SetRetentionRequest) GetAuditDays() int32 {
+	if x != nil && x.AuditDays != nil {
+		return *x.AuditDays
+	}
+	return 0
+}
+
+type RunRetentionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Snapshots     int64                  `protobuf:"varint,2,opt,name=snapshots,proto3" json:"snapshots,omitempty"`
+	JobLogs       int64                  `protobuf:"varint,3,opt,name=job_logs,json=jobLogs,proto3" json:"job_logs,omitempty"`
+	Probes        int64                  `protobuf:"varint,4,opt,name=probes,proto3" json:"probes,omitempty"`
+	AuditEvents   int64                  `protobuf:"varint,5,opt,name=audit_events,json=auditEvents,proto3" json:"audit_events,omitempty"`
+	Blobs         int64                  `protobuf:"varint,6,opt,name=blobs,proto3" json:"blobs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunRetentionResponse) Reset() {
+	*x = RunRetentionResponse{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunRetentionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunRetentionResponse) ProtoMessage() {}
+
+func (x *RunRetentionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunRetentionResponse.ProtoReflect.Descriptor instead.
+func (*RunRetentionResponse) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *RunRetentionResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *RunRetentionResponse) GetSnapshots() int64 {
+	if x != nil {
+		return x.Snapshots
+	}
+	return 0
+}
+
+func (x *RunRetentionResponse) GetJobLogs() int64 {
+	if x != nil {
+		return x.JobLogs
+	}
+	return 0
+}
+
+func (x *RunRetentionResponse) GetProbes() int64 {
+	if x != nil {
+		return x.Probes
+	}
+	return 0
+}
+
+func (x *RunRetentionResponse) GetAuditEvents() int64 {
+	if x != nil {
+		return x.AuditEvents
+	}
+	return 0
+}
+
+func (x *RunRetentionResponse) GetBlobs() int64 {
+	if x != nil {
+		return x.Blobs
+	}
+	return 0
+}
+
+type SetCollectionDefaultsRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	IntervalMinutes   *int32                 `protobuf:"varint,1,opt,name=interval_minutes,json=intervalMinutes,proto3,oneof" json:"interval_minutes,omitempty"`
+	JitterSeconds     *int32                 `protobuf:"varint,2,opt,name=jitter_seconds,json=jitterSeconds,proto3,oneof" json:"jitter_seconds,omitempty"`
+	SshWorkers        *int32                 `protobuf:"varint,3,opt,name=ssh_workers,json=sshWorkers,proto3,oneof" json:"ssh_workers,omitempty"`
+	CommandTimeout    *int32                 `protobuf:"varint,4,opt,name=command_timeout,json=commandTimeout,proto3,oneof" json:"command_timeout,omitempty"`
+	MaxFiles          *int32                 `protobuf:"varint,5,opt,name=max_files,json=maxFiles,proto3,oneof" json:"max_files,omitempty"`
+	ProbeRedirects    *int32                 `protobuf:"varint,6,opt,name=probe_redirects,json=probeRedirects,proto3,oneof" json:"probe_redirects,omitempty"`
+	ProbeLookback     *int32                 `protobuf:"varint,7,opt,name=probe_lookback,json=probeLookback,proto3,oneof" json:"probe_lookback,omitempty"`
+	DefaultCredential *int64                 `protobuf:"varint,8,opt,name=default_credential,json=defaultCredential,proto3,oneof" json:"default_credential,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *SetCollectionDefaultsRequest) Reset() {
+	*x = SetCollectionDefaultsRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetCollectionDefaultsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetCollectionDefaultsRequest) ProtoMessage() {}
+
+func (x *SetCollectionDefaultsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetCollectionDefaultsRequest.ProtoReflect.Descriptor instead.
+func (*SetCollectionDefaultsRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *SetCollectionDefaultsRequest) GetIntervalMinutes() int32 {
+	if x != nil && x.IntervalMinutes != nil {
+		return *x.IntervalMinutes
+	}
+	return 0
+}
+
+func (x *SetCollectionDefaultsRequest) GetJitterSeconds() int32 {
+	if x != nil && x.JitterSeconds != nil {
+		return *x.JitterSeconds
+	}
+	return 0
+}
+
+func (x *SetCollectionDefaultsRequest) GetSshWorkers() int32 {
+	if x != nil && x.SshWorkers != nil {
+		return *x.SshWorkers
+	}
+	return 0
+}
+
+func (x *SetCollectionDefaultsRequest) GetCommandTimeout() int32 {
+	if x != nil && x.CommandTimeout != nil {
+		return *x.CommandTimeout
+	}
+	return 0
+}
+
+func (x *SetCollectionDefaultsRequest) GetMaxFiles() int32 {
+	if x != nil && x.MaxFiles != nil {
+		return *x.MaxFiles
+	}
+	return 0
+}
+
+func (x *SetCollectionDefaultsRequest) GetProbeRedirects() int32 {
+	if x != nil && x.ProbeRedirects != nil {
+		return *x.ProbeRedirects
+	}
+	return 0
+}
+
+func (x *SetCollectionDefaultsRequest) GetProbeLookback() int32 {
+	if x != nil && x.ProbeLookback != nil {
+		return *x.ProbeLookback
+	}
+	return 0
+}
+
+func (x *SetCollectionDefaultsRequest) GetDefaultCredential() int64 {
+	if x != nil && x.DefaultCredential != nil {
+		return *x.DefaultCredential
+	}
+	return 0
+}
+
+type AddUserRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	Confirm       string                 `protobuf:"bytes,3,opt,name=confirm,proto3" json:"confirm,omitempty"`
+	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	MustChange    bool                   `protobuf:"varint,5,opt,name=must_change,json=mustChange,proto3" json:"must_change,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddUserRequest) Reset() {
+	*x = AddUserRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddUserRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddUserRequest) ProtoMessage() {}
+
+func (x *AddUserRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddUserRequest.ProtoReflect.Descriptor instead.
+func (*AddUserRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *AddUserRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *AddUserRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+func (x *AddUserRequest) GetConfirm() string {
+	if x != nil {
+		return x.Confirm
+	}
+	return ""
+}
+
+func (x *AddUserRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *AddUserRequest) GetMustChange() bool {
+	if x != nil {
+		return x.MustChange
+	}
+	return false
+}
+
+type UserIdRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserIdRequest) Reset() {
+	*x = UserIdRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserIdRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserIdRequest) ProtoMessage() {}
+
+func (x *UserIdRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserIdRequest.ProtoReflect.Descriptor instead.
+func (*UserIdRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *UserIdRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type SetUserDisabledResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetUserDisabledResponse) Reset() {
+	*x = SetUserDisabledResponse{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetUserDisabledResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetUserDisabledResponse) ProtoMessage() {}
+
+func (x *SetUserDisabledResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetUserDisabledResponse.ProtoReflect.Descriptor instead.
+func (*SetUserDisabledResponse) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *SetUserDisabledResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *SetUserDisabledResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type GetAuditRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Actor         string                 `protobuf:"bytes,1,opt,name=actor,proto3" json:"actor,omitempty"`
+	Action        string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	Range         string                 `protobuf:"bytes,3,opt,name=range,proto3" json:"range,omitempty"`
+	Page          int32                  `protobuf:"varint,4,opt,name=page,proto3" json:"page,omitempty"`
+	PerPage       int32                  `protobuf:"varint,5,opt,name=per_page,json=perPage,proto3" json:"per_page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAuditRequest) Reset() {
+	*x = GetAuditRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAuditRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAuditRequest) ProtoMessage() {}
+
+func (x *GetAuditRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAuditRequest.ProtoReflect.Descriptor instead.
+func (*GetAuditRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetAuditRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *GetAuditRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *GetAuditRequest) GetRange() string {
+	if x != nil {
+		return x.Range
+	}
+	return ""
+}
+
+func (x *GetAuditRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *GetAuditRequest) GetPerPage() int32 {
+	if x != nil {
+		return x.PerPage
+	}
+	return 0
+}
+
+type GetApiKeysRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	State         string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetApiKeysRequest) Reset() {
+	*x = GetApiKeysRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetApiKeysRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetApiKeysRequest) ProtoMessage() {}
+
+func (x *GetApiKeysRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetApiKeysRequest.ProtoReflect.Descriptor instead.
+func (*GetApiKeysRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GetApiKeysRequest) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+type CreateApiKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ExpiresDays   int32                  `protobuf:"varint,2,opt,name=expires_days,json=expiresDays,proto3" json:"expires_days,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateApiKeyRequest) Reset() {
+	*x = CreateApiKeyRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateApiKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateApiKeyRequest) ProtoMessage() {}
+
+func (x *CreateApiKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateApiKeyRequest.ProtoReflect.Descriptor instead.
+func (*CreateApiKeyRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *CreateApiKeyRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateApiKeyRequest) GetExpiresDays() int32 {
+	if x != nil {
+		return x.ExpiresDays
+	}
+	return 0
+}
+
+type CreateApiKeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	Token         string                 `protobuf:"bytes,3,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateApiKeyResponse) Reset() {
+	*x = CreateApiKeyResponse{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateApiKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateApiKeyResponse) ProtoMessage() {}
+
+func (x *CreateApiKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateApiKeyResponse.ProtoReflect.Descriptor instead.
+func (*CreateApiKeyResponse) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *CreateApiKeyResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *CreateApiKeyResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *CreateApiKeyResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+type ApiKeyIdRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApiKeyIdRequest) Reset() {
+	*x = ApiKeyIdRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApiKeyIdRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApiKeyIdRequest) ProtoMessage() {}
+
+func (x *ApiKeyIdRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApiKeyIdRequest.ProtoReflect.Descriptor instead.
+func (*ApiKeyIdRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ApiKeyIdRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type InstallLicenseRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LicenseText   string                 `protobuf:"bytes,1,opt,name=license_text,json=licenseText,proto3" json:"license_text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstallLicenseRequest) Reset() {
+	*x = InstallLicenseRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallLicenseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallLicenseRequest) ProtoMessage() {}
+
+func (x *InstallLicenseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallLicenseRequest.ProtoReflect.Descriptor instead.
+func (*InstallLicenseRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *InstallLicenseRequest) GetLicenseText() string {
+	if x != nil {
+		return x.LicenseText
+	}
+	return ""
+}
+
 var File_nagipath_api_v1_settings_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_settings_proto_rawDesc = "" +
 	"\n" +
-	"\x1enagipath/api/v1/settings.proto\x12\x0fnagipath.api.v1\x1a\x1bnagipath/api/v1/nodes.proto\"\xac\x02\n" +
+	"\x1enagipath/api/v1/settings.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1cnagipath/api/v1/common.proto\x1a\x1bnagipath/api/v1/nodes.proto\"\xac\x02\n" +
 	"\x0eCredentialItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -2002,10 +3037,11 @@ const file_nagipath_api_v1_settings_proto_rawDesc = "" +
 	"algorithms\x1a=\n" +
 	"\x0fAlgorithmsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"~\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\x9a\x01\n" +
 	"\x10HostKeysResponse\x125\n" +
 	"\x05stats\x18\x01 \x01(\v2\x1f.nagipath.api.v1.HostKeyStatsPBR\x05stats\x123\n" +
-	"\x04keys\x18\x02 \x03(\v2\x1f.nagipath.api.v1.PendingHostKeyR\x04keys\"\xd3\x01\n" +
+	"\x04keys\x18\x02 \x03(\v2\x1f.nagipath.api.v1.PendingHostKeyR\x04keys\x12\x1a\n" +
+	"\bclusters\x18\x03 \x03(\tR\bclusters\"\xd3\x01\n" +
 	"\x11MasterKeyResponse\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x19\n" +
 	"\bdata_dir\x18\x02 \x01(\tR\adataDir\x123\n" +
@@ -2175,7 +3211,127 @@ const file_nagipath_api_v1_settings_proto_rawDesc = "" +
 	" \x01(\bR\ahasMore\x12\x12\n" +
 	"\x04from\x18\v \x01(\x05R\x04from\x12\x0e\n" +
 	"\x02to\x18\f \x01(\x05R\x02to\x12\x14\n" +
-	"\x05empty\x18\r \x01(\bR\x05emptyB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	"\x05empty\x18\r \x01(\bR\x05empty\"\x8c\x01\n" +
+	"\x16ListCollectionsRequest\x12\x12\n" +
+	"\x04node\x18\x01 \x01(\tR\x04node\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
+	"\atrigger\x18\x03 \x01(\tR\atrigger\x12\x14\n" +
+	"\x05range\x18\x04 \x01(\tR\x05range\x12\x16\n" +
+	"\x06cursor\x18\x05 \x01(\tR\x06cursor\"+\n" +
+	"\x15GetCredentialsRequest\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\"\x85\x02\n" +
+	"\x14AddCredentialRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
+	"\tauth_kind\x18\x02 \x01(\tR\bauthKind\x12\x1a\n" +
+	"\busername\x18\x03 \x01(\tR\busername\x12\x1f\n" +
+	"\vprivate_key\x18\x04 \x01(\tR\n" +
+	"privateKey\x12\x1e\n" +
+	"\n" +
+	"passphrase\x18\x05 \x01(\tR\n" +
+	"passphrase\x12 \n" +
+	"\vcertificate\x18\x06 \x01(\tR\vcertificate\x12\x1a\n" +
+	"\bpassword\x18\a \x01(\tR\bpassword\x12!\n" +
+	"\fexternal_ref\x18\b \x01(\tR\vexternalRef\"D\n" +
+	"\x12GetHostKeysRequest\x12\x14\n" +
+	"\x05state\x18\x01 \x01(\tR\x05state\x12\x18\n" +
+	"\acluster\x18\x02 \x01(\tR\acluster\"\xb3\x02\n" +
+	"\x13SetRetentionRequest\x12(\n" +
+	"\rsnapshot_days\x18\x01 \x01(\x05H\x00R\fsnapshotDays\x88\x01\x01\x12-\n" +
+	"\x10min_per_instance\x18\x02 \x01(\x05H\x01R\x0eminPerInstance\x88\x01\x01\x12%\n" +
+	"\fjob_log_days\x18\x03 \x01(\x05H\x02R\n" +
+	"jobLogDays\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"probe_days\x18\x04 \x01(\x05H\x03R\tprobeDays\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"audit_days\x18\x05 \x01(\x05H\x04R\tauditDays\x88\x01\x01B\x10\n" +
+	"\x0e_snapshot_daysB\x13\n" +
+	"\x11_min_per_instanceB\x0f\n" +
+	"\r_job_log_daysB\r\n" +
+	"\v_probe_daysB\r\n" +
+	"\v_audit_days\"\xb0\x01\n" +
+	"\x14RunRetentionResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x1c\n" +
+	"\tsnapshots\x18\x02 \x01(\x03R\tsnapshots\x12\x19\n" +
+	"\bjob_logs\x18\x03 \x01(\x03R\ajobLogs\x12\x16\n" +
+	"\x06probes\x18\x04 \x01(\x03R\x06probes\x12!\n" +
+	"\faudit_events\x18\x05 \x01(\x03R\vauditEvents\x12\x14\n" +
+	"\x05blobs\x18\x06 \x01(\x03R\x05blobs\"\x96\x04\n" +
+	"\x1cSetCollectionDefaultsRequest\x12.\n" +
+	"\x10interval_minutes\x18\x01 \x01(\x05H\x00R\x0fintervalMinutes\x88\x01\x01\x12*\n" +
+	"\x0ejitter_seconds\x18\x02 \x01(\x05H\x01R\rjitterSeconds\x88\x01\x01\x12$\n" +
+	"\vssh_workers\x18\x03 \x01(\x05H\x02R\n" +
+	"sshWorkers\x88\x01\x01\x12,\n" +
+	"\x0fcommand_timeout\x18\x04 \x01(\x05H\x03R\x0ecommandTimeout\x88\x01\x01\x12 \n" +
+	"\tmax_files\x18\x05 \x01(\x05H\x04R\bmaxFiles\x88\x01\x01\x12,\n" +
+	"\x0fprobe_redirects\x18\x06 \x01(\x05H\x05R\x0eprobeRedirects\x88\x01\x01\x12*\n" +
+	"\x0eprobe_lookback\x18\a \x01(\x05H\x06R\rprobeLookback\x88\x01\x01\x122\n" +
+	"\x12default_credential\x18\b \x01(\x03H\aR\x11defaultCredential\x88\x01\x01B\x13\n" +
+	"\x11_interval_minutesB\x11\n" +
+	"\x0f_jitter_secondsB\x0e\n" +
+	"\f_ssh_workersB\x12\n" +
+	"\x10_command_timeoutB\f\n" +
+	"\n" +
+	"_max_filesB\x12\n" +
+	"\x10_probe_redirectsB\x11\n" +
+	"\x0f_probe_lookbackB\x15\n" +
+	"\x13_default_credential\"\x97\x01\n" +
+	"\x0eAddUserRequest\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x18\n" +
+	"\aconfirm\x18\x03 \x01(\tR\aconfirm\x12\x12\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12\x1f\n" +
+	"\vmust_change\x18\x05 \x01(\bR\n" +
+	"mustChange\"\x1f\n" +
+	"\rUserIdRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"A\n" +
+	"\x17SetUserDisabledResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"\x84\x01\n" +
+	"\x0fGetAuditRequest\x12\x14\n" +
+	"\x05actor\x18\x01 \x01(\tR\x05actor\x12\x16\n" +
+	"\x06action\x18\x02 \x01(\tR\x06action\x12\x14\n" +
+	"\x05range\x18\x03 \x01(\tR\x05range\x12\x12\n" +
+	"\x04page\x18\x04 \x01(\x05R\x04page\x12\x19\n" +
+	"\bper_page\x18\x05 \x01(\x05R\aperPage\")\n" +
+	"\x11GetApiKeysRequest\x12\x14\n" +
+	"\x05state\x18\x01 \x01(\tR\x05state\"L\n" +
+	"\x13CreateApiKeyRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fexpires_days\x18\x02 \x01(\x05R\vexpiresDays\"L\n" +
+	"\x14CreateApiKeyResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\x12\x14\n" +
+	"\x05token\x18\x03 \x01(\tR\x05token\"!\n" +
+	"\x0fApiKeyIdRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\":\n" +
+	"\x15InstallLicenseRequest\x12!\n" +
+	"\flicense_text\x18\x01 \x01(\tR\vlicenseText2\x8b\x01\n" +
+	"\x11CollectionService\x12v\n" +
+	"\x0fListCollections\x12'.nagipath.api.v1.ListCollectionsRequest\x1a$.nagipath.api.v1.CollectionsResponse\"\x14\x82\xd3\xe4\x93\x02\x0e\x12\f/collections2\xf4\x11\n" +
+	"\x0fSettingsService\x12}\n" +
+	"\x0eGetCredentials\x12&.nagipath.api.v1.GetCredentialsRequest\x1a$.nagipath.api.v1.CredentialsResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/settings/credentials\x12u\n" +
+	"\rAddCredential\x12%.nagipath.api.v1.AddCredentialRequest\x1a\x1b.nagipath.api.v1.IdResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/settings/credentials\x12q\n" +
+	"\vGetHostKeys\x12#.nagipath.api.v1.GetHostKeysRequest\x1a!.nagipath.api.v1.HostKeysResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/settings/hostkeys\x12g\n" +
+	"\fGetMasterKey\x12\x16.nagipath.api.v1.Empty\x1a\".nagipath.api.v1.MasterKeyResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/settings/masterkey\x12\x83\x01\n" +
+	"\x15GetCollectionDefaults\x12\x16.nagipath.api.v1.Empty\x1a+.nagipath.api.v1.CollectionDefaultsResponse\"%\x82\xd3\xe4\x93\x02\x1f\x12\x1d/settings/collection-defaults\x12\x85\x01\n" +
+	"\x15SetCollectionDefaults\x12-.nagipath.api.v1.SetCollectionDefaultsRequest\x1a\x13.nagipath.api.v1.Ok\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/settings/collection-defaults\x12g\n" +
+	"\fGetRetention\x12\x16.nagipath.api.v1.Empty\x1a\".nagipath.api.v1.RetentionResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/settings/retention\x12i\n" +
+	"\fSetRetention\x12$.nagipath.api.v1.SetRetentionRequest\x1a\x13.nagipath.api.v1.Ok\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*\"\x13/settings/retention\x12s\n" +
+	"\fRunRetention\x12\x16.nagipath.api.v1.Empty\x1a%.nagipath.api.v1.RunRetentionResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/settings/retention/prune\x12[\n" +
+	"\bGetUsers\x12\x16.nagipath.api.v1.Empty\x1a\x1e.nagipath.api.v1.UsersResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/settings/users\x12c\n" +
+	"\aAddUser\x12\x1f.nagipath.api.v1.AddUserRequest\x1a\x1b.nagipath.api.v1.IdResponse\"\x1a\x82\xd3\xe4\x93\x02\x14:\x01*\"\x0f/settings/users\x12}\n" +
+	"\vDisableUser\x12\x1e.nagipath.api.v1.UserIdRequest\x1a(.nagipath.api.v1.SetUserDisabledResponse\"$\x82\xd3\xe4\x93\x02\x1e\"\x1c/settings/users/{id}/disable\x12{\n" +
+	"\n" +
+	"EnableUser\x12\x1e.nagipath.api.v1.UserIdRequest\x1a(.nagipath.api.v1.SetUserDisabledResponse\"#\x82\xd3\xe4\x93\x02\x1d\"\x1b/settings/users/{id}/enable\x12e\n" +
+	"\bGetAudit\x12 .nagipath.api.v1.GetAuditRequest\x1a\x1e.nagipath.api.v1.AuditResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/settings/audit\x12n\n" +
+	"\n" +
+	"GetApiKeys\x12\".nagipath.api.v1.GetApiKeysRequest\x1a .nagipath.api.v1.ApiKeysResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/settings/api-keys\x12z\n" +
+	"\fCreateApiKey\x12$.nagipath.api.v1.CreateApiKeyRequest\x1a%.nagipath.api.v1.CreateApiKeyResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/settings/api-keys\x12m\n" +
+	"\fRevokeApiKey\x12 .nagipath.api.v1.ApiKeyIdRequest\x1a\x13.nagipath.api.v1.Ok\"&\x82\xd3\xe4\x93\x02 \"\x1e/settings/api-keys/{id}/revoke\x12a\n" +
+	"\n" +
+	"GetLicense\x12\x16.nagipath.api.v1.Empty\x1a .nagipath.api.v1.LicenseResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/settings/license\x12k\n" +
+	"\x0eInstallLicense\x12&.nagipath.api.v1.InstallLicenseRequest\x1a\x13.nagipath.api.v1.Ok\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/settings/license\x12h\n" +
+	"\x0eGetDiagnostics\x12\x16.nagipath.api.v1.Empty\x1a$.nagipath.api.v1.DiagnosticsResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/settings/systemB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_settings_proto_rawDescOnce sync.Once
@@ -2189,38 +3345,57 @@ func file_nagipath_api_v1_settings_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_settings_proto_rawDescData
 }
 
-var file_nagipath_api_v1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_nagipath_api_v1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
 var file_nagipath_api_v1_settings_proto_goTypes = []any{
-	(*CredentialItem)(nil),             // 0: nagipath.api.v1.CredentialItem
-	(*CredentialsResponse)(nil),        // 1: nagipath.api.v1.CredentialsResponse
-	(*HostKeyStatsPB)(nil),             // 2: nagipath.api.v1.HostKeyStatsPB
-	(*HostKeysResponse)(nil),           // 3: nagipath.api.v1.HostKeysResponse
-	(*MasterKeyResponse)(nil),          // 4: nagipath.api.v1.MasterKeyResponse
-	(*PruneCountsPB)(nil),              // 5: nagipath.api.v1.PruneCountsPB
-	(*PrunedCountsPB)(nil),             // 6: nagipath.api.v1.PrunedCountsPB
-	(*PruneHistoryPB)(nil),             // 7: nagipath.api.v1.PruneHistoryPB
-	(*RetentionStatsPB)(nil),           // 8: nagipath.api.v1.RetentionStatsPB
-	(*RetentionResponse)(nil),          // 9: nagipath.api.v1.RetentionResponse
-	(*CollectionDefaultsResponse)(nil), // 10: nagipath.api.v1.CollectionDefaultsResponse
-	(*UserItem)(nil),                   // 11: nagipath.api.v1.UserItem
-	(*UsersResponse)(nil),              // 12: nagipath.api.v1.UsersResponse
-	(*AuditEventItem)(nil),             // 13: nagipath.api.v1.AuditEventItem
-	(*AuditResponse)(nil),              // 14: nagipath.api.v1.AuditResponse
-	(*ApiKeyItem)(nil),                 // 15: nagipath.api.v1.ApiKeyItem
-	(*ApiKeysResponse)(nil),            // 16: nagipath.api.v1.ApiKeysResponse
-	(*LicenseStatePB)(nil),             // 17: nagipath.api.v1.LicenseStatePB
-	(*LicenseResponse)(nil),            // 18: nagipath.api.v1.LicenseResponse
-	(*DiagnosticsResponse)(nil),        // 19: nagipath.api.v1.DiagnosticsResponse
-	(*CollectionRow)(nil),              // 20: nagipath.api.v1.CollectionRow
-	(*CollectionsResponse)(nil),        // 21: nagipath.api.v1.CollectionsResponse
-	nil,                                // 22: nagipath.api.v1.HostKeyStatsPB.AlgorithmsEntry
-	(*PendingHostKey)(nil),             // 23: nagipath.api.v1.PendingHostKey
+	(*CredentialItem)(nil),               // 0: nagipath.api.v1.CredentialItem
+	(*CredentialsResponse)(nil),          // 1: nagipath.api.v1.CredentialsResponse
+	(*HostKeyStatsPB)(nil),               // 2: nagipath.api.v1.HostKeyStatsPB
+	(*HostKeysResponse)(nil),             // 3: nagipath.api.v1.HostKeysResponse
+	(*MasterKeyResponse)(nil),            // 4: nagipath.api.v1.MasterKeyResponse
+	(*PruneCountsPB)(nil),                // 5: nagipath.api.v1.PruneCountsPB
+	(*PrunedCountsPB)(nil),               // 6: nagipath.api.v1.PrunedCountsPB
+	(*PruneHistoryPB)(nil),               // 7: nagipath.api.v1.PruneHistoryPB
+	(*RetentionStatsPB)(nil),             // 8: nagipath.api.v1.RetentionStatsPB
+	(*RetentionResponse)(nil),            // 9: nagipath.api.v1.RetentionResponse
+	(*CollectionDefaultsResponse)(nil),   // 10: nagipath.api.v1.CollectionDefaultsResponse
+	(*UserItem)(nil),                     // 11: nagipath.api.v1.UserItem
+	(*UsersResponse)(nil),                // 12: nagipath.api.v1.UsersResponse
+	(*AuditEventItem)(nil),               // 13: nagipath.api.v1.AuditEventItem
+	(*AuditResponse)(nil),                // 14: nagipath.api.v1.AuditResponse
+	(*ApiKeyItem)(nil),                   // 15: nagipath.api.v1.ApiKeyItem
+	(*ApiKeysResponse)(nil),              // 16: nagipath.api.v1.ApiKeysResponse
+	(*LicenseStatePB)(nil),               // 17: nagipath.api.v1.LicenseStatePB
+	(*LicenseResponse)(nil),              // 18: nagipath.api.v1.LicenseResponse
+	(*DiagnosticsResponse)(nil),          // 19: nagipath.api.v1.DiagnosticsResponse
+	(*CollectionRow)(nil),                // 20: nagipath.api.v1.CollectionRow
+	(*CollectionsResponse)(nil),          // 21: nagipath.api.v1.CollectionsResponse
+	(*ListCollectionsRequest)(nil),       // 22: nagipath.api.v1.ListCollectionsRequest
+	(*GetCredentialsRequest)(nil),        // 23: nagipath.api.v1.GetCredentialsRequest
+	(*AddCredentialRequest)(nil),         // 24: nagipath.api.v1.AddCredentialRequest
+	(*GetHostKeysRequest)(nil),           // 25: nagipath.api.v1.GetHostKeysRequest
+	(*SetRetentionRequest)(nil),          // 26: nagipath.api.v1.SetRetentionRequest
+	(*RunRetentionResponse)(nil),         // 27: nagipath.api.v1.RunRetentionResponse
+	(*SetCollectionDefaultsRequest)(nil), // 28: nagipath.api.v1.SetCollectionDefaultsRequest
+	(*AddUserRequest)(nil),               // 29: nagipath.api.v1.AddUserRequest
+	(*UserIdRequest)(nil),                // 30: nagipath.api.v1.UserIdRequest
+	(*SetUserDisabledResponse)(nil),      // 31: nagipath.api.v1.SetUserDisabledResponse
+	(*GetAuditRequest)(nil),              // 32: nagipath.api.v1.GetAuditRequest
+	(*GetApiKeysRequest)(nil),            // 33: nagipath.api.v1.GetApiKeysRequest
+	(*CreateApiKeyRequest)(nil),          // 34: nagipath.api.v1.CreateApiKeyRequest
+	(*CreateApiKeyResponse)(nil),         // 35: nagipath.api.v1.CreateApiKeyResponse
+	(*ApiKeyIdRequest)(nil),              // 36: nagipath.api.v1.ApiKeyIdRequest
+	(*InstallLicenseRequest)(nil),        // 37: nagipath.api.v1.InstallLicenseRequest
+	nil,                                  // 38: nagipath.api.v1.HostKeyStatsPB.AlgorithmsEntry
+	(*PendingHostKey)(nil),               // 39: nagipath.api.v1.PendingHostKey
+	(*Empty)(nil),                        // 40: nagipath.api.v1.Empty
+	(*IdResponse)(nil),                   // 41: nagipath.api.v1.IdResponse
+	(*Ok)(nil),                           // 42: nagipath.api.v1.Ok
 }
 var file_nagipath_api_v1_settings_proto_depIdxs = []int32{
 	0,  // 0: nagipath.api.v1.CredentialsResponse.credentials:type_name -> nagipath.api.v1.CredentialItem
-	22, // 1: nagipath.api.v1.HostKeyStatsPB.algorithms:type_name -> nagipath.api.v1.HostKeyStatsPB.AlgorithmsEntry
+	38, // 1: nagipath.api.v1.HostKeyStatsPB.algorithms:type_name -> nagipath.api.v1.HostKeyStatsPB.AlgorithmsEntry
 	2,  // 2: nagipath.api.v1.HostKeysResponse.stats:type_name -> nagipath.api.v1.HostKeyStatsPB
-	23, // 3: nagipath.api.v1.HostKeysResponse.keys:type_name -> nagipath.api.v1.PendingHostKey
+	39, // 3: nagipath.api.v1.HostKeysResponse.keys:type_name -> nagipath.api.v1.PendingHostKey
 	5,  // 4: nagipath.api.v1.PruneHistoryPB.examined:type_name -> nagipath.api.v1.PruneCountsPB
 	6,  // 5: nagipath.api.v1.PruneHistoryPB.deleted:type_name -> nagipath.api.v1.PrunedCountsPB
 	5,  // 6: nagipath.api.v1.PruneHistoryPB.kept:type_name -> nagipath.api.v1.PruneCountsPB
@@ -2232,8 +3407,50 @@ var file_nagipath_api_v1_settings_proto_depIdxs = []int32{
 	15, // 12: nagipath.api.v1.ApiKeysResponse.keys:type_name -> nagipath.api.v1.ApiKeyItem
 	17, // 13: nagipath.api.v1.LicenseResponse.state:type_name -> nagipath.api.v1.LicenseStatePB
 	20, // 14: nagipath.api.v1.CollectionsResponse.rows:type_name -> nagipath.api.v1.CollectionRow
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
+	22, // 15: nagipath.api.v1.CollectionService.ListCollections:input_type -> nagipath.api.v1.ListCollectionsRequest
+	23, // 16: nagipath.api.v1.SettingsService.GetCredentials:input_type -> nagipath.api.v1.GetCredentialsRequest
+	24, // 17: nagipath.api.v1.SettingsService.AddCredential:input_type -> nagipath.api.v1.AddCredentialRequest
+	25, // 18: nagipath.api.v1.SettingsService.GetHostKeys:input_type -> nagipath.api.v1.GetHostKeysRequest
+	40, // 19: nagipath.api.v1.SettingsService.GetMasterKey:input_type -> nagipath.api.v1.Empty
+	40, // 20: nagipath.api.v1.SettingsService.GetCollectionDefaults:input_type -> nagipath.api.v1.Empty
+	28, // 21: nagipath.api.v1.SettingsService.SetCollectionDefaults:input_type -> nagipath.api.v1.SetCollectionDefaultsRequest
+	40, // 22: nagipath.api.v1.SettingsService.GetRetention:input_type -> nagipath.api.v1.Empty
+	26, // 23: nagipath.api.v1.SettingsService.SetRetention:input_type -> nagipath.api.v1.SetRetentionRequest
+	40, // 24: nagipath.api.v1.SettingsService.RunRetention:input_type -> nagipath.api.v1.Empty
+	40, // 25: nagipath.api.v1.SettingsService.GetUsers:input_type -> nagipath.api.v1.Empty
+	29, // 26: nagipath.api.v1.SettingsService.AddUser:input_type -> nagipath.api.v1.AddUserRequest
+	30, // 27: nagipath.api.v1.SettingsService.DisableUser:input_type -> nagipath.api.v1.UserIdRequest
+	30, // 28: nagipath.api.v1.SettingsService.EnableUser:input_type -> nagipath.api.v1.UserIdRequest
+	32, // 29: nagipath.api.v1.SettingsService.GetAudit:input_type -> nagipath.api.v1.GetAuditRequest
+	33, // 30: nagipath.api.v1.SettingsService.GetApiKeys:input_type -> nagipath.api.v1.GetApiKeysRequest
+	34, // 31: nagipath.api.v1.SettingsService.CreateApiKey:input_type -> nagipath.api.v1.CreateApiKeyRequest
+	36, // 32: nagipath.api.v1.SettingsService.RevokeApiKey:input_type -> nagipath.api.v1.ApiKeyIdRequest
+	40, // 33: nagipath.api.v1.SettingsService.GetLicense:input_type -> nagipath.api.v1.Empty
+	37, // 34: nagipath.api.v1.SettingsService.InstallLicense:input_type -> nagipath.api.v1.InstallLicenseRequest
+	40, // 35: nagipath.api.v1.SettingsService.GetDiagnostics:input_type -> nagipath.api.v1.Empty
+	21, // 36: nagipath.api.v1.CollectionService.ListCollections:output_type -> nagipath.api.v1.CollectionsResponse
+	1,  // 37: nagipath.api.v1.SettingsService.GetCredentials:output_type -> nagipath.api.v1.CredentialsResponse
+	41, // 38: nagipath.api.v1.SettingsService.AddCredential:output_type -> nagipath.api.v1.IdResponse
+	3,  // 39: nagipath.api.v1.SettingsService.GetHostKeys:output_type -> nagipath.api.v1.HostKeysResponse
+	4,  // 40: nagipath.api.v1.SettingsService.GetMasterKey:output_type -> nagipath.api.v1.MasterKeyResponse
+	10, // 41: nagipath.api.v1.SettingsService.GetCollectionDefaults:output_type -> nagipath.api.v1.CollectionDefaultsResponse
+	42, // 42: nagipath.api.v1.SettingsService.SetCollectionDefaults:output_type -> nagipath.api.v1.Ok
+	9,  // 43: nagipath.api.v1.SettingsService.GetRetention:output_type -> nagipath.api.v1.RetentionResponse
+	42, // 44: nagipath.api.v1.SettingsService.SetRetention:output_type -> nagipath.api.v1.Ok
+	27, // 45: nagipath.api.v1.SettingsService.RunRetention:output_type -> nagipath.api.v1.RunRetentionResponse
+	12, // 46: nagipath.api.v1.SettingsService.GetUsers:output_type -> nagipath.api.v1.UsersResponse
+	41, // 47: nagipath.api.v1.SettingsService.AddUser:output_type -> nagipath.api.v1.IdResponse
+	31, // 48: nagipath.api.v1.SettingsService.DisableUser:output_type -> nagipath.api.v1.SetUserDisabledResponse
+	31, // 49: nagipath.api.v1.SettingsService.EnableUser:output_type -> nagipath.api.v1.SetUserDisabledResponse
+	14, // 50: nagipath.api.v1.SettingsService.GetAudit:output_type -> nagipath.api.v1.AuditResponse
+	16, // 51: nagipath.api.v1.SettingsService.GetApiKeys:output_type -> nagipath.api.v1.ApiKeysResponse
+	35, // 52: nagipath.api.v1.SettingsService.CreateApiKey:output_type -> nagipath.api.v1.CreateApiKeyResponse
+	42, // 53: nagipath.api.v1.SettingsService.RevokeApiKey:output_type -> nagipath.api.v1.Ok
+	18, // 54: nagipath.api.v1.SettingsService.GetLicense:output_type -> nagipath.api.v1.LicenseResponse
+	42, // 55: nagipath.api.v1.SettingsService.InstallLicense:output_type -> nagipath.api.v1.Ok
+	19, // 56: nagipath.api.v1.SettingsService.GetDiagnostics:output_type -> nagipath.api.v1.DiagnosticsResponse
+	36, // [36:57] is the sub-list for method output_type
+	15, // [15:36] is the sub-list for method input_type
 	15, // [15:15] is the sub-list for extension type_name
 	15, // [15:15] is the sub-list for extension extendee
 	0,  // [0:15] is the sub-list for field type_name
@@ -2244,16 +3461,19 @@ func file_nagipath_api_v1_settings_proto_init() {
 	if File_nagipath_api_v1_settings_proto != nil {
 		return
 	}
+	file_nagipath_api_v1_common_proto_init()
 	file_nagipath_api_v1_nodes_proto_init()
+	file_nagipath_api_v1_settings_proto_msgTypes[26].OneofWrappers = []any{}
+	file_nagipath_api_v1_settings_proto_msgTypes[28].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_settings_proto_rawDesc), len(file_nagipath_api_v1_settings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   39,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   2,
 		},
 		GoTypes:           file_nagipath_api_v1_settings_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_settings_proto_depIdxs,

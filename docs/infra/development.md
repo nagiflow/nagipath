@@ -13,9 +13,10 @@ Master Key across reloads and `make dev-down`; remove the volume only when a
 fresh local installation is wanted.
 
 Air polls every 500 ms because Docker Desktop bind mounts do not reliably emit
-filesystem events. It rebuilds for Go, templates, static files, migrations and
-CSS changes. The development image includes the pinned Air and Tailwind CLIs,
-so `app.src.css` remains the source of the generated, embedded `app.css`.
+filesystem events. It rebuilds for Go and migration changes. The development
+image includes the pinned Air CLI. UI changes under `ui/src` are handled
+separately by Vite's own dev server (`make lab`'s `ui` service, or
+`make ui-dev` standalone) — Air only rebuilds and restarts the Go binary.
 
 Useful commands:
 

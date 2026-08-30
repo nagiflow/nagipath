@@ -1,0 +1,7 @@
+.fld{display:flex;align-items:center;gap:7px;white-space:nowrap;overflow:hidden;border:1px solid #d3dae6;border-radius:4px;padding:5px 9px;background:#fff;font-size:13px;box-shadow:inset 0 1px 0 rgba(0,0,0,.02)}
+.fld.f{flex:1;min-width:0}
+.fld .ph{color:#98a2b3}
+.fld input,.fld textarea{border:0;padding:0;background:transparent;outline:none;flex:1;font:inherit;line-height:15px;color:#343741;min-width:0}
+.fld .m{line-height:15px}
+.fld input::placeholder,.fld textarea::placeholder{color:#98a2b3}
+.fld:has(input:disabled,textarea:disabled){background:#f7f8fc;opacity:.65}

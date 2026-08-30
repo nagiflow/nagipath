@@ -2,15 +2,16 @@
 // @generated from file nagipath/api/v1/sites.proto (package nagipath.api.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_api_annotations } from "../../../google/api/annotations_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file nagipath/api/v1/sites.proto.
  */
 export const file_nagipath_api_v1_sites: GenFile = /*@__PURE__*/
-  fileDesc("ChtuYWdpcGF0aC9hcGkvdjEvc2l0ZXMucHJvdG8SD25hZ2lwYXRoLmFwaS52MSLHAQoLU2l0ZUxpc3RSb3cSDAoEbmFtZRgBIAEoCRITCgthbGlhc19jb3VudBgCIAEoBRIPCgdhbGlhc2VzGAMgAygJEg0KBW5vZGVzGAQgASgFEhgKEGxpc3RlbmVyX3N1bW1hcnkYBSABKAkSFAoMY2VydF9zdWJqZWN0GAYgASgJEg4KBnJvdXRlcxgHIAEoBRIQCgh2YXJpYW50cxgIIAEoBRINCgVzdGF0ZRgJIAEoCRIUCgxzdGF0ZV9yZWFzb24YCiABKAkiogEKCVNpdGVTdGF0cxIRCglob3N0bmFtZXMYASABKAUSDQoFbm9kZXMYAiABKAUSFQoNdmFyaWFudF9ob3N0cxgDIAEoBRIWCg50bHNfdGVybWluYXRlZBgEIAEoBRIRCglwbGFpbnRleHQYBSABKAUSFgoOZXhwaXJpbmdfY2VydHMYBiABKAUSGQoRZXhwaXJpbmdfYmluZGluZ3MYByABKAUiTwoLU2l0ZVZhcmlhbnQSCwoDa2V5GAEgASgJEhAKCHJhd190ZXh0GAIgASgJEg0KBW5vZGVzGAMgASgFEhIKCm5vZGVfbmFtZXMYBCADKAkixQEKEVNpdGVzTGlzdFJlc3BvbnNlEioKBHJvd3MYASADKAsyHC5uYWdpcGF0aC5hcGkudjEuU2l0ZUxpc3RSb3cSDQoFcXVlcnkYAiABKAkSDQoFdG90YWwYAyABKAUSKQoFc3RhdHMYBCABKAsyGi5uYWdpcGF0aC5hcGkudjEuU2l0ZVN0YXRzEgsKA3NlbBgFIAEoCRIuCgh2YXJpYW50cxgGIAMoCzIcLm5hZ2lwYXRoLmFwaS52MS5TaXRlVmFyaWFudCJFCgtTaXRlVGFiSXRlbRINCgVsYWJlbBgBIAEoCRIMCgRocmVmGAIgASgJEg0KBWNvdW50GAMgASgFEgoKAm9uGAQgASgIIjgKDlNpdGVWYXJpYW50T3B0EgsKA2tleRgBIAEoCRINCgVsYWJlbBgCIAEoCRIKCgJvbhgDIAEoCCIrCgxDbHVzdGVyQ291bnQSDAoEbmFtZRgBIAEoCRINCgVub2RlcxgCIAEoBSJBCg9VcHN0cmVhbVN1bW1hcnkSDAoEbmFtZRgBIAEoCRIPCgdtZW1iZXJzGAIgASgFEg8KB3ZhcmlhbnQYAyABKAkiiwEKD1NpdGVEZXRhaWxSb3V0ZRIPCgdvcmRpbmFsGAEgASgFEg8KB3BhdHRlcm4YAiABKAkSEgoKbWF0Y2hfdHlwZRgDIAEoCRIOCgZhY3Rpb24YBCABKAkSDgoGdGFyZ2V0GAUgASgJEhEKCWFsc29fZG9lcxgGIAEoCRIPCgd2YXJpYW50GAcgASgJIn4KD1NpdGVEZXRhaWxTdGF0cxINCgVub2RlcxgBIAEoBRIOCgZyb3V0ZXMYAiABKAUSEAoIdmFyaWFudHMYAyABKAUSEQoJdXBzdHJlYW1zGAQgASgFEhEKCWNlcnRfZGF5cxgFIAEoBRIUCgxjZXJ0X3N1YmplY3QYBiABKAki5wMKDFNpdGVPdmVydmlldxIMCgRuYW1lGAEgASgJEg8KB2FsaWFzZXMYAiADKAkSEAoIdmFyaWFudHMYAyABKAUSEwoLdmFyaWFudF9rZXkYBCABKAkSDQoFbm9kZXMYBSABKAUSLwoIY2x1c3RlcnMYBiADKAsyHS5uYWdpcGF0aC5hcGkudjEuQ2x1c3RlckNvdW50EhgKEGxpc3RlbmVyX3N1bW1hcnkYByABKAkSFgoObGlzdGVuZXJfZmxhZ3MYCCABKAkSFAoMY2VydF9zdWJqZWN0GAkgASgJEhMKC2NlcnRfaXNzdWVyGAogASgJEhMKC2NlcnRfZXhwaXJ5GAsgASgJEhgKEGNlcnRfZXhwaXJ5X2RheXMYDCABKAUSFQoNY2VydF9iaW5kaW5ncxgNIAEoBRIWCg5jZXJ0X3VuY292ZXJlZBgOIAMoCRIzCgl1cHN0cmVhbXMYDyADKAsyIC5uYWdpcGF0aC5hcGkudjEuVXBzdHJlYW1TdW1tYXJ5EjAKBnJvdXRlcxgQIAMoCzIgLm5hZ2lwYXRoLmFwaS52MS5TaXRlRGV0YWlsUm91dGUSLwoFc3RhdHMYESABKAsyIC5uYWdpcGF0aC5hcGkudjEuU2l0ZURldGFpbFN0YXRzIrIBCgtTaXRlTm9kZVJvdxIPCgdub2RlX2lkGAEgASgDEhEKCW5vZGVfbmFtZRgCIAEoCRIPCgdjbHVzdGVyGAMgASgJEg8KB3ZhcmlhbnQYBCABKAkSEAoIbGlzdGVuZXIYBSABKAkSEwoLY2VydGlmaWNhdGUYBiABKAkSEQoJbGFzdF9jb2xsGAcgASgJEg0KBXN0YXRlGAggASgJEhQKDHN0YXRlX3JlYXNvbhgJIAEoCSKEAQoSU2l0ZVVwc3RyZWFtTWVtYmVyEhAKCHVwc3RyZWFtGAEgASgJEgwKBGhvc3QYAiABKAkSDAoEcG9ydBgDIAEoBRIOCgZzY2hlbWUYBCABKAkSDgoGd2VpZ2h0GAUgASgFEg0KBWZsYWdzGAYgASgJEhEKCW5vZGVfbmFtZRgHIAEoCSKNAQoPU2l0ZUNlcnRCaW5kaW5nEg8KB3N1YmplY3QYASABKAkSDAoEc2FucxgCIAMoCRIOCgZpc3N1ZXIYAyABKAkSEQoJbm90X2FmdGVyGAQgASgJEhMKC2V4cGlyeV9kYXlzGAUgASgFEhAKCGJpbmRpbmdzGAYgASgFEhEKCXVuY292ZXJlZBgHIAMoCSLqAgoSU2l0ZURldGFpbFJlc3BvbnNlEgwKBG5hbWUYASABKAkSCwoDdGFiGAIgASgJEg8KB3ZhcmlhbnQYAyABKAkSLwoIb3ZlcnZpZXcYBCABKAsyHS5uYWdpcGF0aC5hcGkudjEuU2l0ZU92ZXJ2aWV3EisKBW5vZGVzGAUgAygLMhwubmFnaXBhdGguYXBpLnYxLlNpdGVOb2RlUm93EjYKCXVwc3RyZWFtcxgGIAMoCzIjLm5hZ2lwYXRoLmFwaS52MS5TaXRlVXBzdHJlYW1NZW1iZXISLwoFY2VydHMYByADKAsyIC5uYWdpcGF0aC5hcGkudjEuU2l0ZUNlcnRCaW5kaW5nEioKBHRhYnMYCCADKAsyHC5uYWdpcGF0aC5hcGkudjEuU2l0ZVRhYkl0ZW0SNQoMdmFyaWFudF9vcHRzGAkgAygLMh8ubmFnaXBhdGguYXBpLnYxLlNpdGVWYXJpYW50T3B0QjFaL2dpdGh1Yi5jb20vbmFnaWZsb3cvbmFnaXBhdGgvaW50ZXJuYWwvYXBpL3BiO3BiYgZwcm90bzM");
+  fileDesc("ChtuYWdpcGF0aC9hcGkvdjEvc2l0ZXMucHJvdG8SD25hZ2lwYXRoLmFwaS52MSLHAQoLU2l0ZUxpc3RSb3cSDAoEbmFtZRgBIAEoCRITCgthbGlhc19jb3VudBgCIAEoBRIPCgdhbGlhc2VzGAMgAygJEg0KBW5vZGVzGAQgASgFEhgKEGxpc3RlbmVyX3N1bW1hcnkYBSABKAkSFAoMY2VydF9zdWJqZWN0GAYgASgJEg4KBnJvdXRlcxgHIAEoBRIQCgh2YXJpYW50cxgIIAEoBRINCgVzdGF0ZRgJIAEoCRIUCgxzdGF0ZV9yZWFzb24YCiABKAkiogEKCVNpdGVTdGF0cxIRCglob3N0bmFtZXMYASABKAUSDQoFbm9kZXMYAiABKAUSFQoNdmFyaWFudF9ob3N0cxgDIAEoBRIWCg50bHNfdGVybWluYXRlZBgEIAEoBRIRCglwbGFpbnRleHQYBSABKAUSFgoOZXhwaXJpbmdfY2VydHMYBiABKAUSGQoRZXhwaXJpbmdfYmluZGluZ3MYByABKAUiVQoQU2l0ZVZhcmlhbnRSb3V0ZRIPCgdwYXR0ZXJuGAEgASgJEg4KBmFjdGlvbhgCIAEoCRIOCgZ0YXJnZXQYAyABKAkSEAoIdXBzdHJlYW0YBCABKAkiggEKC1NpdGVWYXJpYW50EgsKA2tleRgBIAEoCRIQCghyYXdfdGV4dBgCIAEoCRINCgVub2RlcxgDIAEoBRISCgpub2RlX25hbWVzGAQgAygJEjEKBnJvdXRlcxgFIAMoCzIhLm5hZ2lwYXRoLmFwaS52MS5TaXRlVmFyaWFudFJvdXRlIsUBChFTaXRlc0xpc3RSZXNwb25zZRIqCgRyb3dzGAEgAygLMhwubmFnaXBhdGguYXBpLnYxLlNpdGVMaXN0Um93Eg0KBXF1ZXJ5GAIgASgJEg0KBXRvdGFsGAMgASgFEikKBXN0YXRzGAQgASgLMhoubmFnaXBhdGguYXBpLnYxLlNpdGVTdGF0cxILCgNzZWwYBSABKAkSLgoIdmFyaWFudHMYBiADKAsyHC5uYWdpcGF0aC5hcGkudjEuU2l0ZVZhcmlhbnQiRQoLU2l0ZVRhYkl0ZW0SDQoFbGFiZWwYASABKAkSDAoEaHJlZhgCIAEoCRINCgVjb3VudBgDIAEoBRIKCgJvbhgEIAEoCCI4Cg5TaXRlVmFyaWFudE9wdBILCgNrZXkYASABKAkSDQoFbGFiZWwYAiABKAkSCgoCb24YAyABKAgiKwoMQ2x1c3RlckNvdW50EgwKBG5hbWUYASABKAkSDQoFbm9kZXMYAiABKAUiQQoPVXBzdHJlYW1TdW1tYXJ5EgwKBG5hbWUYASABKAkSDwoHbWVtYmVycxgCIAEoBRIPCgd2YXJpYW50GAMgASgJIosBCg9TaXRlRGV0YWlsUm91dGUSDwoHb3JkaW5hbBgBIAEoBRIPCgdwYXR0ZXJuGAIgASgJEhIKCm1hdGNoX3R5cGUYAyABKAkSDgoGYWN0aW9uGAQgASgJEg4KBnRhcmdldBgFIAEoCRIRCglhbHNvX2RvZXMYBiABKAkSDwoHdmFyaWFudBgHIAEoCSJ+Cg9TaXRlRGV0YWlsU3RhdHMSDQoFbm9kZXMYASABKAUSDgoGcm91dGVzGAIgASgFEhAKCHZhcmlhbnRzGAMgASgFEhEKCXVwc3RyZWFtcxgEIAEoBRIRCgljZXJ0X2RheXMYBSABKAUSFAoMY2VydF9zdWJqZWN0GAYgASgJIucDCgxTaXRlT3ZlcnZpZXcSDAoEbmFtZRgBIAEoCRIPCgdhbGlhc2VzGAIgAygJEhAKCHZhcmlhbnRzGAMgASgFEhMKC3ZhcmlhbnRfa2V5GAQgASgJEg0KBW5vZGVzGAUgASgFEi8KCGNsdXN0ZXJzGAYgAygLMh0ubmFnaXBhdGguYXBpLnYxLkNsdXN0ZXJDb3VudBIYChBsaXN0ZW5lcl9zdW1tYXJ5GAcgASgJEhYKDmxpc3RlbmVyX2ZsYWdzGAggASgJEhQKDGNlcnRfc3ViamVjdBgJIAEoCRITCgtjZXJ0X2lzc3VlchgKIAEoCRITCgtjZXJ0X2V4cGlyeRgLIAEoCRIYChBjZXJ0X2V4cGlyeV9kYXlzGAwgASgFEhUKDWNlcnRfYmluZGluZ3MYDSABKAUSFgoOY2VydF91bmNvdmVyZWQYDiADKAkSMwoJdXBzdHJlYW1zGA8gAygLMiAubmFnaXBhdGguYXBpLnYxLlVwc3RyZWFtU3VtbWFyeRIwCgZyb3V0ZXMYECADKAsyIC5uYWdpcGF0aC5hcGkudjEuU2l0ZURldGFpbFJvdXRlEi8KBXN0YXRzGBEgASgLMiAubmFnaXBhdGguYXBpLnYxLlNpdGVEZXRhaWxTdGF0cyKyAQoLU2l0ZU5vZGVSb3cSDwoHbm9kZV9pZBgBIAEoAxIRCglub2RlX25hbWUYAiABKAkSDwoHY2x1c3RlchgDIAEoCRIPCgd2YXJpYW50GAQgASgJEhAKCGxpc3RlbmVyGAUgASgJEhMKC2NlcnRpZmljYXRlGAYgASgJEhEKCWxhc3RfY29sbBgHIAEoCRINCgVzdGF0ZRgIIAEoCRIUCgxzdGF0ZV9yZWFzb24YCSABKAkihAEKElNpdGVVcHN0cmVhbU1lbWJlchIQCgh1cHN0cmVhbRgBIAEoCRIMCgRob3N0GAIgASgJEgwKBHBvcnQYAyABKAUSDgoGc2NoZW1lGAQgASgJEg4KBndlaWdodBgFIAEoBRINCgVmbGFncxgGIAEoCRIRCglub2RlX25hbWUYByABKAkijQEKD1NpdGVDZXJ0QmluZGluZxIPCgdzdWJqZWN0GAEgASgJEgwKBHNhbnMYAiADKAkSDgoGaXNzdWVyGAMgASgJEhEKCW5vdF9hZnRlchgEIAEoCRITCgtleHBpcnlfZGF5cxgFIAEoBRIQCghiaW5kaW5ncxgGIAEoBRIRCgl1bmNvdmVyZWQYByADKAki6gIKElNpdGVEZXRhaWxSZXNwb25zZRIMCgRuYW1lGAEgASgJEgsKA3RhYhgCIAEoCRIPCgd2YXJpYW50GAMgASgJEi8KCG92ZXJ2aWV3GAQgASgLMh0ubmFnaXBhdGguYXBpLnYxLlNpdGVPdmVydmlldxIrCgVub2RlcxgFIAMoCzIcLm5hZ2lwYXRoLmFwaS52MS5TaXRlTm9kZVJvdxI2Cgl1cHN0cmVhbXMYBiADKAsyIy5uYWdpcGF0aC5hcGkudjEuU2l0ZVVwc3RyZWFtTWVtYmVyEi8KBWNlcnRzGAcgAygLMiAubmFnaXBhdGguYXBpLnYxLlNpdGVDZXJ0QmluZGluZxIqCgR0YWJzGAggAygLMhwubmFnaXBhdGguYXBpLnYxLlNpdGVUYWJJdGVtEjUKDHZhcmlhbnRfb3B0cxgJIAMoCzIfLm5hZ2lwYXRoLmFwaS52MS5TaXRlVmFyaWFudE9wdCIrChBMaXN0U2l0ZXNSZXF1ZXN0EgwKBHNpdGUYASABKAkSCQoBcRgCIAEoCSI8Cg5HZXRTaXRlUmVxdWVzdBIMCgRuYW1lGAEgASgJEgsKA3RhYhgCIAEoCRIPCgd2YXJpYW50GAMgASgJMtkBCgtTaXRlU2VydmljZRJiCglMaXN0U2l0ZXMSIS5uYWdpcGF0aC5hcGkudjEuTGlzdFNpdGVzUmVxdWVzdBoiLm5hZ2lwYXRoLmFwaS52MS5TaXRlc0xpc3RSZXNwb25zZSIOgtPkkwIIEgYvc2l0ZXMSZgoHR2V0U2l0ZRIfLm5hZ2lwYXRoLmFwaS52MS5HZXRTaXRlUmVxdWVzdBojLm5hZ2lwYXRoLmFwaS52MS5TaXRlRGV0YWlsUmVzcG9uc2UiFYLT5JMCDxINL3NpdGVzL3tuYW1lfUIxWi9naXRodWIuY29tL25hZ2lmbG93L25hZ2lwYXRoL2ludGVybmFsL2FwaS9wYjtwYmIGcHJvdG8z", [file_google_api_annotations]);
 
 /**
  * @generated from message nagipath.api.v1.SiteListRow
@@ -122,6 +123,38 @@ export const SiteStatsSchema: GenMessage<SiteStats> = /*@__PURE__*/
   messageDesc(file_nagipath_api_v1_sites, 1);
 
 /**
+ * @generated from message nagipath.api.v1.SiteVariantRoute
+ */
+export type SiteVariantRoute = Message<"nagipath.api.v1.SiteVariantRoute"> & {
+  /**
+   * @generated from field: string pattern = 1;
+   */
+  pattern: string;
+
+  /**
+   * @generated from field: string action = 2;
+   */
+  action: string;
+
+  /**
+   * @generated from field: string target = 3;
+   */
+  target: string;
+
+  /**
+   * @generated from field: string upstream = 4;
+   */
+  upstream: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.SiteVariantRoute.
+ * Use `create(SiteVariantRouteSchema)` to create a new message.
+ */
+export const SiteVariantRouteSchema: GenMessage<SiteVariantRoute> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_sites, 2);
+
+/**
  * @generated from message nagipath.api.v1.SiteVariant
  */
 export type SiteVariant = Message<"nagipath.api.v1.SiteVariant"> & {
@@ -144,6 +177,11 @@ export type SiteVariant = Message<"nagipath.api.v1.SiteVariant"> & {
    * @generated from field: repeated string node_names = 4;
    */
   nodeNames: string[];
+
+  /**
+   * @generated from field: repeated nagipath.api.v1.SiteVariantRoute routes = 5;
+   */
+  routes: SiteVariantRoute[];
 };
 
 /**
@@ -151,7 +189,7 @@ export type SiteVariant = Message<"nagipath.api.v1.SiteVariant"> & {
  * Use `create(SiteVariantSchema)` to create a new message.
  */
 export const SiteVariantSchema: GenMessage<SiteVariant> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 2);
+  messageDesc(file_nagipath_api_v1_sites, 3);
 
 /**
  * @generated from message nagipath.api.v1.SitesListResponse
@@ -193,7 +231,7 @@ export type SitesListResponse = Message<"nagipath.api.v1.SitesListResponse"> & {
  * Use `create(SitesListResponseSchema)` to create a new message.
  */
 export const SitesListResponseSchema: GenMessage<SitesListResponse> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 3);
+  messageDesc(file_nagipath_api_v1_sites, 4);
 
 /**
  * @generated from message nagipath.api.v1.SiteTabItem
@@ -225,7 +263,7 @@ export type SiteTabItem = Message<"nagipath.api.v1.SiteTabItem"> & {
  * Use `create(SiteTabItemSchema)` to create a new message.
  */
 export const SiteTabItemSchema: GenMessage<SiteTabItem> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 4);
+  messageDesc(file_nagipath_api_v1_sites, 5);
 
 /**
  * @generated from message nagipath.api.v1.SiteVariantOpt
@@ -252,7 +290,7 @@ export type SiteVariantOpt = Message<"nagipath.api.v1.SiteVariantOpt"> & {
  * Use `create(SiteVariantOptSchema)` to create a new message.
  */
 export const SiteVariantOptSchema: GenMessage<SiteVariantOpt> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 5);
+  messageDesc(file_nagipath_api_v1_sites, 6);
 
 /**
  * @generated from message nagipath.api.v1.ClusterCount
@@ -274,7 +312,7 @@ export type ClusterCount = Message<"nagipath.api.v1.ClusterCount"> & {
  * Use `create(ClusterCountSchema)` to create a new message.
  */
 export const ClusterCountSchema: GenMessage<ClusterCount> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 6);
+  messageDesc(file_nagipath_api_v1_sites, 7);
 
 /**
  * @generated from message nagipath.api.v1.UpstreamSummary
@@ -301,7 +339,7 @@ export type UpstreamSummary = Message<"nagipath.api.v1.UpstreamSummary"> & {
  * Use `create(UpstreamSummarySchema)` to create a new message.
  */
 export const UpstreamSummarySchema: GenMessage<UpstreamSummary> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 7);
+  messageDesc(file_nagipath_api_v1_sites, 8);
 
 /**
  * @generated from message nagipath.api.v1.SiteDetailRoute
@@ -348,7 +386,7 @@ export type SiteDetailRoute = Message<"nagipath.api.v1.SiteDetailRoute"> & {
  * Use `create(SiteDetailRouteSchema)` to create a new message.
  */
 export const SiteDetailRouteSchema: GenMessage<SiteDetailRoute> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 8);
+  messageDesc(file_nagipath_api_v1_sites, 9);
 
 /**
  * @generated from message nagipath.api.v1.SiteDetailStats
@@ -390,7 +428,7 @@ export type SiteDetailStats = Message<"nagipath.api.v1.SiteDetailStats"> & {
  * Use `create(SiteDetailStatsSchema)` to create a new message.
  */
 export const SiteDetailStatsSchema: GenMessage<SiteDetailStats> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 9);
+  messageDesc(file_nagipath_api_v1_sites, 10);
 
 /**
  * @generated from message nagipath.api.v1.SiteOverview
@@ -487,7 +525,7 @@ export type SiteOverview = Message<"nagipath.api.v1.SiteOverview"> & {
  * Use `create(SiteOverviewSchema)` to create a new message.
  */
 export const SiteOverviewSchema: GenMessage<SiteOverview> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 10);
+  messageDesc(file_nagipath_api_v1_sites, 11);
 
 /**
  * @generated from message nagipath.api.v1.SiteNodeRow
@@ -544,7 +582,7 @@ export type SiteNodeRow = Message<"nagipath.api.v1.SiteNodeRow"> & {
  * Use `create(SiteNodeRowSchema)` to create a new message.
  */
 export const SiteNodeRowSchema: GenMessage<SiteNodeRow> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 11);
+  messageDesc(file_nagipath_api_v1_sites, 12);
 
 /**
  * @generated from message nagipath.api.v1.SiteUpstreamMember
@@ -591,7 +629,7 @@ export type SiteUpstreamMember = Message<"nagipath.api.v1.SiteUpstreamMember"> &
  * Use `create(SiteUpstreamMemberSchema)` to create a new message.
  */
 export const SiteUpstreamMemberSchema: GenMessage<SiteUpstreamMember> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 12);
+  messageDesc(file_nagipath_api_v1_sites, 13);
 
 /**
  * @generated from message nagipath.api.v1.SiteCertBinding
@@ -638,7 +676,7 @@ export type SiteCertBinding = Message<"nagipath.api.v1.SiteCertBinding"> & {
  * Use `create(SiteCertBindingSchema)` to create a new message.
  */
 export const SiteCertBindingSchema: GenMessage<SiteCertBinding> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 13);
+  messageDesc(file_nagipath_api_v1_sites, 14);
 
 /**
  * @generated from message nagipath.api.v1.SiteDetailResponse
@@ -695,5 +733,82 @@ export type SiteDetailResponse = Message<"nagipath.api.v1.SiteDetailResponse"> &
  * Use `create(SiteDetailResponseSchema)` to create a new message.
  */
 export const SiteDetailResponseSchema: GenMessage<SiteDetailResponse> = /*@__PURE__*/
-  messageDesc(file_nagipath_api_v1_sites, 14);
+  messageDesc(file_nagipath_api_v1_sites, 15);
+
+/**
+ * @generated from message nagipath.api.v1.ListSitesRequest
+ */
+export type ListSitesRequest = Message<"nagipath.api.v1.ListSitesRequest"> & {
+  /**
+   * @generated from field: string site = 1;
+   */
+  site: string;
+
+  /**
+   * @generated from field: string q = 2;
+   */
+  q: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.ListSitesRequest.
+ * Use `create(ListSitesRequestSchema)` to create a new message.
+ */
+export const ListSitesRequestSchema: GenMessage<ListSitesRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_sites, 16);
+
+/**
+ * @generated from message nagipath.api.v1.GetSiteRequest
+ */
+export type GetSiteRequest = Message<"nagipath.api.v1.GetSiteRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string tab = 2;
+   */
+  tab: string;
+
+  /**
+   * @generated from field: string variant = 3;
+   */
+  variant: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.GetSiteRequest.
+ * Use `create(GetSiteRequestSchema)` to create a new message.
+ */
+export const GetSiteRequestSchema: GenMessage<GetSiteRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_sites, 17);
+
+/**
+ * SiteService: GET /sites and GET /sites/{name} — see
+ * internal/api/siteservice.go. GET /sites?export=csv stays outside this
+ * service (api.go), same reasoning as every other CSV export in this
+ * package: a formatted download, not RPC-shaped data (ADR-0018).
+ *
+ * @generated from service nagipath.api.v1.SiteService
+ */
+export const SiteService: GenService<{
+  /**
+   * @generated from rpc nagipath.api.v1.SiteService.ListSites
+   */
+  listSites: {
+    methodKind: "unary";
+    input: typeof ListSitesRequestSchema;
+    output: typeof SitesListResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.SiteService.GetSite
+   */
+  getSite: {
+    methodKind: "unary";
+    input: typeof GetSiteRequestSchema;
+    output: typeof SiteDetailResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_nagipath_api_v1_sites, 0);
 

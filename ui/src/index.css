@@ -1,5 +1,1 @@
-html,
-body,
-#root {
-  height: 100%;
-}
+@import './theme/theme.css';

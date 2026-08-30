@@ -1,0 +1,2 @@
+.stat{flex:1;background:#fff;border:1px solid #d3dae6;border-radius:6px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat .num{font:700 21px/1 Inter,system-ui,sans-serif;color:#1d1e24;letter-spacing:-.02em}

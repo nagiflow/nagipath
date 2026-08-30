@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { EuiButton, EuiCallOut, EuiForm, EuiFormRow, EuiLoadingChart, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui'
 import { useSession } from '../../api/queries/session'
 import { useInstallLicense, useLicense } from '../../api/queries/settings'
-import { SettingsSubNav } from './SettingsSubNav'
+import { PanelHeader } from '../../components/shared/PanelHeader'
+import { Badge, Button, CallOut, Kv, Loading, Panel } from '../../components/ui'
+import { SettingsLayout } from './SettingsLayout'
 
 // Ported from internal/web/templates/license.html against
-// GET/POST /api/ui/settings/license. A viewer can read status; only an
-// admin sees (and can submit) the install form.
+// GET/POST /api/settings/license, laid out as design/'s screen 8i. A viewer can
+// read status; only an admin sees (and can submit) the install form.
 export function LicensePage() {
   const { data: session } = useSession()
   const { data, isPending, isError, error } = useLicense()
@@ -14,60 +15,66 @@ export function LicensePage() {
   const [text, setText] = useState('')
 
   return (
-    <>
-      <SettingsSubNav />
-      <EuiTitle size="m"><h1>License</h1></EuiTitle>
-      <EuiSpacer />
-      {isPending && <EuiLoadingChart size="xl" />}
-      {isError && <EuiText color="danger">{error.message}</EuiText>}
+    <SettingsLayout
+      title="License"
+      actions={data?.loaded && (
+        <span className="m mus">
+          {data.nodeCount} / {data.nodeCeiling} nodes · expires {new Date(data.expiry).toLocaleDateString()}
+        </span>
+      )}
+    >
+      {isPending && <Loading label="Loading license…" />}
+      {isError && <div className="m" style={{ color: '#a1231c' }}>{error.message}</div>}
       {data && (
-        <EuiPanel>
+        <Panel>
+          <PanelHeader
+            title="Current license"
+            actions={<Badge cls={data.status === 'ok' ? 'v' : data.status === 'expired' ? 'r' : 'd'}>{data.status}</Badge>}
+          />
           {data.loaded ? (
-            <EuiText size="s">
-              <p>Customer: {data.customer}</p>
-              <p>Edition: {data.edition}</p>
-              <p>Node ceiling: {data.nodeCeiling}</p>
-              <p>Expires: {new Date(data.expiry).toLocaleDateString()}</p>
-              <p>Nodes in use: {data.nodeCount}</p>
-            </EuiText>
+            <Kv labelWidth={110} rows={[
+              ['customer', data.customer],
+              ['edition', data.edition],
+              ['node ceiling', data.nodeCeiling],
+              ['expires', new Date(data.expiry).toLocaleDateString()],
+              ['nodes in use', data.nodeCount],
+            ]} />
           ) : (
-            <EuiText size="s" color="subdued">No license is currently loaded.</EuiText>
+            <p className="m mus">No license is currently loaded.</p>
           )}
-          <EuiSpacer size="s" />
-          <EuiCallOut size="s" title={data.status} color={data.status === 'ok' ? 'success' : data.status === 'expired' ? 'danger' : 'warning'}>
-            {data.message}
-          </EuiCallOut>
+          <div style={{ marginTop: 8 }}>
+            <CallOut title={data.status} color={data.status === 'ok' ? 'success' : data.status === 'expired' ? 'danger' : 'warning'}>
+              {data.message}
+            </CallOut>
+          </div>
           {data.state && (
-            <>
-              <EuiSpacer size="s" />
-              <EuiText size="s" color="subdued">
-                Last installed: {data.state.customer} ({data.state.edition}), by {data.state.installedByUsername || 'unknown'} on{' '}
-                {data.state.lastEvaluatedAt ? new Date(data.state.lastEvaluatedAt).toLocaleString() : '—'}
-              </EuiText>
-            </>
+            <p className="m mus" style={{ marginTop: 8 }}>
+              Last installed: {data.state.customer} ({data.state.edition}), by {data.state.installedByUsername || 'unknown'} on{' '}
+              {data.state.lastEvaluatedAt ? new Date(data.state.lastEvaluatedAt).toLocaleString() : '—'}
+            </p>
           )}
-        </EuiPanel>
+        </Panel>
       )}
 
       {session?.user?.role === 'admin' && (
-        <>
-          <EuiSpacer />
-          <EuiPanel>
-            <EuiTitle size="xs"><h2>Install a license</h2></EuiTitle>
-            <EuiSpacer size="s" />
-            <EuiForm component="div">
-              <EuiFormRow label="License text" fullWidth>
-                <textarea rows={8} style={{ width: '100%' }} value={text} onChange={(e) => setText(e.target.value)} />
-              </EuiFormRow>
-              {install.isError && <EuiText color="danger" size="s">{install.error.message}</EuiText>}
-              <EuiSpacer size="s" />
-              <EuiButton isLoading={install.isPending} onClick={() => install.mutate(text, { onSuccess: () => setText('') })}>
+        <Panel style={{ marginTop: 10 }}>
+          <PanelHeader title="Install a license" actions={<span className="m mus">admin only</span>} />
+          <div className="col">
+            <div className="col" style={{ gap: 4 }}>
+              <span className="lbl">License text</span>
+              <span className="fld f">
+                <textarea rows={8} value={text} onChange={(e) => setText(e.target.value)} />
+              </span>
+            </div>
+            {install.isError && <div className="m" style={{ color: '#a1231c' }}>{install.error.message}</div>}
+            <div className="row">
+              <Button primary loading={install.isPending} onClick={() => install.mutate(text, { onSuccess: () => setText('') })}>
                 Install license
-              </EuiButton>
-            </EuiForm>
-          </EuiPanel>
-        </>
+              </Button>
+            </div>
+          </div>
+        </Panel>
       )}
-    </>
+    </SettingsLayout>
   )
 }

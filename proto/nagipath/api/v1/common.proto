@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package nagipath.api.v1;
+
+option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
+
+// Ok is every fire-and-forget mutation's response across every service in
+// this package (a rename, a decision, a delete) — one shared message instead
+// of a near-identical one per RPC, the same reasoning ADR-0018 already gave
+// for not generating a type per bare {"ok":true} at all before RPCs existed.
+message Ok {
+  bool ok = 1;
+}
+
+// Empty is every RPC in this package with no request fields — a GET with no
+// query parameters. Distinct from google.protobuf.Empty only in staying a
+// local type buf doesn't need a well-known-types import for.
+message Empty {}
+
+// IdResponse is a create mutation's response across every service in this
+// package (a new credential, a new user) — {"ok":true,"id":<n>} typed.
+message IdResponse {
+  bool ok = 1;
+  int64 id = 2;
+}

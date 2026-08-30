@@ -1,13 +1,11 @@
 package api
 
 import (
-	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // TestGetCollectionsFiltersAndExport ports internal/web's old
@@ -45,20 +43,19 @@ func TestGetCollectionsFiltersAndExport(t *testing.T) {
 	}
 
 	s := New(db, nil, false)
+	cs := &collectionService{s: s}
 
 	// Unfiltered: both rows, JSON and CSV.
-	w := httptest.NewRecorder()
-	s.getCollections(w, httptest.NewRequest("GET", "/collections", nil))
-	var all pb.CollectionsResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &all); err != nil {
+	all, err := cs.ListCollections(ctx, &pb.ListCollectionsRequest{})
+	if err != nil {
 		t.Fatal(err)
 	}
 	if len(all.Rows) != 2 || all.Total != 2 {
 		t.Fatalf("unfiltered collections: rows=%d total=%d", len(all.Rows), all.Total)
 	}
 
-	w = httptest.NewRecorder()
-	s.getCollections(w, httptest.NewRequest("GET", "/collections?export=csv", nil))
+	w := httptest.NewRecorder()
+	s.getCollectionsCSV(w, httptest.NewRequest("GET", "/collections?export=csv", nil))
 	if got := w.Header().Get("Content-Type"); !strings.HasPrefix(got, "text/csv") {
 		t.Errorf("export Content-Type = %q, want text/csv", got)
 	}
@@ -71,10 +68,8 @@ func TestGetCollectionsFiltersAndExport(t *testing.T) {
 	}
 
 	// Filter to node=web01: narrows both JSON and export to one row.
-	w = httptest.NewRecorder()
-	s.getCollections(w, httptest.NewRequest("GET", "/collections?node=web01", nil))
-	var filtered pb.CollectionsResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &filtered); err != nil {
+	filtered, err := cs.ListCollections(ctx, &pb.ListCollectionsRequest{Node: "web01"})
+	if err != nil {
 		t.Fatal(err)
 	}
 	if len(filtered.Rows) != 1 || filtered.Rows[0].NodeName != "web01" {
@@ -82,10 +77,8 @@ func TestGetCollectionsFiltersAndExport(t *testing.T) {
 	}
 
 	// Filter by status=failed shows the other node.
-	w = httptest.NewRecorder()
-	s.getCollections(w, httptest.NewRequest("GET", "/collections?status=failed", nil))
-	filtered = pb.CollectionsResponse{}
-	if err := protojson.Unmarshal(w.Body.Bytes(), &filtered); err != nil {
+	filtered, err = cs.ListCollections(ctx, &pb.ListCollectionsRequest{Status: "failed"})
+	if err != nil {
 		t.Fatal(err)
 	}
 	if len(filtered.Rows) != 1 || filtered.Rows[0].NodeName != "web02" {
@@ -105,13 +98,8 @@ func TestGetCollectionsWithNoNodesIsEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := New(db, nil, false)
-	w := httptest.NewRecorder()
-	s.getCollections(w, httptest.NewRequest("GET", "/collections", nil))
-	if w.Code != http.StatusOK {
-		t.Fatalf("getCollections with no nodes = %d", w.Code)
-	}
-	var resp pb.CollectionsResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+	resp, err := (&collectionService{s: s}).ListCollections(t.Context(), &pb.ListCollectionsRequest{})
+	if err != nil {
 		t.Fatal(err)
 	}
 	if !resp.Empty {

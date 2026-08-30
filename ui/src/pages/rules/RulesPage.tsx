@@ -1,41 +1,123 @@
-import {
-  EuiAccordion,
-  EuiButton,
-  EuiCheckbox,
-  EuiFieldText,
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiLoadingChart,
-  EuiPageTemplate,
-  EuiPanel,
-  EuiSpacer,
-  EuiStat,
-  EuiText,
-  EuiTitle,
-} from '@elastic/eui'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useRules } from '../../api/queries/rules'
-import type { LookupResultPB, RuleGroup } from '../../api/pb/nagipath/api/v1/rules_pb'
+import type { LookupRulePB, RuleGroup } from '../../api/pb/nagipath/api/v1/rules_pb'
+import { PageHeader } from '../../components/shared/PageHeader'
+import { PanelHeader } from '../../components/shared/PanelHeader'
+import {
+  Accordion, Badge, Button, Checkbox, EmptyPrompt, Loading, Panel,
+  PanelFooter, Select,
+} from '../../components/ui'
 
-// Ported from internal/web/templates/rules.html against GET /api/ui/rules
+function baseName(path: string): string {
+  return path.slice(path.lastIndexOf('/') + 1) || path
+}
+
+// One rule row of design/'s screen 2b. The design's two prose columns are
+// filled from what the parser actually records: the scope the rule sits in
+// ("when the request matches") and the directive itself ("what happens"). No
+// plain-language template table exists, so the raw directive is the sub-line in
+// both columns rather than a rewritten sentence.
+function RuleRow({ lr, cols }: { lr: LookupRulePB; cols: number }) {
+  const dim = lr.shadowed ? { color: '#98a2b3' } : undefined
+  return (
+    <tr style={dim}>
+      <td className="m mus">{lr.shadowed ? '—' : lr.ordinal}</td>
+      <td>
+        <span className="m">{lr.scope || 'any request to this site'}</span>
+      </td>
+      <td>
+        <span className="m" style={lr.shadowed ? undefined : { fontWeight: 500 }}>{lr.directive} {lr.args}</span>
+        {lr.shadowed && lr.shadowedBy && <div className="m mus">{lr.shadowedBy}</div>}
+      </td>
+      <td className={lr.shadowed ? 'm mus' : 'm mu'}>{lr.actionClass}</td>
+      <td className="m mus">
+        {/* The parser stores the byte offset, not the line number, so the cell
+            names the file and links to that exact byte in the stored copy. */}
+        {Number(lr.fileId) > 0
+          ? <a href={`/snapshots/${lr.snapshotId}/file/${lr.fileId}?b=${lr.byteStart}`} onClick={(e) => e.stopPropagation()}>{baseName(lr.path)}</a>
+          : baseName(lr.path) || '—'}
+      </td>
+      <td>{lr.shadowed ? <Badge cls="i">SHADOWED</Badge> : <Badge cls="v">FIRES</Badge>}</td>
+      {cols > 6 && <td />}
+    </tr>
+  )
+}
+
+// design/'s group band: one node's answer, with the identical-configuration
+// siblings folded into it. Collapsed bands are click-to-open.
+function GroupBody({ group, firesOnly }: { group: RuleGroup; firesOnly: boolean }) {
+  const res = group.results[0]
+  const [open, setOpen] = useState(true)
+  const applies = (res?.rules ?? []).filter((lr) => !lr.inherited)
+  const rules = firesOnly ? applies.filter((lr) => !lr.shadowed) : applies
+  const siblings = group.count - 1
+
+  return (
+    <tbody>
+      <tr onClick={() => setOpen(!open)} style={{ cursor: 'pointer' }}>
+        <td colSpan={6} style={{ background: '#f7f8fc', borderBottom: '1px solid #d3dae6', borderTop: '1px solid #d3dae6' }}>
+          <span className="m" style={{ fontWeight: 600 }}>{open ? '▾' : '▸'} {res?.instNodeName || '(unknown node)'}</span>{' '}
+          <span className="m mus">
+            {[res?.instVendor, res?.clusterName, res?.siteName && `site ${res.siteName}`, res?.routePattern]
+              .filter(Boolean).join(' · ')}
+            {' · '}{rules.length} of {res?.rules.length ?? 0} apply
+          </span>
+          {siblings > 0 && (
+            <span className="m mus" style={{ marginLeft: 8 }}>— identical on {siblings} more node{siblings === 1 ? '' : 's'}</span>
+          )}
+          {res?.degraded && <span style={{ marginLeft: 8 }}><Badge cls="d">DEGRADED</Badge></span>}
+        </td>
+      </tr>
+      {open && rules.map((lr, i) => <RuleRow key={`${lr.ordinal}-${lr.byteStart}-${i}`} lr={lr} cols={6} />)}
+      {open && rules.length === 0 && (
+        <tr><td colSpan={6} className="m mus">Every rule on this node is shadowed by an earlier one.</td></tr>
+      )}
+    </tbody>
+  )
+}
+
+// Ported from internal/web/templates/rules.html against GET /api/rules
 // (internal/api/rules.go): "which rules are in effect for this context path"
-// without following the request anywhere — the same site/route selection
-// the trace engine uses, stopped after one hop.
+// without following the request anywhere — the same site/route selection the
+// trace engine uses, stopped after one hop. Laid out as design/'s screen 2b:
+// the host/path pair in the query bar, the 216px facet rail, and one grouped
+// table where each band is a node and shadowed rules are greyed in place.
+// Omitted from that screen: "Saved queries · 6"/"Save query" and "Advanced
+// query" (there is no saved-query store and no query grammar behind the two
+// fields — hostname and path are the whole request), the "Cluster: all" select
+// (GetRules filters by action class and vendor only; cluster is shown on each
+// band but not filterable server-side, and the facet counts come from the
+// server), the "Plain language" reading select (the plain-language templates
+// design/ assumes per directive type do not exist), the "Group: node"/"50 per
+// page" selects (grouping is always by node and the page size is fixed
+// server-side), the row checkboxes with "Compare"/"Trace each" (no compare
+// endpoint, and tracing needs a URL per node rather than a bulk action), and
+// the elapsed-time figure in the counts row (GetRules does not time itself).
 export function RulesPage() {
   const [params, setParams] = useSearchParams()
-  const url = params.get('url') ?? ''
-  const [urlInput, setUrlInput] = useState(url)
+  const hostname = params.get('hostname') ?? ''
+  const path = params.get('path') ?? ''
+  const [hostInput, setHostInput] = useState(hostname)
+  const [pathInput, setPathInput] = useState(path)
   const classes = params.getAll('class')
   const vendors = params.getAll('vendor')
   const page = Number(params.get('page') ?? '1')
+  const [firesOnly, setFiresOnly] = useState(false)
 
   const { data, isPending, isError, error } = useRules({
-    url, hostname: params.get('hostname') ?? '', path: params.get('path') ?? '',
-    scheme: params.get('scheme') ?? '', port: params.get('port') ?? '', classes, vendors,
+    url: params.get('url') ?? '', hostname, path,
+    scheme: params.get('scheme') ?? '', port: params.get('port') ?? '',
+    classes, vendors, page: params.get('page') ?? '',
   })
 
-  const submit = () => setParams((p) => { p.set('url', urlInput); p.delete('page'); return p })
+  const submit = () => setParams((p) => {
+    p.delete('url')
+    if (hostInput) p.set('hostname', hostInput); else p.delete('hostname')
+    if (pathInput) p.set('path', pathInput); else p.delete('path')
+    p.delete('page')
+    return p
+  })
   const toggle = (key: 'class' | 'vendor', value: string) => setParams((p) => {
     const cur = p.getAll(key)
     p.delete(key)
@@ -43,160 +125,156 @@ export function RulesPage() {
     p.delete('page')
     return p
   })
+  const goto = (n: number) => setParams((p) => { p.set('page', String(n)); return p })
 
-  const exportURL = `/api/ui/rules?export=csv${url ? `&url=${encodeURIComponent(url)}` : ''}${classes.map((c) => `&class=${c}`).join('')}${vendors.map((v) => `&vendor=${v}`).join('')}`
+  const query = [hostname && `hostname=${encodeURIComponent(hostname)}`, path && `path=${encodeURIComponent(path)}`,
+    ...classes.map((c) => `class=${c}`), ...vendors.map((v) => `vendor=${v}`)].filter(Boolean).join('&')
 
   return (
     <>
-      <EuiFlexGroup alignItems="center" justifyContent="spaceBetween">
-        <EuiFlexItem grow={false}><EuiTitle size="m"><h1>Rule lookup</h1></EuiTitle></EuiFlexItem>
-        {data?.asked && <EuiFlexItem grow={false}><EuiButton href={exportURL} iconType="download">Export CSV</EuiButton></EuiFlexItem>}
-      </EuiFlexGroup>
-      <EuiSpacer />
+      <PageHeader
+        title="Rule lookup"
+        actions={data?.asked && <Button small href={`/api/rules?export=csv&${query}`}>Export CSV</Button>}
+      />
 
-      <EuiFlexGroup gutterSize="s">
-        <EuiFlexItem>
-          <EuiFieldText
-            placeholder="https://shop.example.com/api/v2/charge or /api/v2"
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()}
-          />
-        </EuiFlexItem>
-        <EuiFlexItem grow={false}><EuiButton fill onClick={submit}>Look up</EuiButton></EuiFlexItem>
-      </EuiFlexGroup>
-      <EuiSpacer />
-
-      {isPending && <EuiLoadingChart size="xl" />}
-      {isError && <EuiText color="danger">{error.message}</EuiText>}
-
-      {data?.empty && (
-        <EuiPageTemplate.EmptyPrompt title={<h2>Nothing is collected yet</h2>}
-          body={<p>Rule lookup reads collected configuration, and there is none. <a href="/nodes/import">Import inventory</a> first.</p>} />
-      )}
-
-      {data && !data.empty && !data.asked && (
-        <EuiPanel>
-          <EuiText size="s"><strong>Paste a URL above.</strong> Look up the collected rules that would handle one
-            request. A bare path, like <code>/api/v2</code>, searches every site in the fleet for a route that
-            claims it, with no host needed.</EuiText>
-        </EuiPanel>
-      )}
+      <div className="qbar">
+        <span className="m mus">Which rules apply to</span>
+        <span className="fld" style={{ flex: 1.4 }}>
+          <span className="m mus">host</span>
+          <input value={hostInput} onChange={(e) => setHostInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()} placeholder="payments.corp.example" />
+        </span>
+        <span className="fld" style={{ flex: 1 }}>
+          <span className="m mus">path</span>
+          <input value={pathInput} onChange={(e) => setPathInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()} placeholder="/api/v2/charge" />
+        </span>
+        <Button primary onClick={submit}>Find rules</Button>
+      </div>
 
       {data?.asked && (
-        <>
-          <EuiFlexGroup>
-            <EuiFlexItem><EuiStat title={data.rules} description="Rules" titleSize="s" /></EuiFlexItem>
-            <EuiFlexItem><EuiStat title={data.nodes} description="Nodes" titleSize="s" /></EuiFlexItem>
-            <EuiFlexItem><EuiStat title={data.files} description="Files" titleSize="s" /></EuiFlexItem>
-          </EuiFlexGroup>
-          <EuiSpacer />
+        <div className="row" style={{ padding: '7px 16px 0', alignItems: 'center', flex: 'none' }}>
+          <span className="m mu">
+            {data.rules} rule{data.rules === 1 ? '' : 's'} apply · {data.nodes} node{data.nodes === 1 ? '' : 's'} · {data.files} file{data.files === 1 ? '' : 's'}
+          </span>
+          <div style={{ flex: 1 }} />
+          <span className="m mus">reading</span>
+          <Select
+            options={[{ value: '', text: 'All rules that apply' }, { value: '1', text: 'Only rules that fire' }]}
+            value={firesOnly ? '1' : ''}
+            onChange={(v) => setFiresOnly(v === '1')}
+          />
+        </div>
+      )}
 
-          <EuiFlexGroup>
-            <EuiFlexItem grow={false} style={{ width: 220 }}>
-              <EuiPanel>
-                <EuiText size="xs"><strong>Action class</strong></EuiText>
-                <EuiSpacer size="xs" />
-                {data.classFacets.map((f) => (
-                  <div key={f.value}>
-                    <EuiCheckbox id={`class-${f.value}`} label={`${f.value} (${f.count})`}
-                      checked={classes.includes(f.value)} onChange={() => toggle('class', f.value)} />
-                  </div>
-                ))}
-                <EuiSpacer size="s" />
-                <EuiText size="xs"><strong>Vendor</strong></EuiText>
-                <EuiSpacer size="xs" />
+      <div className="bd">
+        {isPending && <Loading label="Looking up rules…" />}
+        {isError && <EmptyPrompt danger title="Could not look up rules" body={error.message} />}
+
+        {data?.empty && (
+          <EmptyPrompt
+            title="Nothing is collected yet"
+            body={<>Rule lookup reads collected configuration, and there is none. <a href="/nodes/import">Import inventory</a> first.</>}
+          />
+        )}
+
+        {data && !data.empty && !data.asked && (
+          <EmptyPrompt
+            title="Name a host, a path, or both"
+            body={<>Look up the collected rules that would handle one request. A bare path, like <span className="m">/api/v2</span>, searches every site in the fleet for a route that claims it, with no host needed.</>}
+          />
+        )}
+
+        {data?.asked && (
+          <div className="row" style={{ flex: 1, minHeight: 0, alignItems: 'stretch' }}>
+            <div className="col" style={{ flex: '0 0 216px', minWidth: 0 }}>
+              <Panel style={{ padding: 10, flex: 1, minHeight: 0, overflow: 'auto' }}>
+                <div className="lbl" style={{ marginBottom: 6 }}>Vendor</div>
                 {data.vendorFacets.map((f) => (
-                  <div key={f.value}>
-                    <EuiCheckbox id={`vendor-${f.value}`} label={`${f.value} (${f.count})`}
-                      checked={vendors.includes(f.value)} onChange={() => toggle('vendor', f.value)} />
+                  <div className="fct" key={f.value}>
+                    <Checkbox id={`vendor-${f.value}`} checked={vendors.includes(f.value)}
+                      onChange={() => toggle('vendor', f.value)} label={f.value} />
+                    <span className="c">{f.count}</span>
                   </div>
                 ))}
-                <EuiSpacer size="s" />
-                <EuiText size="xs" color="subdued">Nothing ticked means everything. Counts show how many rules each filter would leave.</EuiText>
-              </EuiPanel>
-            </EuiFlexItem>
+                <div className="lbl" style={{ margin: '10px 0 6px' }}>Action class</div>
+                {data.classFacets.map((f) => (
+                  <div className="fct" key={f.value}>
+                    <Checkbox id={`class-${f.value}`} checked={classes.includes(f.value)}
+                      onChange={() => toggle('class', f.value)} label={f.value} />
+                    <span className="c">{f.count}</span>
+                  </div>
+                ))}
+                <div className="m mus" style={{ marginTop: 10 }}>
+                  Nothing ticked means everything. Counts show how many rules each filter would leave.
+                </div>
+              </Panel>
+            </div>
 
-            <EuiFlexItem>
-              {data.groups.length > 0 ? (
-                <>
-                  <EuiText size="s" color="subdued">{data.from}–{data.to} node(s), page {data.page} of {data.pages}</EuiText>
-                  <EuiSpacer size="s" />
-                  {data.groups.map((g) => <RuleGroupPanel key={g.hash} group={g} />)}
+            <div className="col" style={{ flex: 1, minWidth: 0 }}>
+              <Panel z style={{ flex: 1, minHeight: 0 }}>
+                <PanelHeader title="Rules that apply" meta="first match wins per node — rules below it are shown greyed" />
+                {data.groups.length > 0 ? (
+                  <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                    <table className="t">
+                      <thead>
+                        <tr>
+                          <th style={{ width: 30 }}>#</th>
+                          <th style={{ width: 230 }}>When the request matches</th>
+                          <th>What happens</th>
+                          <th style={{ width: 86 }}>Kind</th>
+                          <th style={{ width: 150 }}>Defined in</th>
+                          <th style={{ width: 86 }}>State</th>
+                        </tr>
+                      </thead>
+                      {data.groups.map((g) => <GroupBody key={g.hash} group={g} firesOnly={firesOnly} />)}
+                    </table>
+                  </div>
+                ) : data.rulesUnfiltered > 0 ? (
+                  <div style={{ padding: '10px 12px' }} className="m mu">
+                    {data.rulesUnfiltered} rule(s) were found, but none match the action class or vendor filters on
+                    the left. Untick them to widen.
+                  </div>
+                ) : (
+                  <div style={{ padding: '10px 12px' }} className="m mu">
+                    No instance claims that context path. Every collected instance was checked — see the list below
+                    for why.
+                  </div>
+                )}
+                <PanelFooter>
+                  <span className="m mus">{data.from}–{data.to} of {data.nodes} node{data.nodes === 1 ? '' : 's'}</span>
+                  <div style={{ flex: 1 }} />
                   {data.pages > 1 && (
-                    <EuiFlexGroup gutterSize="xs" justifyContent="center">
-                      <EuiFlexItem grow={false}>
-                        <EuiButton size="s" isDisabled={page <= 1} onClick={() => setParams((p) => { p.set('page', String(page - 1)); return p })}>‹</EuiButton>
-                      </EuiFlexItem>
-                      <EuiFlexItem grow={false}><EuiText size="s">{data.page} / {data.pages}</EuiText></EuiFlexItem>
-                      <EuiFlexItem grow={false}>
-                        <EuiButton size="s" isDisabled={page >= data.pages} onClick={() => setParams((p) => { p.set('page', String(page + 1)); return p })}>›</EuiButton>
-                      </EuiFlexItem>
-                    </EuiFlexGroup>
+                    <span className="pg">
+                      <span className="pgb" onClick={() => page > 1 && goto(page - 1)}>‹</span>
+                      {Array.from({ length: data.pages }, (_, i) => i + 1).map((n) => (
+                        <span key={n} className={`pgb${n === data.page ? ' on' : ''}`} onClick={() => goto(n)}>{n}</span>
+                      ))}
+                      <span className="pgb" onClick={() => page < data.pages && goto(page + 1)}>›</span>
+                    </span>
                   )}
-                </>
-              ) : data.rulesUnfiltered > 0 ? (
-                <EuiPanel><EuiText size="s"><strong>No rules match the filters.</strong> {data.rulesUnfiltered} rule(s) were
-                  found, but none match the action class or vendor filters on the left. Untick them to widen.</EuiText></EuiPanel>
-              ) : (
-                <EuiPanel><EuiText size="s"><strong>No instance claims that context path.</strong> Every collected
-                  instance was checked. See below for why.</EuiText></EuiPanel>
-              )}
+                </PanelFooter>
+              </Panel>
 
               {data.silent.length > 0 && (
-                <>
-                  <EuiSpacer />
-                  <EuiAccordion id="silent" buttonContent={`${data.silent.length} instance(s) with no candidates`}>
-                    <EuiSpacer size="s" />
+                <Accordion title={`${data.silent.length} instance(s) with no candidates`}>
+                  <div className="col">
                     {data.silent.map((res) => (
-                      <EuiFlexGroup key={res.instId.toString()} gutterSize="s" style={{ padding: '4px 0' }}>
-                        <EuiFlexItem grow={false} style={{ width: 200 }}>
-                          <a href={`/instances/${res.instId}`}>{res.instDisplayName}</a>
-                        </EuiFlexItem>
-                        <EuiFlexItem grow={false} style={{ width: 100 }}><EuiText size="s" color="subdued">{res.instVendor}</EuiText></EuiFlexItem>
-                        <EuiFlexItem><EuiText size="s">{res.reason || 'no rules matched'}</EuiText></EuiFlexItem>
-                      </EuiFlexGroup>
+                      <div className="row" key={res.instId.toString()} style={{ alignItems: 'center' }}>
+                        <div style={{ flex: '0 0 200px', minWidth: 0 }}>
+                          <a className="m" href={`/nodes/${res.nodeId}?process=${res.instId}`}>{res.instDisplayName}</a>
+                        </div>
+                        <div className="m mu" style={{ flex: '0 0 100px' }}>{res.instVendor}</div>
+                        <div className="m mus" style={{ flex: 1, minWidth: 0 }}>{res.reason || 'no rules matched'}</div>
+                      </div>
                     ))}
-                  </EuiAccordion>
-                </>
+                  </div>
+                </Accordion>
               )}
-            </EuiFlexItem>
-          </EuiFlexGroup>
-        </>
-      )}
-    </>
-  )
-}
-
-function RuleGroupPanel({ group }: { group: RuleGroup }) {
-  const res: LookupResultPB | undefined = group.results[0]
-  return (
-    <EuiPanel style={{ marginBottom: 10 }}>
-      <EuiFlexGroup gutterSize="s" alignItems="center">
-        <EuiFlexItem grow={false}><EuiText size="s"><strong>{res?.instNodeName || '(unknown node)'}</strong></EuiText></EuiFlexItem>
-        <EuiFlexItem grow={false}><EuiText size="s" color="subdued">{res?.instVendor}</EuiText></EuiFlexItem>
-        {group.count > 1 && (
-          <EuiFlexItem grow={false}><EuiText size="xs" color="subdued">· {group.count} nodes with identical rules</EuiText></EuiFlexItem>
+            </div>
+          </div>
         )}
-      </EuiFlexGroup>
-      {res?.siteName && <EuiText size="xs" color="subdued">site: {res.siteName}{res.matchedBy && ` · ${res.matchedBy}`}</EuiText>}
-      {res?.routePattern && <EuiText size="xs" color="subdued">route: {res.routePattern}</EuiText>}
-      <EuiSpacer size="s" />
-      <table style={{ width: '100%', fontSize: 12 }}>
-        <thead>
-          <tr style={{ textAlign: 'left' }}><th>#</th><th>Directive</th><th>Arguments</th><th>Class</th></tr>
-        </thead>
-        <tbody>
-          {(res?.rules ?? []).filter((lr) => !lr.inherited).map((lr, i) => (
-            <tr key={i} style={lr.shadowed ? { opacity: 0.5 } : undefined}>
-              <td>{lr.shadowed ? '—' : lr.ordinal}</td>
-              <td>{lr.directive}</td>
-              <td>{lr.args}{lr.shadowed && <div style={{ fontSize: 10 }}>{lr.shadowedBy}</div>}</td>
-              <td>{lr.actionClass}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </EuiPanel>
+      </div>
+    </>
   )
 }

@@ -4,6 +4,15 @@ plugins:
     out: internal/api/pb
     opt:
       - paths=source_relative
+  - local: protoc-gen-go-grpc
+    out: internal/api/pb
+    opt:
+      - paths=source_relative
+  - local: protoc-gen-grpc-gateway
+    out: internal/api/pb
+    opt:
+      - paths=source_relative
+      - generate_unbound_methods=false
   - local: ui/node_modules/.bin/protoc-gen-es
     out: ui/src/api/pb
     opt:

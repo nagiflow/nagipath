@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
+
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
 
 message DashboardAttention {
@@ -101,4 +103,16 @@ message DashboardResponse {
   string oldest_snapshot = 30;
   string oldest_snapshot_node = 31;
   double avg_collection_duration_seconds = 32;
+}
+
+message GetDashboardRequest {
+  int64 cluster = 1;
+  string severity = 2;
+  int64 attention_cluster = 3;
+}
+
+service DashboardService {
+  rpc GetDashboard(GetDashboardRequest) returns (DashboardResponse) {
+    option (google.api.http) = { get: "/dashboard" };
+  }
 }

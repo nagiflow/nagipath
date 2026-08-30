@@ -34,14 +34,6 @@ const nodeCols = `id, address, ssh_port, display_name, ssh_username, credential_
 	bastion_node_id, os_family, sudo_available, enabled, source, notes,
 	consecutive_failures, first_seen_at, retired_at`
 
-func scanNode(sc interface{ Scan(...any) error }) (Node, error) {
-	var n Node
-	err := sc.Scan(&n.ID, &n.Address, &n.SSHPort, &n.DisplayName, &n.SSHUsername,
-		&n.CredentialID, &n.BastionNodeID, &n.OSFamily, &n.SudoAvailable, &n.Enabled,
-		&n.Source, &n.Notes, &n.ConsecutiveFailures, &n.FirstSeenAt, &n.RetiredAt)
-	return n, err
-}
-
 func (db *DB) AddNode(ctx context.Context, address string, port int, displayName, username string, credentialID *int64, bastion *int64, source string, by *int64) (int64, error) {
 	if displayName == "" {
 		displayName = address
@@ -72,8 +64,20 @@ func (db *DB) AddNode(ctx context.Context, address string, port int, displayName
 	return id, tx.Commit()
 }
 
+// Node fetches one Node for the detail page, with the same last-collection
+// facts Nodes' list query carries — omitting them here is what left the
+// detail page reporting "never collected" no matter how many times a node
+// had actually been collected.
 func (db *DB) Node(ctx context.Context, id int64) (Node, error) {
-	return scanNode(db.R.QueryRowContext(ctx, `SELECT `+nodeCols+` FROM node WHERE id = ?`, id))
+	var n Node
+	err := db.R.QueryRowContext(ctx, `SELECT `+nodeCols+`,
+		(SELECT MAX(started_at) FROM collection c WHERE c.node_id = node.id),
+		(SELECT status FROM collection c WHERE c.node_id = node.id ORDER BY started_at DESC LIMIT 1)
+		FROM node WHERE id = ?`, id).Scan(&n.ID, &n.Address, &n.SSHPort, &n.DisplayName, &n.SSHUsername,
+		&n.CredentialID, &n.BastionNodeID, &n.OSFamily, &n.SudoAvailable, &n.Enabled,
+		&n.Source, &n.Notes, &n.ConsecutiveFailures, &n.FirstSeenAt, &n.RetiredAt,
+		&n.LastCollection, &n.LastStatus)
+	return n, err
 }
 
 // NodeCount is the number of non-retired Nodes, i.e. what a license's node

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
+
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
 
 message SiteListRow {
@@ -27,11 +29,19 @@ message SiteStats {
   int32 expiring_bindings = 7;
 }
 
+message SiteVariantRoute {
+  string pattern = 1;
+  string action = 2;
+  string target = 3;
+  string upstream = 4;
+}
+
 message SiteVariant {
   string key = 1;
   string raw_text = 2;
   int32 nodes = 3;
   repeated string node_names = 4;
+  repeated SiteVariantRoute routes = 5;
 }
 
 message SitesListResponse {
@@ -148,4 +158,28 @@ message SiteDetailResponse {
   repeated SiteCertBinding certs = 7;
   repeated SiteTabItem tabs = 8;
   repeated SiteVariantOpt variant_opts = 9;
+}
+
+message ListSitesRequest {
+  string site = 1;
+  string q = 2;
+}
+
+message GetSiteRequest {
+  string name = 1;
+  string tab = 2;
+  string variant = 3;
+}
+
+// SiteService: GET /sites and GET /sites/{name} — see
+// internal/api/siteservice.go. GET /sites?export=csv stays outside this
+// service (api.go), same reasoning as every other CSV export in this
+// package: a formatted download, not RPC-shaped data (ADR-0018).
+service SiteService {
+  rpc ListSites(ListSitesRequest) returns (SitesListResponse) {
+    option (google.api.http) = { get: "/sites" };
+  }
+  rpc GetSite(GetSiteRequest) returns (SiteDetailResponse) {
+    option (google.api.http) = { get: "/sites/{name}" };
+  }
 }

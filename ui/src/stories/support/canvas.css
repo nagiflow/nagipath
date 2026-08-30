@@ -1,0 +1,57 @@
+/* Storybook-only canvas rules. index.css turns design/'s `.scr` canvas into the
+   real page's body rules, which leaves two things for Storybook to say: a
+   fullscreen page story needs the viewport's height to lay out .wrap/.main, and
+   Design › Canvas needs the wall of scaled-down page frames it lays them out in
+   (`.scr`'s own 1400x880 is set inline there, because the scale is a story arg). */
+#storybook-root {
+  height: 100vh;
+}
+
+.sb-canvas {
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 20px;
+  padding: 18px;
+  background: #eef1f7;
+}
+
+.sb-canvas figure {
+  margin: 0;
+}
+
+.sb-canvas figcaption {
+  margin-bottom: 5px;
+  font: 500 12.5px Inter, system-ui, sans-serif;
+  color: #535966;
+}
+
+.sb-canvas figcaption b {
+  margin-right: 6px;
+  font: 600 11px "Roboto Mono", monospace;
+  color: #1d1e24;
+}
+
+.sb-canvas figcaption code {
+  font: 400 11px "Roboto Mono", monospace;
+  color: #98a2b3;
+}
+
+/* The frame clips its page at the scaled size; the page itself always lays out
+   at 1400x880 inside it, so what you see is the design file's canvas size. */
+.sb-frame {
+  overflow: hidden;
+  border: 1px solid #d3dae6;
+  border-radius: 8px;
+  background: #fafbfd;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.sb-frame > div {
+  transform-origin: top left;
+  /* ponytail: look, don't touch — click through to the page's own story to use
+     it. Live nav inside 36 miniatures is a worse tool than a contact sheet. */
+  pointer-events: none;
+}

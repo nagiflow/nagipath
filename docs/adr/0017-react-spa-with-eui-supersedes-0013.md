@@ -23,8 +23,9 @@ committed output has drifted from source.
 Business logic that lived in `internal/web/funcs.go`'s template functions moves to a new
 `internal/api` package as computed JSON response fields — never reimplemented in TypeScript.
 `internal/web` is demoted to serving the embedded SPA and mounting `internal/api`'s mux at
-`/api/v1/`; it stops rendering HTML once every page is ported (docs/frontend porting tracked
-page-group by page-group, see the migration plan referenced from the project's working notes).
+`/api/v1/`; every page, including login/setup/password/404 (Phase 8) and Import inventory
+(Phase 9, the last holdout), is ported to it. `internal/web` renders no HTML of its own — the
+`html/template` engine, `templates/`, `static/` and the Tailwind CLI toolchain are gone entirely.
 
 Auth stays a session cookie (`nagipath_session`, HttpOnly) with the existing stateless CSRF token
 (`X-CSRF-Token` header, derived from the session, no server-side store) — a same-origin single

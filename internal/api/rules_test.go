@@ -1,14 +1,12 @@
 package api
 
 import (
-	"net/http/httptest"
 	"testing"
 
 	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
 	"github.com/nagiflow/nagipath/internal/parse"
 	"github.com/nagiflow/nagipath/internal/store"
 	"github.com/nagiflow/nagipath/internal/trace"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // TestRuleGroupingCollapses ports internal/web's old rules_test.go: identical
@@ -108,13 +106,13 @@ func TestRuleFilterNarrowsWithoutLosingTheOtherCheckboxes(t *testing.T) {
 	db := testDB(t)
 	seedNginx(t, db, "web02", "10.90.4.11")
 	s := New(db, nil, false)
+	rs := &ruleService{s: s}
+	ctx := t.Context()
 
-	const lookup = "/rules?url=shop.example.com/api/v2"
+	const lookupURL = "shop.example.com/api/v2"
 
-	w := httptest.NewRecorder()
-	s.getRules(w, httptest.NewRequest("GET", lookup, nil))
-	var wide pb.RulesResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &wide); err != nil {
+	wide, err := rs.GetRules(ctx, &pb.GetRulesRequest{Url: lookupURL})
+	if err != nil {
 		t.Fatal(err)
 	}
 	if len(wide.ClassFacets) < 2 {
@@ -122,10 +120,8 @@ func TestRuleFilterNarrowsWithoutLosingTheOtherCheckboxes(t *testing.T) {
 	}
 	firstClass := wide.ClassFacets[0].Value
 
-	w = httptest.NewRecorder()
-	s.getRules(w, httptest.NewRequest("GET", lookup+"&class="+firstClass, nil))
-	var narrow pb.RulesResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &narrow); err != nil {
+	narrow, err := rs.GetRules(ctx, &pb.GetRulesRequest{Url: lookupURL, Class: []string{firstClass}})
+	if err != nil {
 		t.Fatal(err)
 	}
 	if len(narrow.ClassFacets) != len(wide.ClassFacets) {
@@ -147,10 +143,8 @@ func TestRuleFilterNarrowsWithoutLosingTheOtherCheckboxes(t *testing.T) {
 	// A filter that matches nothing says so via Rules=0 with Groups empty,
 	// and still offers every checkbox back (RulesUnfiltered/ClassFacets stay
 	// computed from the widened query).
-	w = httptest.NewRecorder()
-	s.getRules(w, httptest.NewRequest("GET", lookup+"&vendor=haproxy", nil))
-	var none pb.RulesResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &none); err != nil {
+	none, err := rs.GetRules(ctx, &pb.GetRulesRequest{Url: lookupURL, Vendor: []string{"haproxy"}})
+	if err != nil {
 		t.Fatal(err)
 	}
 	if none.Rules != 0 || len(none.Groups) != 0 {

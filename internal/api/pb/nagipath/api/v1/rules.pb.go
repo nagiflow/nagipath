@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -236,8 +237,12 @@ type LookupResultPB struct {
 	Reason          string                 `protobuf:"bytes,14,opt,name=reason,proto3" json:"reason,omitempty"`
 	Rules           []*LookupRulePB        `protobuf:"bytes,15,rep,name=rules,proto3" json:"rules,omitempty"`
 	Undetermined    []*LookupBranchPB      `protobuf:"bytes,16,rep,name=undetermined,proto3" json:"undetermined,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// trace.Inst carries both and the group band names the cluster the way
+	// design/'s screen 2b does; node_id is what the node page is keyed by.
+	NodeId        int64  `protobuf:"varint,17,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	ClusterName   string `protobuf:"bytes,18,opt,name=cluster_name,json=clusterName,proto3" json:"cluster_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LookupResultPB) Reset() {
@@ -380,6 +385,20 @@ func (x *LookupResultPB) GetUndetermined() []*LookupBranchPB {
 		return x.Undetermined
 	}
 	return nil
+}
+
+func (x *LookupResultPB) GetNodeId() int64 {
+	if x != nil {
+		return x.NodeId
+	}
+	return 0
+}
+
+func (x *LookupResultPB) GetClusterName() string {
+	if x != nil {
+		return x.ClusterName
+	}
+	return ""
 }
 
 type RuleGroup struct {
@@ -724,11 +743,111 @@ func (x *RulesResponse) GetSilent() []*LookupResultPB {
 	return nil
 }
 
+type GetRulesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Scheme        string                 `protobuf:"bytes,3,opt,name=scheme,proto3" json:"scheme,omitempty"`
+	Hostname      string                 `protobuf:"bytes,4,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	Port          int32                  `protobuf:"varint,5,opt,name=port,proto3" json:"port,omitempty"`
+	Class         []string               `protobuf:"bytes,6,rep,name=class,proto3" json:"class,omitempty"`
+	Vendor        []string               `protobuf:"bytes,7,rep,name=vendor,proto3" json:"vendor,omitempty"`
+	Page          int32                  `protobuf:"varint,8,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRulesRequest) Reset() {
+	*x = GetRulesRequest{}
+	mi := &file_nagipath_api_v1_rules_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRulesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRulesRequest) ProtoMessage() {}
+
+func (x *GetRulesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_rules_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRulesRequest.ProtoReflect.Descriptor instead.
+func (*GetRulesRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_rules_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetRulesRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *GetRulesRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GetRulesRequest) GetScheme() string {
+	if x != nil {
+		return x.Scheme
+	}
+	return ""
+}
+
+func (x *GetRulesRequest) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+func (x *GetRulesRequest) GetPort() int32 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
+func (x *GetRulesRequest) GetClass() []string {
+	if x != nil {
+		return x.Class
+	}
+	return nil
+}
+
+func (x *GetRulesRequest) GetVendor() []string {
+	if x != nil {
+		return x.Vendor
+	}
+	return nil
+}
+
+func (x *GetRulesRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
 var File_nagipath_api_v1_rules_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_rules_proto_rawDesc = "" +
 	"\n" +
-	"\x1bnagipath/api/v1/rules.proto\x12\x0fnagipath.api.v1\"\xdb\x02\n" +
+	"\x1bnagipath/api/v1/rules.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\"\xdb\x02\n" +
 	"\fLookupRulePB\x12\x18\n" +
 	"\aordinal\x18\x01 \x01(\x05R\aordinal\x12\x1c\n" +
 	"\tdirective\x18\x02 \x01(\tR\tdirective\x12!\n" +
@@ -750,7 +869,7 @@ const file_nagipath_api_v1_rules_proto_rawDesc = "" +
 	"\vhop_ordinal\x18\x01 \x01(\x05R\n" +
 	"hopOrdinal\x12\x10\n" +
 	"\x03raw\x18\x02 \x01(\tR\x03raw\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xe3\x04\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\x9f\x05\n" +
 	"\x0eLookupResultPB\x12\x17\n" +
 	"\ainst_id\x18\x01 \x01(\x03R\x06instId\x12*\n" +
 	"\x11inst_display_name\x18\x02 \x01(\tR\x0finstDisplayName\x12$\n" +
@@ -772,7 +891,9 @@ const file_nagipath_api_v1_rules_proto_rawDesc = "" +
 	"\bdegraded\x18\r \x01(\bR\bdegraded\x12\x16\n" +
 	"\x06reason\x18\x0e \x01(\tR\x06reason\x123\n" +
 	"\x05rules\x18\x0f \x03(\v2\x1d.nagipath.api.v1.LookupRulePBR\x05rules\x12C\n" +
-	"\fundetermined\x18\x10 \x03(\v2\x1f.nagipath.api.v1.LookupBranchPBR\fundetermined\"\x8d\x01\n" +
+	"\fundetermined\x18\x10 \x03(\v2\x1f.nagipath.api.v1.LookupBranchPBR\fundetermined\x12\x17\n" +
+	"\anode_id\x18\x11 \x01(\x03R\x06nodeId\x12!\n" +
+	"\fcluster_name\x18\x12 \x01(\tR\vclusterName\"\x8d\x01\n" +
 	"\tRuleGroup\x12\x1b\n" +
 	"\tnode_name\x18\x01 \x01(\tR\bnodeName\x12\x12\n" +
 	"\x04hash\x18\x02 \x01(\tR\x04hash\x12\x14\n" +
@@ -805,7 +926,18 @@ const file_nagipath_api_v1_rules_proto_rawDesc = "" +
 	"\fclass_facets\x18\x14 \x03(\v2\x1a.nagipath.api.v1.RuleFacetR\vclassFacets\x12)\n" +
 	"\x10rules_unfiltered\x18\x15 \x01(\x05R\x0frulesUnfiltered\x122\n" +
 	"\x06groups\x18\x16 \x03(\v2\x1a.nagipath.api.v1.RuleGroupR\x06groups\x127\n" +
-	"\x06silent\x18\x17 \x03(\v2\x1f.nagipath.api.v1.LookupResultPBR\x06silentB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	"\x06silent\x18\x17 \x03(\v2\x1f.nagipath.api.v1.LookupResultPBR\x06silent\"\xc1\x01\n" +
+	"\x0fGetRulesRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
+	"\x06scheme\x18\x03 \x01(\tR\x06scheme\x12\x1a\n" +
+	"\bhostname\x18\x04 \x01(\tR\bhostname\x12\x12\n" +
+	"\x04port\x18\x05 \x01(\x05R\x04port\x12\x14\n" +
+	"\x05class\x18\x06 \x03(\tR\x05class\x12\x16\n" +
+	"\x06vendor\x18\a \x03(\tR\x06vendor\x12\x12\n" +
+	"\x04page\x18\b \x01(\x05R\x04page2k\n" +
+	"\vRuleService\x12\\\n" +
+	"\bGetRules\x12 .nagipath.api.v1.GetRulesRequest\x1a\x1e.nagipath.api.v1.RulesResponse\"\x0e\x82\xd3\xe4\x93\x02\b\x12\x06/rulesB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_rules_proto_rawDescOnce sync.Once
@@ -819,14 +951,15 @@ func file_nagipath_api_v1_rules_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_rules_proto_rawDescData
 }
 
-var file_nagipath_api_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_nagipath_api_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_nagipath_api_v1_rules_proto_goTypes = []any{
-	(*LookupRulePB)(nil),   // 0: nagipath.api.v1.LookupRulePB
-	(*LookupBranchPB)(nil), // 1: nagipath.api.v1.LookupBranchPB
-	(*LookupResultPB)(nil), // 2: nagipath.api.v1.LookupResultPB
-	(*RuleGroup)(nil),      // 3: nagipath.api.v1.RuleGroup
-	(*RuleFacet)(nil),      // 4: nagipath.api.v1.RuleFacet
-	(*RulesResponse)(nil),  // 5: nagipath.api.v1.RulesResponse
+	(*LookupRulePB)(nil),    // 0: nagipath.api.v1.LookupRulePB
+	(*LookupBranchPB)(nil),  // 1: nagipath.api.v1.LookupBranchPB
+	(*LookupResultPB)(nil),  // 2: nagipath.api.v1.LookupResultPB
+	(*RuleGroup)(nil),       // 3: nagipath.api.v1.RuleGroup
+	(*RuleFacet)(nil),       // 4: nagipath.api.v1.RuleFacet
+	(*RulesResponse)(nil),   // 5: nagipath.api.v1.RulesResponse
+	(*GetRulesRequest)(nil), // 6: nagipath.api.v1.GetRulesRequest
 }
 var file_nagipath_api_v1_rules_proto_depIdxs = []int32{
 	0, // 0: nagipath.api.v1.LookupResultPB.rules:type_name -> nagipath.api.v1.LookupRulePB
@@ -836,8 +969,10 @@ var file_nagipath_api_v1_rules_proto_depIdxs = []int32{
 	4, // 4: nagipath.api.v1.RulesResponse.class_facets:type_name -> nagipath.api.v1.RuleFacet
 	3, // 5: nagipath.api.v1.RulesResponse.groups:type_name -> nagipath.api.v1.RuleGroup
 	2, // 6: nagipath.api.v1.RulesResponse.silent:type_name -> nagipath.api.v1.LookupResultPB
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
+	6, // 7: nagipath.api.v1.RuleService.GetRules:input_type -> nagipath.api.v1.GetRulesRequest
+	5, // 8: nagipath.api.v1.RuleService.GetRules:output_type -> nagipath.api.v1.RulesResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
 	7, // [7:7] is the sub-list for extension type_name
 	7, // [7:7] is the sub-list for extension extendee
 	0, // [0:7] is the sub-list for field type_name
@@ -854,9 +989,9 @@ func file_nagipath_api_v1_rules_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_rules_proto_rawDesc), len(file_nagipath_api_v1_rules_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_nagipath_api_v1_rules_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_rules_proto_depIdxs,

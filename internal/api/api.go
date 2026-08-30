@@ -3,7 +3,7 @@
 // business logic in its template FuncMap, this package returns plain JSON
 // and every field on a response is meant to be display-ready — computed
 // here, not recomputed in TypeScript. It is mounted into internal/web's
-// mux at /api/ui/, so panic recovery and security headers are inherited
+// mux at /api/, so panic recovery and security headers are inherited
 // from internal/web.Server.ServeHTTP; this package adds neither.
 package api
 
@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
 	"github.com/nagiflow/nagipath/internal/collect"
 	"github.com/nagiflow/nagipath/internal/keys"
 	"github.com/nagiflow/nagipath/internal/license"
@@ -53,6 +54,11 @@ type Server struct {
 	// TLSEnabled: New's parameter list is long enough already).
 	Collector *collect.Collector
 	Log       *slog.Logger
+	// Secure marks the session cookie Secure (login/setup/logout/password in
+	// auth.go). Mirrors internal/web.Server.Secure exactly — off for the local
+	// lab's plain HTTP, on everywhere else — set directly by internal/web
+	// after New, same pattern as Collector/Log above.
+	Secure bool
 
 	// Live Probes, keyed by a counter. See probelive.go for why they are in
 	// memory rather than the database until they finish.
@@ -66,61 +72,173 @@ type Server struct {
 func New(db *store.DB, licenseStatus func(context.Context) (license.Status, string), demoMode bool) *Server {
 	s := &Server{DB: db, LicenseStatus: licenseStatus, DemoMode: demoMode}
 	m := http.NewServeMux()
-	m.HandleFunc("GET /session", s.requireAuth(s.getSession))
-	m.HandleFunc("GET /dashboard", s.requireAuth(s.getDashboard))
-	m.HandleFunc("GET /clusters", s.requireAuth(s.getClusters))
-	m.HandleFunc("POST /clusters/rename", s.requireAdmin(s.postRenameCluster))
-	m.HandleFunc("GET /sites", s.requireAuth(s.getSites))
-	m.HandleFunc("GET /sites/{name}", s.requireAuth(s.getSite))
-	m.HandleFunc("GET /nodes", s.requireAuth(s.getNodes))
-	m.HandleFunc("POST /nodes", s.requireAdmin(s.postAddNode))
-	m.HandleFunc("GET /nodes/{id}", s.requireAuth(s.getNode))
-	m.HandleFunc("GET /nodes/{id}/{tab}", s.requireAuth(s.getNode))
-	m.HandleFunc("POST /nodes/{id}/collect", s.requireAdmin(s.postCollectNode))
-	m.HandleFunc("POST /nodes/{id}/delete", s.requireAdmin(s.postDeleteNode))
-	m.HandleFunc("POST /nodes/{id}/credential", s.requireAdmin(s.postChangeNodeCredential))
-	m.HandleFunc("POST /hostkeys/{id}/decide", s.requireAdmin(s.postDecideHostKey))
-	m.HandleFunc("GET /drift", s.requireAuth(s.getDrift))
-	m.HandleFunc("GET /drift/review/{instanceID}", s.requireAuth(s.getDriftReview))
-	m.HandleFunc("POST /drift/recompute", s.requireAdmin(s.postDriftRecompute))
-	m.HandleFunc("POST /drift/ignore", s.requireAdmin(s.postDriftIgnore))
-	m.HandleFunc("POST /drift/ignore/{id}/delete", s.requireAdmin(s.postDriftUnignore))
-	m.HandleFunc("POST /drift/golden", s.requireAdmin(s.postDriftGolden))
-	m.HandleFunc("GET /certificates", s.requireAuth(s.getCertificates))
-	m.HandleFunc("GET /certificates/{id}", s.requireAuth(s.getCertificate))
-	m.HandleFunc("GET /snapshots", s.requireAuth(s.getSnapshots))
-	m.HandleFunc("GET /snapshots/{id}/file/{fileID}", s.requireAuth(s.getSnapshotFile))
+	// session is public: an anonymous caller gets a 200 with authenticated:false
+	// (plus setup_required) rather than a 401, so the SPA's Login/Setup pages
+	// can render before any session exists — see session.go's doc comment for
+	// why it stays a plain handler rather than joining SessionService below.
+	m.HandleFunc("GET /session", s.getSession)
 
-	m.HandleFunc("GET /settings/credentials", s.requireAdmin(s.getCredentials))
-	m.HandleFunc("POST /settings/credentials", s.requireAdmin(s.postAddCredential))
-	m.HandleFunc("GET /settings/hostkeys", s.requireAdmin(s.getHostKeys))
-	m.HandleFunc("GET /settings/masterkey", s.requireAdmin(s.getMasterKey))
-	m.HandleFunc("GET /settings/collection-defaults", s.requireAdmin(s.getCollectionDefaults))
-	m.HandleFunc("POST /settings/collection-defaults", s.requireAdmin(s.postCollectionDefaults))
-	m.HandleFunc("GET /settings/retention", s.requireAdmin(s.getRetention))
-	m.HandleFunc("POST /settings/retention", s.requireAdmin(s.postRetention))
-	m.HandleFunc("POST /settings/retention/prune", s.requireAdmin(s.postRunRetention))
-	m.HandleFunc("GET /settings/users", s.requireAdmin(s.getUsers))
-	m.HandleFunc("POST /settings/users", s.requireAdmin(s.postAddUser))
-	m.HandleFunc("POST /settings/users/{id}/disable", s.requireAdmin(s.postSetUserDisabled(true)))
-	m.HandleFunc("POST /settings/users/{id}/enable", s.requireAdmin(s.postSetUserDisabled(false)))
-	m.HandleFunc("GET /settings/audit", s.requireAuth(s.getAudit))
-	m.HandleFunc("GET /settings/api-keys", s.requireAdmin(s.getAPIKeys))
-	m.HandleFunc("POST /settings/api-keys", s.requireAdmin(s.postCreateAPIKey))
-	m.HandleFunc("POST /settings/api-keys/{id}/revoke", s.requireAdmin(s.postRevokeAPIKey))
-	m.HandleFunc("GET /settings/license", s.requireAuth(s.getLicense))
-	m.HandleFunc("POST /settings/license", s.requireAdmin(s.postInstallLicense))
-	m.HandleFunc("GET /settings/system", s.requireAdmin(s.getDiagnostics))
-	m.HandleFunc("GET /collections", s.requireAuth(s.getCollections))
-	m.HandleFunc("GET /rules", s.requireAuth(s.getRules))
-	m.HandleFunc("GET /search", s.requireAuth(s.getSearch))
+	// SessionService (sessionservice.go, proto/nagipath/api/v1/session.proto).
+	// Setup and Login are deliberately NOT requireAuth-wrapped (there is no
+	// session yet to check) — withRequestMeta stands in for the remoteAddr/
+	// User-Agent context values requireAuth would otherwise carry. Logout and
+	// ChangePassword keep requireAuth's normal cookie+CSRF check.
+	sessionGW := newGateway()
+	if err := pb.RegisterSessionServiceHandlerServer(context.Background(), sessionGW, &sessionService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("POST /login", withRequestMeta(sessionGW.ServeHTTP))
+	m.HandleFunc("POST /setup", withRequestMeta(sessionGW.ServeHTTP))
+	m.HandleFunc("POST /logout", s.requireAuth(sessionGW.ServeHTTP))
+	m.HandleFunc("POST /password", s.requireAuth(sessionGW.ServeHTTP))
+	// DashboardService (dashboardservice.go, proto/nagipath/api/v1/dashboard.proto).
+	dashGW := newGateway()
+	if err := pb.RegisterDashboardServiceHandlerServer(context.Background(), dashGW, &dashboardService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /dashboard", s.requireAuth(dashGW.ServeHTTP))
 
-	m.HandleFunc("GET /trace", s.requireAuth(s.getTrace))
-	m.HandleFunc("POST /trace", s.requireAuth(s.postTrace))
-	m.HandleFunc("POST /trace/probe", s.requireAdmin(s.postStartProbe))
-	m.HandleFunc("GET /trace/probe/{id}", s.requireAdmin(s.getProbeDetail))
-	m.HandleFunc("GET /trace/run/{id}", s.requireAuth(s.getProbeRun))
-	m.HandleFunc("GET /trace/history", s.requireAuth(s.getProbeHistory))
+	// ClusterService (clusterservice.go, proto/nagipath/api/v1/clusters.proto):
+	// GET /clusters and POST /clusters/rename are routed by its google.api.http
+	// options, not registered here individually. requireAuth still wraps the
+	// whole gateway — RenameCluster's own admin check is inside
+	// clusterservice.go, since one gateway can't requireAdmin one of its two
+	// routes and requireAuth the other.
+	clusterGW := newGateway()
+	if err := pb.RegisterClusterServiceHandlerServer(context.Background(), clusterGW, &clusterService{s: s}); err != nil {
+		panic(err) // only fails on a duplicate pattern — a programming error, not a runtime condition
+	}
+	m.HandleFunc("GET /clusters", s.requireAuth(clusterGW.ServeHTTP))
+	m.HandleFunc("POST /clusters/rename", s.requireAuth(clusterGW.ServeHTTP))
+
+	// SiteService (siteservice.go, proto/nagipath/api/v1/sites.proto).
+	// ?export=csv stays outside the gateway (gateway.go's gatewayOrCSV).
+	siteGW := newGateway()
+	if err := pb.RegisterSiteServiceHandlerServer(context.Background(), siteGW, &siteService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /sites", s.requireAuth(gatewayOrCSV(siteGW, s.getSitesCSV)))
+	m.HandleFunc("GET /sites/{name}", s.requireAuth(siteGW.ServeHTTP))
+
+	// NodeService (nodeservice.go, proto/nagipath/api/v1/nodes.proto).
+	// requireAuth wraps the whole gateway; every RPC but ListNodes and
+	// GetNode calls requireAdminRPC as its own first line — same reasoning
+	// as DriftService's mutations below.
+	nodeGW := newGateway()
+	if err := pb.RegisterNodeServiceHandlerServer(context.Background(), nodeGW, &nodeService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /nodes", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("POST /nodes", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("POST /nodes/import", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("GET /nodes/{id}", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("GET /nodes/{id}/{tab}", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("POST /nodes/{id}/collect", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("POST /nodes/{id}/delete", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("POST /nodes/{id}/credential", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("POST /hostkeys/{id}/decide", s.requireAuth(nodeGW.ServeHTTP))
+	// DriftService (driftservice.go, proto/nagipath/api/v1/drift.proto).
+	// requireAuth wraps the whole gateway; the four mutations' admin checks
+	// are each RPC's own first line (requireAdminRPC, middleware.go) — same
+	// reasoning as ClusterService.RenameCluster above.
+	driftGW := newGateway()
+	if err := pb.RegisterDriftServiceHandlerServer(context.Background(), driftGW, &driftService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /drift", s.requireAuth(driftGW.ServeHTTP))
+	m.HandleFunc("GET /drift/review/{instanceID}", s.requireAuth(driftGW.ServeHTTP))
+	m.HandleFunc("POST /drift/recompute", s.requireAuth(driftGW.ServeHTTP))
+	m.HandleFunc("POST /drift/ignore", s.requireAuth(driftGW.ServeHTTP))
+	m.HandleFunc("POST /drift/ignore/{id}/delete", s.requireAuth(driftGW.ServeHTTP))
+	m.HandleFunc("POST /drift/golden", s.requireAuth(driftGW.ServeHTTP))
+	// CertificateService (certificateservice.go, proto/nagipath/api/v1/certificates.proto).
+	certGW := newGateway()
+	if err := pb.RegisterCertificateServiceHandlerServer(context.Background(), certGW, &certificateService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /certificates", s.requireAuth(gatewayOrCSV(certGW, s.getCertificatesCSV)))
+	m.HandleFunc("GET /certificates/{id}", s.requireAuth(certGW.ServeHTTP))
+
+	// SnapshotService (snapshotservice.go, proto/nagipath/api/v1/snapshots.proto).
+	snapGW := newGateway()
+	if err := pb.RegisterSnapshotServiceHandlerServer(context.Background(), snapGW, &snapshotService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /snapshots", s.requireAuth(gatewayOrCSV(snapGW, s.getSnapshotsCSV)))
+	m.HandleFunc("GET /snapshots/{id}/file/{fileID}", s.requireAuth(snapGW.ServeHTTP))
+
+	// SettingsService (settingsservice.go, proto/nagipath/api/v1/settings.proto).
+	// requireAuth wraps the whole gateway; every RPC but GetAudit and
+	// GetLicense calls requireAdminRPC as its own first line — same
+	// reasoning as DriftService's mutations above. GET /settings/audit
+	// ?export=csv stays outside the gateway (gateway.go's gatewayOrCSV).
+	settingsGW := newGateway()
+	if err := pb.RegisterSettingsServiceHandlerServer(context.Background(), settingsGW, &settingsService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /settings/credentials", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/credentials", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("GET /settings/hostkeys", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("GET /settings/masterkey", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("GET /settings/collection-defaults", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/collection-defaults", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("GET /settings/retention", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/retention", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/retention/prune", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("GET /settings/users", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/users", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/users/{id}/disable", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/users/{id}/enable", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("GET /settings/audit", s.requireAuth(gatewayOrCSV(settingsGW, s.getAuditCSV)))
+	m.HandleFunc("GET /settings/api-keys", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/api-keys", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/api-keys/{id}/revoke", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("GET /settings/license", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/license", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("GET /settings/system", s.requireAuth(settingsGW.ServeHTTP))
+	// CollectionService (collectionservice.go, proto/nagipath/api/v1/settings.proto).
+	collGW := newGateway()
+	if err := pb.RegisterCollectionServiceHandlerServer(context.Background(), collGW, &collectionService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /collections", s.requireAuth(gatewayOrCSV(collGW, s.getCollectionsCSV)))
+
+	// RuleService (ruleservice.go, proto/nagipath/api/v1/rules.proto).
+	ruleGW := newGateway()
+	if err := pb.RegisterRuleServiceHandlerServer(context.Background(), ruleGW, &ruleService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /rules", s.requireAuth(gatewayOrCSV(ruleGW, s.getRulesCSV)))
+
+	// SearchService (searchservice.go, proto/nagipath/api/v1/search.proto).
+	searchGW := newGateway()
+	if err := pb.RegisterSearchServiceHandlerServer(context.Background(), searchGW, &searchService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /search", s.requireAuth(searchGW.ServeHTTP))
+
+	// TraceService (traceservice.go, proto/nagipath/api/v1/trace.proto).
+	// requireAuth wraps the whole gateway; StartProbe calls requireAdminRPC
+	// as its own first line — same reasoning as DriftService's mutations.
+	traceGW := newGateway()
+	if err := pb.RegisterTraceServiceHandlerServer(context.Background(), traceGW, &traceService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /trace", s.requireAuth(traceGW.ServeHTTP))
+	m.HandleFunc("POST /trace", s.requireAuth(traceGW.ServeHTTP))
+	m.HandleFunc("POST /trace/probe", s.requireAuth(traceGW.ServeHTTP))
+	m.HandleFunc("GET /trace/run/{id}", s.requireAuth(traceGW.ServeHTTP))
+
+	// ProbeService (probeservice.go, proto/nagipath/api/v1/probe.proto).
+	// GetProbeDetail calls requireAdminRPC as its own first line. GET
+	// /trace/history?export=csv stays outside the gateway (gateway.go's
+	// gatewayOrCSV).
+	probeGW := newGateway()
+	if err := pb.RegisterProbeServiceHandlerServer(context.Background(), probeGW, &probeService{s: s}); err != nil {
+		panic(err)
+	}
+	m.HandleFunc("GET /trace/probe/{id}", s.requireAuth(probeGW.ServeHTTP))
+	m.HandleFunc("GET /trace/history", s.requireAuth(gatewayOrCSV(probeGW, s.getProbeHistoryCSV)))
 
 	s.mux = m
 	return s

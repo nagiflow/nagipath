@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -885,11 +886,71 @@ func (x *DashboardResponse) GetAvgCollectionDurationSeconds() float64 {
 	return 0
 }
 
+type GetDashboardRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Cluster          int64                  `protobuf:"varint,1,opt,name=cluster,proto3" json:"cluster,omitempty"`
+	Severity         string                 `protobuf:"bytes,2,opt,name=severity,proto3" json:"severity,omitempty"`
+	AttentionCluster int64                  `protobuf:"varint,3,opt,name=attention_cluster,json=attentionCluster,proto3" json:"attention_cluster,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GetDashboardRequest) Reset() {
+	*x = GetDashboardRequest{}
+	mi := &file_nagipath_api_v1_dashboard_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDashboardRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardRequest) ProtoMessage() {}
+
+func (x *GetDashboardRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_dashboard_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardRequest.ProtoReflect.Descriptor instead.
+func (*GetDashboardRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_dashboard_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetDashboardRequest) GetCluster() int64 {
+	if x != nil {
+		return x.Cluster
+	}
+	return 0
+}
+
+func (x *GetDashboardRequest) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *GetDashboardRequest) GetAttentionCluster() int64 {
+	if x != nil {
+		return x.AttentionCluster
+	}
+	return 0
+}
+
 var File_nagipath_api_v1_dashboard_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_dashboard_proto_rawDesc = "" +
 	"\n" +
-	"\x1fnagipath/api/v1/dashboard.proto\x12\x0fnagipath.api.v1\"\xa8\x01\n" +
+	"\x1fnagipath/api/v1/dashboard.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\"\xa8\x01\n" +
 	"\x12DashboardAttention\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04tone\x18\x02 \x01(\tR\x04tone\x12\x12\n" +
@@ -977,7 +1038,14 @@ const file_nagipath_api_v1_dashboard_proto_rawDesc = "" +
 	"\x11attention_cluster\x18\x1d \x01(\x03R\x10attentionCluster\x12'\n" +
 	"\x0foldest_snapshot\x18\x1e \x01(\tR\x0eoldestSnapshot\x120\n" +
 	"\x14oldest_snapshot_node\x18\x1f \x01(\tR\x12oldestSnapshotNode\x12E\n" +
-	"\x1favg_collection_duration_seconds\x18  \x01(\x01R\x1cavgCollectionDurationSecondsB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	"\x1favg_collection_duration_seconds\x18  \x01(\x01R\x1cavgCollectionDurationSeconds\"x\n" +
+	"\x13GetDashboardRequest\x12\x18\n" +
+	"\acluster\x18\x01 \x01(\x03R\acluster\x12\x1a\n" +
+	"\bseverity\x18\x02 \x01(\tR\bseverity\x12+\n" +
+	"\x11attention_cluster\x18\x03 \x01(\x03R\x10attentionCluster2\x80\x01\n" +
+	"\x10DashboardService\x12l\n" +
+	"\fGetDashboard\x12$.nagipath.api.v1.GetDashboardRequest\x1a\".nagipath.api.v1.DashboardResponse\"\x12\x82\xd3\xe4\x93\x02\f\x12\n" +
+	"/dashboardB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_dashboard_proto_rawDescOnce sync.Once
@@ -991,7 +1059,7 @@ func file_nagipath_api_v1_dashboard_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_dashboard_proto_rawDescData
 }
 
-var file_nagipath_api_v1_dashboard_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_nagipath_api_v1_dashboard_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_nagipath_api_v1_dashboard_proto_goTypes = []any{
 	(*DashboardAttention)(nil),      // 0: nagipath.api.v1.DashboardAttention
 	(*DashboardActivityBucket)(nil), // 1: nagipath.api.v1.DashboardActivityBucket
@@ -1001,6 +1069,7 @@ var file_nagipath_api_v1_dashboard_proto_goTypes = []any{
 	(*DashboardCluster)(nil),        // 5: nagipath.api.v1.DashboardCluster
 	(*DashboardTrace)(nil),          // 6: nagipath.api.v1.DashboardTrace
 	(*DashboardResponse)(nil),       // 7: nagipath.api.v1.DashboardResponse
+	(*GetDashboardRequest)(nil),     // 8: nagipath.api.v1.GetDashboardRequest
 }
 var file_nagipath_api_v1_dashboard_proto_depIdxs = []int32{
 	0, // 0: nagipath.api.v1.DashboardResponse.attention:type_name -> nagipath.api.v1.DashboardAttention
@@ -1010,8 +1079,10 @@ var file_nagipath_api_v1_dashboard_proto_depIdxs = []int32{
 	3, // 4: nagipath.api.v1.DashboardResponse.recent_collections:type_name -> nagipath.api.v1.DashboardCollection
 	4, // 5: nagipath.api.v1.DashboardResponse.expiring_certificates:type_name -> nagipath.api.v1.DashboardCertificate
 	5, // 6: nagipath.api.v1.DashboardResponse.clusters:type_name -> nagipath.api.v1.DashboardCluster
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
+	8, // 7: nagipath.api.v1.DashboardService.GetDashboard:input_type -> nagipath.api.v1.GetDashboardRequest
+	7, // 8: nagipath.api.v1.DashboardService.GetDashboard:output_type -> nagipath.api.v1.DashboardResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
 	7, // [7:7] is the sub-list for extension type_name
 	7, // [7:7] is the sub-list for extension extendee
 	0, // [0:7] is the sub-list for field type_name
@@ -1028,9 +1099,9 @@ func file_nagipath_api_v1_dashboard_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_dashboard_proto_rawDesc), len(file_nagipath_api_v1_dashboard_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_nagipath_api_v1_dashboard_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_dashboard_proto_depIdxs,

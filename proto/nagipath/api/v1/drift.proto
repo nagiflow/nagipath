@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
+import "nagipath/api/v1/common.proto";
 import "nagipath/api/v1/nodes.proto";
 
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
@@ -26,6 +28,9 @@ message DriftClusterGroup {
   int32 nodes_with_drift = 3;
   int32 total_nodes = 4;
   repeated DriftInstanceRow instances = 5;
+  // 0 for the "No cluster" group. Lets the group band offer "Set baseline"
+  // without a second round trip to resolve a name back to an id.
+  int64 cluster_id = 6;
 }
 
 message DriftClusterOption {
@@ -80,6 +85,70 @@ message DriftReviewResponse {
   string baseline_time = 8;
   repeated DriftObjectGroup object_groups = 9;
   int64 next_instance_id = 10;
-  int32 conforming_count = 11;
+  // The review page's "Ignore this object" scopes an IgnoreRule to the
+  // instance's cluster, so it has to know which one that is.
+  int64 cluster_id = 11;
   int32 ignored_count = 12;
+}
+
+message GetDriftRequest {
+  string scope = 1;
+  string baseline = 2;
+  string cluster = 3;
+}
+
+message GetDriftReviewRequest {
+  int64 instance_id = 1;
+}
+
+message RecomputeDriftRequest {
+  string cluster = 1;
+  string baseline = 2;
+}
+
+message RecomputeDriftResponse {
+  bool ok = 1;
+  int32 compared = 2;
+  repeated string skipped = 3;
+}
+
+message IgnoreDriftRequest {
+  int64 cluster = 1;
+  string object_kind = 2;
+  string field = 3;
+  string pattern = 4;
+  string reason = 5;
+}
+
+message UnignoreDriftRequest {
+  int64 id = 1;
+}
+
+message SetGoldenPeerRequest {
+  int64 cluster = 1;
+  int64 instance = 2;
+}
+
+// DriftService: GET /drift, GET /drift/review/{instance_id},
+// POST /drift/recompute, POST /drift/ignore, POST /drift/ignore/{id}/delete
+// and POST /drift/golden (internal/api/driftservice.go).
+service DriftService {
+  rpc GetDrift(GetDriftRequest) returns (DriftResponse) {
+    option (google.api.http) = { get: "/drift" };
+  }
+  rpc GetDriftReview(GetDriftReviewRequest) returns (DriftReviewResponse) {
+    option (google.api.http) = { get: "/drift/review/{instance_id}" };
+  }
+  rpc RecomputeDrift(RecomputeDriftRequest) returns (RecomputeDriftResponse) {
+    option (google.api.http) = { post: "/drift/recompute", body: "*" };
+  }
+  rpc IgnoreDrift(IgnoreDriftRequest) returns (Ok) {
+    option (google.api.http) = { post: "/drift/ignore", body: "*" };
+  }
+  rpc UnignoreDrift(UnignoreDriftRequest) returns (Ok) {
+    option (google.api.http) = { post: "/drift/ignore/{id}/delete" };
+  }
+  rpc SetGoldenPeer(SetGoldenPeerRequest) returns (Ok) {
+    option (google.api.http) = { post: "/drift/golden", body: "*" };
+  }
 }

@@ -1,0 +1,38 @@
+// Vendored from googleapis/googleapis (google/api/http.proto), trimmed of
+// its extensive doc comments — only protoc-gen-grpc-gateway reads this at
+// generate time, nothing here ships in a Go/TS build (see buf.gen.yaml and
+// the `proto` Makefile target's --path, which excludes google/api from
+// codegen output). Kept local rather than a buf.build remote dependency so
+// `make proto` still needs nothing but locally installed tools (ADR-0018).
+syntax = "proto3";
+
+package google.api;
+
+option go_package = "google.golang.org/genproto/googleapis/api/annotations;annotations";
+
+message Http {
+  repeated HttpRule rules = 1;
+  bool fully_decode_reserved_expansion = 2;
+}
+
+message HttpRule {
+  string selector = 1;
+
+  oneof pattern {
+    string get = 2;
+    string put = 3;
+    string post = 4;
+    string delete = 5;
+    string patch = 6;
+    CustomHttpPattern custom = 8;
+  }
+
+  string body = 7;
+  string response_body = 12;
+  repeated HttpRule additional_bindings = 11;
+}
+
+message CustomHttpPattern {
+  string kind = 1;
+  string path = 2;
+}

@@ -7,55 +7,33 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
 	"github.com/nagiflow/nagipath/internal/store"
 )
 
-// getCertificates ports internal/web/certificates.go's certificates(): same
-// filters (?expires=, ?issuer=, ?cluster=, ?include_cas=1) and CSV export.
-func (s *Server) getCertificates(w http.ResponseWriter, r *http.Request) {
+// getCertificates and getCertificate moved to certificateservice.go as
+// CertificateService's ListCertificates and GetCertificate RPCs
+// (docs/adr/0018, proto/nagipath/api/v1/certificates.proto). The helpers
+// below stay here: shared with certificateservice.go and getCertificatesCSV.
+
+// getCertificatesCSV: GET /certificates?export=csv is a formatted download,
+// not RPC-shaped data (gateway.go's gatewayOrCSV, wired in api.go).
+func (s *Server) getCertificatesCSV(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	q := r.URL.Query()
-
-	expires := q.Get("expires")
-	issuer := q.Get("issuer")
-	cluster := q.Get("cluster")
-	includeCAs := q.Get("include_cas") == "1"
-
 	list, err := s.DB.Certificates(ctx)
 	if err != nil {
 		apiError(w, http.StatusServiceUnavailable, "datastore_unavailable", err.Error())
 		return
 	}
-	list = s.filterCertificates(ctx, list, expires, issuer, cluster, includeCAs)
+	list = s.filterCertificates(ctx, list, q.Get("expires"), q.Get("issuer"), q.Get("cluster"), q.Get("include_cas") == "1")
 
-	if q.Get("export") == "csv" {
-		out := [][]string{{"subject", "fingerprint_sha256", "issuer", "not_before", "not_after", "bindings", "nodes", "serves"}}
-		for _, cert := range list {
-			out = append(out, []string{cert.SubjectCN, cert.Fingerprint, cert.IssuerDN,
-				cert.NotBefore, cert.NotAfter, strconv.Itoa(cert.Bindings), cert.Hosts,
-				strings.Join(cert.Serves, ",")})
-		}
-		s.writeCSV(w, r, "certificates", out)
-		return
+	out := [][]string{{"subject", "fingerprint_sha256", "issuer", "not_before", "not_after", "bindings", "nodes", "serves"}}
+	for _, cert := range list {
+		out = append(out, []string{cert.SubjectCN, cert.Fingerprint, cert.IssuerDN,
+			cert.NotBefore, cert.NotAfter, strconv.Itoa(cert.Bindings), cert.Hosts,
+			strings.Join(cert.Serves, ",")})
 	}
-
-	clusters, _ := s.DB.Clusters(ctx)
-	resp := &pb.CertificatesListResponse{
-		Expires: expires, Issuer: issuer, Cluster: cluster, IncludeCas: includeCAs,
-		Issuers: distinctIssuers(list), Summary: buildCertSummary(list),
-	}
-	for _, cl := range clusters {
-		resp.Clusters = append(resp.Clusters, &pb.DriftClusterOption{Id: cl.ID, Name: cl.Name, Members: int32(cl.Members)})
-	}
-	for _, c := range list {
-		resp.List = append(resp.List, &pb.CertificateListItem{
-			Id: c.ID, Fingerprint: c.Fingerprint, SubjectCn: c.SubjectCN, IssuerDn: c.IssuerDN,
-			NotBefore: c.NotBefore, NotAfter: c.NotAfter, IsCa: c.IsCA, Bindings: int32(c.Bindings),
-			Hosts: c.Hosts, Serves: c.Serves,
-		})
-	}
-	writeProto(w, http.StatusOK, resp)
+	s.writeCSV(w, r, "certificates", out)
 }
 
 func (s *Server) filterCertificates(ctx context.Context, list []store.CertificateView, expires, issuer, cluster string, includeCAs bool) []store.CertificateView {
@@ -184,47 +162,6 @@ func buildCertSummary(list []store.CertificateView) string {
 		return "All certificates valid"
 	}
 	return strings.Join(parts, " · ")
-}
-
-// getCertificate ports internal/web/certificates.go's certificateDetail().
-func (s *Server) getCertificate(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	certID, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
-
-	cert, err := s.DB.CertificateByID(ctx, certID)
-	if err != nil {
-		apiError(w, http.StatusNotFound, "not_found", "No such certificate.")
-		return
-	}
-	bindings, _ := s.DB.CertBindings(ctx, certID)
-	filePaths := buildFilePathStats(bindings)
-
-	activeTab := r.URL.Query().Get("tab")
-	if activeTab == "" {
-		activeTab = "overview"
-	}
-
-	resp := &pb.CertificateDetailResponse{
-		Cert: &pb.Certificate{
-			Id: cert.ID, Fingerprint: cert.Fingerprint, SubjectCn: cert.SubjectCN, SubjectDn: cert.SubjectDN,
-			Sans: cert.SANs, IssuerDn: cert.IssuerDN, Serial: cert.Serial, NotBefore: cert.NotBefore,
-			NotAfter: cert.NotAfter, KeyAlgorithm: cert.KeyAlgorithm, KeyBits: int32(cert.KeyBits.Int64),
-			SigAlgorithm: cert.SigAlgorithm, SelfSigned: cert.SelfSigned, IsCa: cert.IsCA,
-		},
-		ActiveTab: activeTab, BindingCount: int32(len(bindings)), FileCount: int32(len(filePaths)),
-	}
-	for _, b := range bindings {
-		resp.Bindings = append(resp.Bindings, &pb.CertBinding{
-			InstanceId: b.InstanceID, Instance: b.Instance, Node: b.Node, ClusterName: b.ClusterName,
-			SnapshotId: b.SnapshotID, FileId: b.FileID, FilePath: b.FilePath, SiteNames: b.SiteNames,
-			Port: int32(b.Port), CombinedPem: b.CombinedPEM,
-		})
-	}
-	for _, fp := range filePaths {
-		resp.FilePaths = append(resp.FilePaths, &pb.CertFilePath{Path: fp.Path, NodeCount: int32(fp.NodeCount), BundleType: fp.BundleType})
-	}
-
-	writeProto(w, http.StatusOK, resp)
 }
 
 type certFilePath struct {

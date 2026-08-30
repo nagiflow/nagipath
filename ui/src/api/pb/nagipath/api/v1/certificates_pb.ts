@@ -2,8 +2,9 @@
 // @generated from file nagipath/api/v1/certificates.proto (package nagipath.api.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_api_annotations } from "../../../google/api/annotations_pb";
 import type { DriftClusterOption } from "./drift_pb";
 import { file_nagipath_api_v1_drift } from "./drift_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file nagipath/api/v1/certificates.proto.
  */
 export const file_nagipath_api_v1_certificates: GenFile = /*@__PURE__*/
-  fileDesc("CiJuYWdpcGF0aC9hcGkvdjEvY2VydGlmaWNhdGVzLnByb3RvEg9uYWdpcGF0aC5hcGkudjEixAEKE0NlcnRpZmljYXRlTGlzdEl0ZW0SCgoCaWQYASABKAMSEwoLZmluZ2VycHJpbnQYAiABKAkSEgoKc3ViamVjdF9jbhgDIAEoCRIRCglpc3N1ZXJfZG4YBCABKAkSEgoKbm90X2JlZm9yZRgFIAEoCRIRCglub3RfYWZ0ZXIYBiABKAkSDQoFaXNfY2EYByABKAgSEAoIYmluZGluZ3MYCCABKAUSDQoFaG9zdHMYCSABKAkSDgoGc2VydmVzGAogAygJIu4BChhDZXJ0aWZpY2F0ZXNMaXN0UmVzcG9uc2USMgoEbGlzdBgBIAMoCzIkLm5hZ2lwYXRoLmFwaS52MS5DZXJ0aWZpY2F0ZUxpc3RJdGVtEg8KB2V4cGlyZXMYAiABKAkSDgoGaXNzdWVyGAMgASgJEg8KB2NsdXN0ZXIYBCABKAkSEwoLaW5jbHVkZV9jYXMYBSABKAgSDwoHaXNzdWVycxgGIAMoCRI1CghjbHVzdGVycxgHIAMoCzIjLm5hZ2lwYXRoLmFwaS52MS5EcmlmdENsdXN0ZXJPcHRpb24SDwoHc3VtbWFyeRgIIAEoCSKSAgoLQ2VydGlmaWNhdGUSCgoCaWQYASABKAMSEwoLZmluZ2VycHJpbnQYAiABKAkSEgoKc3ViamVjdF9jbhgDIAEoCRISCgpzdWJqZWN0X2RuGAQgASgJEgwKBHNhbnMYBSADKAkSEQoJaXNzdWVyX2RuGAYgASgJEg4KBnNlcmlhbBgHIAEoCRISCgpub3RfYmVmb3JlGAggASgJEhEKCW5vdF9hZnRlchgJIAEoCRIVCg1rZXlfYWxnb3JpdGhtGAogASgJEhAKCGtleV9iaXRzGAsgASgFEhUKDXNpZ19hbGdvcml0aG0YDCABKAkSEwoLc2VsZl9zaWduZWQYDSABKAgSDQoFaXNfY2EYDiABKAgiyQEKC0NlcnRCaW5kaW5nEhMKC2luc3RhbmNlX2lkGAEgASgDEhAKCGluc3RhbmNlGAIgASgJEgwKBG5vZGUYAyABKAkSFAoMY2x1c3Rlcl9uYW1lGAQgASgJEhMKC3NuYXBzaG90X2lkGAUgASgDEg8KB2ZpbGVfaWQYBiABKAMSEQoJZmlsZV9wYXRoGAcgASgJEhIKCnNpdGVfbmFtZXMYCCABKAkSDAoEcG9ydBgJIAEoBRIUCgxjb21iaW5lZF9wZW0YCiABKAgiRQoMQ2VydEZpbGVQYXRoEgwKBHBhdGgYASABKAkSEgoKbm9kZV9jb3VudBgCIAEoBRITCgtidW5kbGVfdHlwZRgDIAEoCSLpAQoZQ2VydGlmaWNhdGVEZXRhaWxSZXNwb25zZRIqCgRjZXJ0GAEgASgLMhwubmFnaXBhdGguYXBpLnYxLkNlcnRpZmljYXRlEi4KCGJpbmRpbmdzGAIgAygLMhwubmFnaXBhdGguYXBpLnYxLkNlcnRCaW5kaW5nEjEKCmZpbGVfcGF0aHMYAyADKAsyHS5uYWdpcGF0aC5hcGkudjEuQ2VydEZpbGVQYXRoEhIKCmFjdGl2ZV90YWIYBCABKAkSFQoNYmluZGluZ19jb3VudBgFIAEoBRISCgpmaWxlX2NvdW50GAYgASgFQjFaL2dpdGh1Yi5jb20vbmFnaWZsb3cvbmFnaXBhdGgvaW50ZXJuYWwvYXBpL3BiO3BiYgZwcm90bzM", [file_nagipath_api_v1_drift]);
+  fileDesc("CiJuYWdpcGF0aC9hcGkvdjEvY2VydGlmaWNhdGVzLnByb3RvEg9uYWdpcGF0aC5hcGkudjEi+wEKE0NlcnRpZmljYXRlTGlzdEl0ZW0SCgoCaWQYASABKAMSEwoLZmluZ2VycHJpbnQYAiABKAkSEgoKc3ViamVjdF9jbhgDIAEoCRIRCglpc3N1ZXJfZG4YBCABKAkSEgoKbm90X2JlZm9yZRgFIAEoCRIRCglub3RfYWZ0ZXIYBiABKAkSDQoFaXNfY2EYByABKAgSEAoIYmluZGluZ3MYCCABKAUSDQoFaG9zdHMYCSABKAkSDgoGc2VydmVzGAogAygJEgwKBHNhbnMYCyADKAkSFQoNa2V5X2FsZ29yaXRobRgMIAEoCRIQCghrZXlfYml0cxgNIAEoBSLuAQoYQ2VydGlmaWNhdGVzTGlzdFJlc3BvbnNlEjIKBGxpc3QYASADKAsyJC5uYWdpcGF0aC5hcGkudjEuQ2VydGlmaWNhdGVMaXN0SXRlbRIPCgdleHBpcmVzGAIgASgJEg4KBmlzc3VlchgDIAEoCRIPCgdjbHVzdGVyGAQgASgJEhMKC2luY2x1ZGVfY2FzGAUgASgIEg8KB2lzc3VlcnMYBiADKAkSNQoIY2x1c3RlcnMYByADKAsyIy5uYWdpcGF0aC5hcGkudjEuRHJpZnRDbHVzdGVyT3B0aW9uEg8KB3N1bW1hcnkYCCABKAkiuQIKC0NlcnRpZmljYXRlEgoKAmlkGAEgASgDEhMKC2ZpbmdlcnByaW50GAIgASgJEhIKCnN1YmplY3RfY24YAyABKAkSEgoKc3ViamVjdF9kbhgEIAEoCRIMCgRzYW5zGAUgAygJEhEKCWlzc3Vlcl9kbhgGIAEoCRIOCgZzZXJpYWwYByABKAkSEgoKbm90X2JlZm9yZRgIIAEoCRIRCglub3RfYWZ0ZXIYCSABKAkSFQoNa2V5X2FsZ29yaXRobRgKIAEoCRIQCghrZXlfYml0cxgLIAEoBRIVCg1zaWdfYWxnb3JpdGhtGAwgASgJEhMKC3NlbGZfc2lnbmVkGA0gASgIEg0KBWlzX2NhGA4gASgIEhIKCmZpcnN0X3NlZW4YDyABKAkSEQoJbGFzdF9zZWVuGBAgASgJItoBCgtDZXJ0QmluZGluZxITCgtpbnN0YW5jZV9pZBgBIAEoAxIPCgdub2RlX2lkGAsgASgDEhAKCGluc3RhbmNlGAIgASgJEgwKBG5vZGUYAyABKAkSFAoMY2x1c3Rlcl9uYW1lGAQgASgJEhMKC3NuYXBzaG90X2lkGAUgASgDEg8KB2ZpbGVfaWQYBiABKAMSEQoJZmlsZV9wYXRoGAcgASgJEhIKCnNpdGVfbmFtZXMYCCABKAkSDAoEcG9ydBgJIAEoBRIUCgxjb21iaW5lZF9wZW0YCiABKAgiRQoMQ2VydEZpbGVQYXRoEgwKBHBhdGgYASABKAkSEgoKbm9kZV9jb3VudBgCIAEoBRITCgtidW5kbGVfdHlwZRgDIAEoCSLpAQoZQ2VydGlmaWNhdGVEZXRhaWxSZXNwb25zZRIqCgRjZXJ0GAEgASgLMhwubmFnaXBhdGguYXBpLnYxLkNlcnRpZmljYXRlEi4KCGJpbmRpbmdzGAIgAygLMhwubmFnaXBhdGguYXBpLnYxLkNlcnRCaW5kaW5nEjEKCmZpbGVfcGF0aHMYAyADKAsyHS5uYWdpcGF0aC5hcGkudjEuQ2VydEZpbGVQYXRoEhIKCmFjdGl2ZV90YWIYBCABKAkSFQoNYmluZGluZ19jb3VudBgFIAEoBRISCgpmaWxlX2NvdW50GAYgASgFImAKF0xpc3RDZXJ0aWZpY2F0ZXNSZXF1ZXN0Eg8KB2V4cGlyZXMYASABKAkSDgoGaXNzdWVyGAIgASgJEg8KB2NsdXN0ZXIYAyABKAkSEwoLaW5jbHVkZV9jYXMYBCABKAgiMAoVR2V0Q2VydGlmaWNhdGVSZXF1ZXN0EgoKAmlkGAEgASgDEgsKA3RhYhgCIAEoCTKXAgoSQ2VydGlmaWNhdGVTZXJ2aWNlEn4KEExpc3RDZXJ0aWZpY2F0ZXMSKC5uYWdpcGF0aC5hcGkudjEuTGlzdENlcnRpZmljYXRlc1JlcXVlc3QaKS5uYWdpcGF0aC5hcGkudjEuQ2VydGlmaWNhdGVzTGlzdFJlc3BvbnNlIhWC0+STAg8SDS9jZXJ0aWZpY2F0ZXMSgAEKDkdldENlcnRpZmljYXRlEiYubmFnaXBhdGguYXBpLnYxLkdldENlcnRpZmljYXRlUmVxdWVzdBoqLm5hZ2lwYXRoLmFwaS52MS5DZXJ0aWZpY2F0ZURldGFpbFJlc3BvbnNlIhqC0+STAhQSEi9jZXJ0aWZpY2F0ZXMve2lkfUIxWi9naXRodWIuY29tL25hZ2lmbG93L25hZ2lwYXRoL2ludGVybmFsL2FwaS9wYjtwYmIGcHJvdG8z", [file_google_api_annotations, file_nagipath_api_v1_drift]);
 
 /**
  * @generated from message nagipath.api.v1.CertificateListItem
@@ -67,6 +68,24 @@ export type CertificateListItem = Message<"nagipath.api.v1.CertificateListItem">
    * @generated from field: repeated string serves = 10;
    */
   serves: string[];
+
+  /**
+   * store.Certificates() reads sans/key_algorithm/key_bits per row and they
+   * had nowhere to go — the list's SAN count and Key column need them.
+   *
+   * @generated from field: repeated string sans = 11;
+   */
+  sans: string[];
+
+  /**
+   * @generated from field: string key_algorithm = 12;
+   */
+  keyAlgorithm: string;
+
+  /**
+   * @generated from field: int32 key_bits = 13;
+   */
+  keyBits: number;
 };
 
 /**
@@ -201,6 +220,19 @@ export type Certificate = Message<"nagipath.api.v1.Certificate"> & {
    * @generated from field: bool is_ca = 14;
    */
   isCa: boolean;
+
+  /**
+   * Both are stored and read by CertificateByID; the detail screen's "first
+   * seen" needs them.
+   *
+   * @generated from field: string first_seen = 15;
+   */
+  firstSeen: string;
+
+  /**
+   * @generated from field: string last_seen = 16;
+   */
+  lastSeen: string;
 };
 
 /**
@@ -218,6 +250,14 @@ export type CertBinding = Message<"nagipath.api.v1.CertBinding"> & {
    * @generated from field: int64 instance_id = 1;
    */
   instanceId: bigint;
+
+  /**
+   * The bindings table links to the node page, which is keyed by node id, not
+   * instance id — the store query already joins node for the display name.
+   *
+   * @generated from field: int64 node_id = 11;
+   */
+  nodeId: bigint;
 
   /**
    * @generated from field: string instance = 2;
@@ -340,4 +380,85 @@ export type CertificateDetailResponse = Message<"nagipath.api.v1.CertificateDeta
  */
 export const CertificateDetailResponseSchema: GenMessage<CertificateDetailResponse> = /*@__PURE__*/
   messageDesc(file_nagipath_api_v1_certificates, 5);
+
+/**
+ * @generated from message nagipath.api.v1.ListCertificatesRequest
+ */
+export type ListCertificatesRequest = Message<"nagipath.api.v1.ListCertificatesRequest"> & {
+  /**
+   * @generated from field: string expires = 1;
+   */
+  expires: string;
+
+  /**
+   * @generated from field: string issuer = 2;
+   */
+  issuer: string;
+
+  /**
+   * @generated from field: string cluster = 3;
+   */
+  cluster: string;
+
+  /**
+   * @generated from field: bool include_cas = 4;
+   */
+  includeCas: boolean;
+};
+
+/**
+ * Describes the message nagipath.api.v1.ListCertificatesRequest.
+ * Use `create(ListCertificatesRequestSchema)` to create a new message.
+ */
+export const ListCertificatesRequestSchema: GenMessage<ListCertificatesRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_certificates, 6);
+
+/**
+ * @generated from message nagipath.api.v1.GetCertificateRequest
+ */
+export type GetCertificateRequest = Message<"nagipath.api.v1.GetCertificateRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string tab = 2;
+   */
+  tab: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.GetCertificateRequest.
+ * Use `create(GetCertificateRequestSchema)` to create a new message.
+ */
+export const GetCertificateRequestSchema: GenMessage<GetCertificateRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_certificates, 7);
+
+/**
+ * CertificateService: GET /certificates and GET /certificates/{id}. GET
+ * /certificates?export=csv stays outside this service (api.go) — see
+ * SiteService's doc comment in sites.proto.
+ *
+ * @generated from service nagipath.api.v1.CertificateService
+ */
+export const CertificateService: GenService<{
+  /**
+   * @generated from rpc nagipath.api.v1.CertificateService.ListCertificates
+   */
+  listCertificates: {
+    methodKind: "unary";
+    input: typeof ListCertificatesRequestSchema;
+    output: typeof CertificatesListResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.CertificateService.GetCertificate
+   */
+  getCertificate: {
+    methodKind: "unary";
+    input: typeof GetCertificateRequestSchema;
+    output: typeof CertificateDetailResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_nagipath_api_v1_certificates, 0);
 

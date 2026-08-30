@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
+import "nagipath/api/v1/common.proto";
 import "nagipath/api/v1/nodes.proto";
 
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
@@ -38,6 +40,9 @@ message HostKeyStatsPB {
 message HostKeysResponse {
   HostKeyStatsPB stats = 1;
   repeated PendingHostKey keys = 2;
+  // Cluster names for the Cluster filter, which has to list clusters the
+  // current filter has already excluded.
+  repeated string clusters = 3;
 }
 
 // ---------------------------------------------------------------- master key
@@ -240,4 +245,188 @@ message CollectionsResponse {
   int32 from = 11;
   int32 to = 12;
   bool empty = 13;
+}
+
+message ListCollectionsRequest {
+  string node = 1;
+  string status = 2;
+  string trigger = 3;
+  string range = 4;
+  string cursor = 5;
+}
+
+// CollectionService: GET /collections. GET /collections?export=csv stays
+// outside this service (api.go) — see SiteService's doc comment in
+// sites.proto.
+service CollectionService {
+  rpc ListCollections(ListCollectionsRequest) returns (CollectionsResponse) {
+    option (google.api.http) = { get: "/collections" };
+  }
+}
+
+// -------------------------------------------------------- SettingsService requests
+
+message GetCredentialsRequest {
+  string type = 1;
+}
+
+message AddCredentialRequest {
+  string name = 1;
+  string auth_kind = 2;
+  string username = 3;
+  string private_key = 4;
+  string passphrase = 5;
+  string certificate = 6;
+  string password = 7;
+  string external_ref = 8;
+}
+
+message GetHostKeysRequest {
+  string state = 1;
+  string cluster = 2;
+}
+
+message SetRetentionRequest {
+  optional int32 snapshot_days = 1;
+  optional int32 min_per_instance = 2;
+  optional int32 job_log_days = 3;
+  optional int32 probe_days = 4;
+  optional int32 audit_days = 5;
+}
+
+message RunRetentionResponse {
+  bool ok = 1;
+  int64 snapshots = 2;
+  int64 job_logs = 3;
+  int64 probes = 4;
+  int64 audit_events = 5;
+  int64 blobs = 6;
+}
+
+message SetCollectionDefaultsRequest {
+  optional int32 interval_minutes = 1;
+  optional int32 jitter_seconds = 2;
+  optional int32 ssh_workers = 3;
+  optional int32 command_timeout = 4;
+  optional int32 max_files = 5;
+  optional int32 probe_redirects = 6;
+  optional int32 probe_lookback = 7;
+  optional int64 default_credential = 8;
+}
+
+message AddUserRequest {
+  string username = 1;
+  string password = 2;
+  string confirm = 3;
+  string role = 4;
+  bool must_change = 5;
+}
+
+message UserIdRequest {
+  int64 id = 1;
+}
+
+message SetUserDisabledResponse {
+  bool ok = 1;
+  string status = 2;
+}
+
+message GetAuditRequest {
+  string actor = 1;
+  string action = 2;
+  string range = 3;
+  int32 page = 4;
+  int32 per_page = 5;
+}
+
+message GetApiKeysRequest {
+  string state = 1;
+}
+
+message CreateApiKeyRequest {
+  string name = 1;
+  int32 expires_days = 2;
+}
+
+message CreateApiKeyResponse {
+  bool ok = 1;
+  int64 id = 2;
+  string token = 3;
+}
+
+message ApiKeyIdRequest {
+  int64 id = 1;
+}
+
+message InstallLicenseRequest {
+  string license_text = 1;
+}
+
+// SettingsService: every GET /settings/* and its mutations
+// (internal/api/settingsservice.go). requireAuth wraps the whole gateway;
+// every RPC but GetAudit and GetLicense additionally calls requireAdminRPC
+// as its own first line — same reasoning as DriftService's mutations
+// (drift.proto). GET /settings/audit?export=csv stays outside this service
+// (api.go) — see SiteService's doc comment in sites.proto.
+service SettingsService {
+  rpc GetCredentials(GetCredentialsRequest) returns (CredentialsResponse) {
+    option (google.api.http) = { get: "/settings/credentials" };
+  }
+  rpc AddCredential(AddCredentialRequest) returns (IdResponse) {
+    option (google.api.http) = { post: "/settings/credentials", body: "*" };
+  }
+  rpc GetHostKeys(GetHostKeysRequest) returns (HostKeysResponse) {
+    option (google.api.http) = { get: "/settings/hostkeys" };
+  }
+  rpc GetMasterKey(Empty) returns (MasterKeyResponse) {
+    option (google.api.http) = { get: "/settings/masterkey" };
+  }
+  rpc GetCollectionDefaults(Empty) returns (CollectionDefaultsResponse) {
+    option (google.api.http) = { get: "/settings/collection-defaults" };
+  }
+  rpc SetCollectionDefaults(SetCollectionDefaultsRequest) returns (Ok) {
+    option (google.api.http) = { post: "/settings/collection-defaults", body: "*" };
+  }
+  rpc GetRetention(Empty) returns (RetentionResponse) {
+    option (google.api.http) = { get: "/settings/retention" };
+  }
+  rpc SetRetention(SetRetentionRequest) returns (Ok) {
+    option (google.api.http) = { post: "/settings/retention", body: "*" };
+  }
+  rpc RunRetention(Empty) returns (RunRetentionResponse) {
+    option (google.api.http) = { post: "/settings/retention/prune", body: "*" };
+  }
+  rpc GetUsers(Empty) returns (UsersResponse) {
+    option (google.api.http) = { get: "/settings/users" };
+  }
+  rpc AddUser(AddUserRequest) returns (IdResponse) {
+    option (google.api.http) = { post: "/settings/users", body: "*" };
+  }
+  rpc DisableUser(UserIdRequest) returns (SetUserDisabledResponse) {
+    option (google.api.http) = { post: "/settings/users/{id}/disable" };
+  }
+  rpc EnableUser(UserIdRequest) returns (SetUserDisabledResponse) {
+    option (google.api.http) = { post: "/settings/users/{id}/enable" };
+  }
+  rpc GetAudit(GetAuditRequest) returns (AuditResponse) {
+    option (google.api.http) = { get: "/settings/audit" };
+  }
+  rpc GetApiKeys(GetApiKeysRequest) returns (ApiKeysResponse) {
+    option (google.api.http) = { get: "/settings/api-keys" };
+  }
+  rpc CreateApiKey(CreateApiKeyRequest) returns (CreateApiKeyResponse) {
+    option (google.api.http) = { post: "/settings/api-keys", body: "*" };
+  }
+  rpc RevokeApiKey(ApiKeyIdRequest) returns (Ok) {
+    option (google.api.http) = { post: "/settings/api-keys/{id}/revoke" };
+  }
+  rpc GetLicense(Empty) returns (LicenseResponse) {
+    option (google.api.http) = { get: "/settings/license" };
+  }
+  rpc InstallLicense(InstallLicenseRequest) returns (Ok) {
+    option (google.api.http) = { post: "/settings/license", body: "*" };
+  }
+  rpc GetDiagnostics(Empty) returns (DiagnosticsResponse) {
+    option (google.api.http) = { get: "/settings/system" };
+  }
 }

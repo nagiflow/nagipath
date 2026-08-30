@@ -11,10 +11,15 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    // `bun run dev` talks to a `nagipath server` running on :8080 for
-    // everything the SPA doesn't render itself.
+    // 0.0.0.0 so the dev server is reachable from outside its container in
+    // `make lab` (testlab/docker-compose.yml's ui service); harmless for a
+    // plain host-side `bun run dev` too.
+    host: true,
+    // `bun run dev` talks to a `nagipath server` for everything the SPA
+    // doesn't render itself — :8080 on the host by default, or the lab's
+    // `nagipath` container over the compose network (VITE_API_PROXY_TARGET).
     proxy: {
-      '/api': 'http://127.0.0.1:8080',
+      '/api': process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8080',
     },
   },
   test: {

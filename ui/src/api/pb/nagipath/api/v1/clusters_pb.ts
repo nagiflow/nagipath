@@ -2,15 +2,18 @@
 // @generated from file nagipath/api/v1/clusters.proto (package nagipath.api.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_api_annotations } from "../../../google/api/annotations_pb";
+import type { OkSchema } from "./common_pb";
+import { file_nagipath_api_v1_common } from "./common_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file nagipath/api/v1/clusters.proto.
  */
 export const file_nagipath_api_v1_clusters: GenFile = /*@__PURE__*/
-  fileDesc("Ch5uYWdpcGF0aC9hcGkvdjEvY2x1c3RlcnMucHJvdG8SD25hZ2lwYXRoLmFwaS52MSLMAQoPQ2x1c3Rlckxpc3RJdGVtEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSDwoHbWVtYmVycxgDIAEoBRIOCgZ2ZW5kb3IYBCABKAkSGAoQZ29sZGVuX3BlZXJfbmFtZRgFIAEoCRITCgtkcmlmdF9jb3VudBgGIAEoBRIaChJjZXJ0c19leHBpcmluZ18zMGQYByABKAUSFgoObGFzdF9jb2xsZWN0ZWQYCCABKAkSGwoTaW5zdGFuY2VzX2NvbGxlY3RlZBgJIAEoBSJwChFDbHVzdGVyTWVtYmVySXRlbRIKCgJpZBgBIAEoAxIUCgxkaXNwbGF5X25hbWUYAiABKAkSFwoKZGl2ZXJnZW5jZRgDIAEoA0gAiAEBEhEKCWlzX2dvbGRlbhgEIAEoCEINCgtfZGl2ZXJnZW5jZSK1AQoNQ2x1c3RlckRldGFpbBIKCgJpZBgBIAEoAxIMCgRuYW1lGAIgASgJEg8KB21lbWJlcnMYAyABKAUSDgoGdmVuZG9yGAQgASgJEhgKEGdvbGRlbl9wZWVyX25hbWUYBSABKAkSFgoObGFzdF9jb2xsZWN0ZWQYBiABKAkSNwoLbWVtYmVyX2xpc3QYByADKAsyIi5uYWdpcGF0aC5hcGkudjEuQ2x1c3Rlck1lbWJlckl0ZW0iugEKEENsdXN0ZXJzUmVzcG9uc2USMgoIY2x1c3RlcnMYASADKAsyIC5uYWdpcGF0aC5hcGkudjEuQ2x1c3Rlckxpc3RJdGVtEg0KBXRvdGFsGAIgASgFEg0KBXF1ZXJ5GAMgASgJEhQKDGRyaWZ0X2ZpbHRlchgEIAEoCRIMCgRzb3J0GAUgASgJEjAKCHNlbGVjdGVkGAYgASgLMh4ubmFnaXBhdGguYXBpLnYxLkNsdXN0ZXJEZXRhaWxCMVovZ2l0aHViLmNvbS9uYWdpZmxvdy9uYWdpcGF0aC9pbnRlcm5hbC9hcGkvcGI7cGJiBnByb3RvMw");
+  fileDesc("Ch5uYWdpcGF0aC9hcGkvdjEvY2x1c3RlcnMucHJvdG8SD25hZ2lwYXRoLmFwaS52MSLMAQoPQ2x1c3Rlckxpc3RJdGVtEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSDwoHbWVtYmVycxgDIAEoBRIOCgZ2ZW5kb3IYBCABKAkSGAoQZ29sZGVuX3BlZXJfbmFtZRgFIAEoCRITCgtkcmlmdF9jb3VudBgGIAEoBRIaChJjZXJ0c19leHBpcmluZ18zMGQYByABKAUSFgoObGFzdF9jb2xsZWN0ZWQYCCABKAkSGwoTaW5zdGFuY2VzX2NvbGxlY3RlZBgJIAEoBSJwChFDbHVzdGVyTWVtYmVySXRlbRIKCgJpZBgBIAEoAxIUCgxkaXNwbGF5X25hbWUYAiABKAkSFwoKZGl2ZXJnZW5jZRgDIAEoA0gAiAEBEhEKCWlzX2dvbGRlbhgEIAEoCEINCgtfZGl2ZXJnZW5jZSK1AQoNQ2x1c3RlckRldGFpbBIKCgJpZBgBIAEoAxIMCgRuYW1lGAIgASgJEg8KB21lbWJlcnMYAyABKAUSDgoGdmVuZG9yGAQgASgJEhgKEGdvbGRlbl9wZWVyX25hbWUYBSABKAkSFgoObGFzdF9jb2xsZWN0ZWQYBiABKAkSNwoLbWVtYmVyX2xpc3QYByADKAsyIi5uYWdpcGF0aC5hcGkudjEuQ2x1c3Rlck1lbWJlckl0ZW0iugEKEENsdXN0ZXJzUmVzcG9uc2USMgoIY2x1c3RlcnMYASADKAsyIC5uYWdpcGF0aC5hcGkudjEuQ2x1c3Rlckxpc3RJdGVtEg0KBXRvdGFsGAIgASgFEg0KBXF1ZXJ5GAMgASgJEhQKDGRyaWZ0X2ZpbHRlchgEIAEoCRIMCgRzb3J0GAUgASgJEjAKCHNlbGVjdGVkGAYgASgLMh4ubmFnaXBhdGguYXBpLnYxLkNsdXN0ZXJEZXRhaWwiTgoTTGlzdENsdXN0ZXJzUmVxdWVzdBIJCgFxGAEgASgJEg0KBWRyaWZ0GAIgASgJEgwKBHNvcnQYAyABKAkSDwoHY2x1c3RlchgEIAEoAyI1ChRSZW5hbWVDbHVzdGVyUmVxdWVzdBIPCgdjbHVzdGVyGAEgASgDEgwKBG5hbWUYAiABKAky5gEKDkNsdXN0ZXJTZXJ2aWNlEmoKDExpc3RDbHVzdGVycxIkLm5hZ2lwYXRoLmFwaS52MS5MaXN0Q2x1c3RlcnNSZXF1ZXN0GiEubmFnaXBhdGguYXBpLnYxLkNsdXN0ZXJzUmVzcG9uc2UiEYLT5JMCCxIJL2NsdXN0ZXJzEmgKDVJlbmFtZUNsdXN0ZXISJS5uYWdpcGF0aC5hcGkudjEuUmVuYW1lQ2x1c3RlclJlcXVlc3QaEy5uYWdpcGF0aC5hcGkudjEuT2siG4LT5JMCFToBKiIQL2NsdXN0ZXJzL3JlbmFtZUIxWi9naXRodWIuY29tL25hZ2lmbG93L25hZ2lwYXRoL2ludGVybmFsL2FwaS9wYjtwYmIGcHJvdG8z", [file_google_api_annotations, file_nagipath_api_v1_common]);
 
 /**
  * @generated from message nagipath.api.v1.ClusterListItem
@@ -189,4 +192,89 @@ export type ClustersResponse = Message<"nagipath.api.v1.ClustersResponse"> & {
  */
 export const ClustersResponseSchema: GenMessage<ClustersResponse> = /*@__PURE__*/
   messageDesc(file_nagipath_api_v1_clusters, 3);
+
+/**
+ * @generated from message nagipath.api.v1.ListClustersRequest
+ */
+export type ListClustersRequest = Message<"nagipath.api.v1.ListClustersRequest"> & {
+  /**
+   * @generated from field: string q = 1;
+   */
+  q: string;
+
+  /**
+   * @generated from field: string drift = 2;
+   */
+  drift: string;
+
+  /**
+   * @generated from field: string sort = 3;
+   */
+  sort: string;
+
+  /**
+   * @generated from field: int64 cluster = 4;
+   */
+  cluster: bigint;
+};
+
+/**
+ * Describes the message nagipath.api.v1.ListClustersRequest.
+ * Use `create(ListClustersRequestSchema)` to create a new message.
+ */
+export const ListClustersRequestSchema: GenMessage<ListClustersRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_clusters, 4);
+
+/**
+ * @generated from message nagipath.api.v1.RenameClusterRequest
+ */
+export type RenameClusterRequest = Message<"nagipath.api.v1.RenameClusterRequest"> & {
+  /**
+   * @generated from field: int64 cluster = 1;
+   */
+  cluster: bigint;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.RenameClusterRequest.
+ * Use `create(RenameClusterRequestSchema)` to create a new message.
+ */
+export const RenameClusterRequestSchema: GenMessage<RenameClusterRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_clusters, 5);
+
+/**
+ * ClusterService is this domain's whole HTTP surface: internal/web mounts
+ * internal/api once at /api/ (docs/adr/0017), and this service's
+ * google.api.http annotations are what carry GET /clusters and
+ * POST /clusters/rename the rest of the way — no separate net/http
+ * registration for either (internal/api/api.go). See
+ * internal/api/clusterservice.go for the implementation and why it's
+ * registered in-process rather than behind a real gRPC listener.
+ *
+ * @generated from service nagipath.api.v1.ClusterService
+ */
+export const ClusterService: GenService<{
+  /**
+   * @generated from rpc nagipath.api.v1.ClusterService.ListClusters
+   */
+  listClusters: {
+    methodKind: "unary";
+    input: typeof ListClustersRequestSchema;
+    output: typeof ClustersResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.ClusterService.RenameCluster
+   */
+  renameCluster: {
+    methodKind: "unary";
+    input: typeof RenameClusterRequestSchema;
+    output: typeof OkSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_nagipath_api_v1_clusters, 0);
 

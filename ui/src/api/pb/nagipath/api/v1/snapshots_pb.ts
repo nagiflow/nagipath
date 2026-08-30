@@ -2,8 +2,9 @@
 // @generated from file nagipath/api/v1/snapshots.proto (package nagipath.api.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_api_annotations } from "../../../google/api/annotations_pb";
 import type { FileRef, Instance, Snapshot } from "./nodes_pb";
 import { file_nagipath_api_v1_nodes } from "./nodes_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file nagipath/api/v1/snapshots.proto.
  */
 export const file_nagipath_api_v1_snapshots: GenFile = /*@__PURE__*/
-  fileDesc("Ch9uYWdpcGF0aC9hcGkvdjEvc25hcHNob3RzLnByb3RvEg9uYWdpcGF0aC5hcGkudjEiuAEKC1NuYXBzaG90Um93EgoKAmlkGAEgASgDEhMKC2luc3RhbmNlX2lkGAIgASgDEhAKCGluc3RhbmNlGAMgASgJEgwKBG5vZGUYBCABKAkSDwoHY2x1c3RlchgFIAEoCRITCgtjYXB0dXJlZF9hdBgGIAEoCRIPCgd0cmlnZ2VyGAcgASgJEg8KB2NoYW5nZWQYCCABKAgSEQoJYnl0ZXNfcmF3GAkgASgDEg0KBXN0YXRlGAogASgJIsQCChVTbmFwc2hvdHNMaXN0UmVzcG9uc2USKgoEbGlzdBgBIAMoCzIcLm5hZ2lwYXRoLmFwaS52MS5TbmFwc2hvdFJvdxINCgVxdWVyeRgCIAEoCRINCgVyYW5nZRgDIAEoCRIPCgdjaGFuZ2VzGAQgASgJEg8KB3RyaWdnZXIYBSABKAkSDQoFdG90YWwYBiABKAUSEwoLdG90YWxfYnl0ZXMYByABKAMSEAoIZmlsdGVyZWQYCCABKAUSDwoHY2hhbmdlZBgJIAEoBRIQCghkZWdyYWRlZBgKIAEoBRITCgtuZXh0X2N1cnNvchgLIAEoCRIQCghoYXNfbW9yZRgMIAEoCBIMCgRmcm9tGA0gASgFEgoKAnRvGA4gASgFEg0KBWVtcHR5GA8gASgIEhYKDnJldGVudGlvbl9kYXlzGBAgASgFIvQBChRTbmFwc2hvdEZpbGVSZXNwb25zZRIrCghzbmFwc2hvdBgBIAEoCzIZLm5hZ2lwYXRoLmFwaS52MS5TbmFwc2hvdBIrCghpbnN0YW5jZRgCIAEoCzIZLm5hZ2lwYXRoLmFwaS52MS5JbnN0YW5jZRImCgRmaWxlGAMgASgLMhgubmFnaXBhdGguYXBpLnYxLkZpbGVSZWYSDAoEYm9keRgEIAEoCRISCgpieXRlX3N0YXJ0GAUgASgFEhIKCmxpbmVfc3RhcnQYBiABKAUSEAoIbGluZV9lbmQYByABKAUSEgoKaGFzX2FuY2hvchgIIAEoCEIxWi9naXRodWIuY29tL25hZ2lmbG93L25hZ2lwYXRoL2ludGVybmFsL2FwaS9wYjtwYmIGcHJvdG8z", [file_nagipath_api_v1_nodes]);
+  fileDesc("Ch9uYWdpcGF0aC9hcGkvdjEvc25hcHNob3RzLnByb3RvEg9uYWdpcGF0aC5hcGkudjEiuAEKC1NuYXBzaG90Um93EgoKAmlkGAEgASgDEhMKC2luc3RhbmNlX2lkGAIgASgDEhAKCGluc3RhbmNlGAMgASgJEgwKBG5vZGUYBCABKAkSDwoHY2x1c3RlchgFIAEoCRITCgtjYXB0dXJlZF9hdBgGIAEoCRIPCgd0cmlnZ2VyGAcgASgJEg8KB2NoYW5nZWQYCCABKAgSEQoJYnl0ZXNfcmF3GAkgASgDEg0KBXN0YXRlGAogASgJIsQCChVTbmFwc2hvdHNMaXN0UmVzcG9uc2USKgoEbGlzdBgBIAMoCzIcLm5hZ2lwYXRoLmFwaS52MS5TbmFwc2hvdFJvdxINCgVxdWVyeRgCIAEoCRINCgVyYW5nZRgDIAEoCRIPCgdjaGFuZ2VzGAQgASgJEg8KB3RyaWdnZXIYBSABKAkSDQoFdG90YWwYBiABKAUSEwoLdG90YWxfYnl0ZXMYByABKAMSEAoIZmlsdGVyZWQYCCABKAUSDwoHY2hhbmdlZBgJIAEoBRIQCghkZWdyYWRlZBgKIAEoBRITCgtuZXh0X2N1cnNvchgLIAEoCRIQCghoYXNfbW9yZRgMIAEoCBIMCgRmcm9tGA0gASgFEgoKAnRvGA4gASgFEg0KBWVtcHR5GA8gASgIEhYKDnJldGVudGlvbl9kYXlzGBAgASgFIvQBChRTbmFwc2hvdEZpbGVSZXNwb25zZRIrCghzbmFwc2hvdBgBIAEoCzIZLm5hZ2lwYXRoLmFwaS52MS5TbmFwc2hvdBIrCghpbnN0YW5jZRgCIAEoCzIZLm5hZ2lwYXRoLmFwaS52MS5JbnN0YW5jZRImCgRmaWxlGAMgASgLMhgubmFnaXBhdGguYXBpLnYxLkZpbGVSZWYSDAoEYm9keRgEIAEoCRISCgpieXRlX3N0YXJ0GAUgASgFEhIKCmxpbmVfc3RhcnQYBiABKAUSEAoIbGluZV9lbmQYByABKAUSEgoKaGFzX2FuY2hvchgIIAEoCCJiChRMaXN0U25hcHNob3RzUmVxdWVzdBIJCgFxGAEgASgJEg0KBXJhbmdlGAIgASgJEg8KB2NoYW5nZXMYAyABKAkSDwoHdHJpZ2dlchgEIAEoCRIOCgZjdXJzb3IYBSABKAkiQAoWR2V0U25hcHNob3RGaWxlUmVxdWVzdBIKCgJpZBgBIAEoAxIPCgdmaWxlX2lkGAIgASgDEgkKAWIYAyABKAkykQIKD1NuYXBzaG90U2VydmljZRJyCg1MaXN0U25hcHNob3RzEiUubmFnaXBhdGguYXBpLnYxLkxpc3RTbmFwc2hvdHNSZXF1ZXN0GiYubmFnaXBhdGguYXBpLnYxLlNuYXBzaG90c0xpc3RSZXNwb25zZSISgtPkkwIMEgovc25hcHNob3RzEokBCg9HZXRTbmFwc2hvdEZpbGUSJy5uYWdpcGF0aC5hcGkudjEuR2V0U25hcHNob3RGaWxlUmVxdWVzdBolLm5hZ2lwYXRoLmFwaS52MS5TbmFwc2hvdEZpbGVSZXNwb25zZSImgtPkkwIgEh4vc25hcHNob3RzL3tpZH0vZmlsZS97ZmlsZV9pZH1CMVovZ2l0aHViLmNvbS9uYWdpZmxvdy9uYWdpcGF0aC9pbnRlcm5hbC9hcGkvcGI7cGJiBnByb3RvMw", [file_google_api_annotations, file_nagipath_api_v1_nodes]);
 
 /**
  * @generated from message nagipath.api.v1.SnapshotRow
@@ -219,4 +220,95 @@ export type SnapshotFileResponse = Message<"nagipath.api.v1.SnapshotFileResponse
  */
 export const SnapshotFileResponseSchema: GenMessage<SnapshotFileResponse> = /*@__PURE__*/
   messageDesc(file_nagipath_api_v1_snapshots, 2);
+
+/**
+ * @generated from message nagipath.api.v1.ListSnapshotsRequest
+ */
+export type ListSnapshotsRequest = Message<"nagipath.api.v1.ListSnapshotsRequest"> & {
+  /**
+   * @generated from field: string q = 1;
+   */
+  q: string;
+
+  /**
+   * @generated from field: string range = 2;
+   */
+  range: string;
+
+  /**
+   * @generated from field: string changes = 3;
+   */
+  changes: string;
+
+  /**
+   * @generated from field: string trigger = 4;
+   */
+  trigger: string;
+
+  /**
+   * @generated from field: string cursor = 5;
+   */
+  cursor: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.ListSnapshotsRequest.
+ * Use `create(ListSnapshotsRequestSchema)` to create a new message.
+ */
+export const ListSnapshotsRequestSchema: GenMessage<ListSnapshotsRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_snapshots, 3);
+
+/**
+ * @generated from message nagipath.api.v1.GetSnapshotFileRequest
+ */
+export type GetSnapshotFileRequest = Message<"nagipath.api.v1.GetSnapshotFileRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: int64 file_id = 2;
+   */
+  fileId: bigint;
+
+  /**
+   * @generated from field: string b = 3;
+   */
+  b: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.GetSnapshotFileRequest.
+ * Use `create(GetSnapshotFileRequestSchema)` to create a new message.
+ */
+export const GetSnapshotFileRequestSchema: GenMessage<GetSnapshotFileRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_snapshots, 4);
+
+/**
+ * SnapshotService: GET /snapshots and GET /snapshots/{id}/file/{file_id}.
+ * GET /snapshots?export=csv stays outside this service (api.go) — see
+ * SiteService's doc comment in sites.proto.
+ *
+ * @generated from service nagipath.api.v1.SnapshotService
+ */
+export const SnapshotService: GenService<{
+  /**
+   * @generated from rpc nagipath.api.v1.SnapshotService.ListSnapshots
+   */
+  listSnapshots: {
+    methodKind: "unary";
+    input: typeof ListSnapshotsRequestSchema;
+    output: typeof SnapshotsListResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.SnapshotService.GetSnapshotFile
+   */
+  getSnapshotFile: {
+    methodKind: "unary";
+    input: typeof GetSnapshotFileRequestSchema;
+    output: typeof SnapshotFileResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_nagipath_api_v1_snapshots, 0);
 

@@ -2,15 +2,16 @@
 // @generated from file nagipath/api/v1/rules.proto (package nagipath.api.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_api_annotations } from "../../../google/api/annotations_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file nagipath/api/v1/rules.proto.
  */
 export const file_nagipath_api_v1_rules: GenFile = /*@__PURE__*/
-  fileDesc("ChtuYWdpcGF0aC9hcGkvdjEvcnVsZXMucHJvdG8SD25hZ2lwYXRoLmFwaS52MSLnAQoMTG9va3VwUnVsZVBCEg8KB29yZGluYWwYASABKAUSEQoJZGlyZWN0aXZlGAIgASgJEhQKDGFjdGlvbl9jbGFzcxgDIAEoCRIMCgRhcmdzGAQgASgJEg0KBXNjb3BlGAUgASgJEhEKCWluaGVyaXRlZBgGIAEoCBIQCghzaGFkb3dlZBgHIAEoCBITCgtzaGFkb3dlZF9ieRgIIAEoCRIMCgRwYXRoGAkgASgJEhIKCmJ5dGVfc3RhcnQYCiABKAUSDwoHZmlsZV9pZBgLIAEoAxITCgtzbmFwc2hvdF9pZBgMIAEoAyJCCg5Mb29rdXBCcmFuY2hQQhITCgtob3Bfb3JkaW5hbBgBIAEoBRILCgNyYXcYAiABKAkSDgoGcmVhc29uGAMgASgJIqADCg5Mb29rdXBSZXN1bHRQQhIPCgdpbnN0X2lkGAEgASgDEhkKEWluc3RfZGlzcGxheV9uYW1lGAIgASgJEhYKDmluc3Rfbm9kZV9uYW1lGAMgASgJEhMKC2luc3RfdmVuZG9yGAQgASgJEhUKDWluc3RfZGVncmFkZWQYBSABKAgSGAoQbGlzdGVuZXJfYWRkcmVzcxgGIAEoCRIVCg1saXN0ZW5lcl9wb3J0GAcgASgFEhQKDGxpc3RlbmVyX3RscxgIIAEoCBIRCglzaXRlX25hbWUYCSABKAkSEgoKbWF0Y2hlZF9ieRgKIAEoCRIVCg1yb3V0ZV9wYXR0ZXJuGAsgASgJEhIKCnByZWNlZGVuY2UYDCABKAkSEAoIZGVncmFkZWQYDSABKAgSDgoGcmVhc29uGA4gASgJEiwKBXJ1bGVzGA8gAygLMh0ubmFnaXBhdGguYXBpLnYxLkxvb2t1cFJ1bGVQQhI1Cgx1bmRldGVybWluZWQYECADKAsyHy5uYWdpcGF0aC5hcGkudjEuTG9va3VwQnJhbmNoUEIibQoJUnVsZUdyb3VwEhEKCW5vZGVfbmFtZRgBIAEoCRIMCgRoYXNoGAIgASgJEg0KBWNvdW50GAMgASgFEjAKB3Jlc3VsdHMYBCADKAsyHy5uYWdpcGF0aC5hcGkudjEuTG9va3VwUmVzdWx0UEIiKQoJUnVsZUZhY2V0Eg0KBXZhbHVlGAEgASgJEg0KBWNvdW50GAIgASgFIo4ECg1SdWxlc1Jlc3BvbnNlEg4KBnNjaGVtZRgBIAEoCRIQCghob3N0bmFtZRgCIAEoCRIMCgRwYXRoGAMgASgJEgwKBHBvcnQYBCABKAUSGAoQY2xhc3Nlc19zZWxlY3RlZBgFIAMoCRIYChB2ZW5kb3JzX3NlbGVjdGVkGAYgAygJEgsKA3VybBgHIAEoCRIPCgdjbGFzc2VzGAggAygJEg8KB3ZlbmRvcnMYCSADKAkSDQoFYXNrZWQYCiABKAgSDQoFZW1wdHkYCyABKAgSDQoFcnVsZXMYDCABKAUSDQoFbm9kZXMYDSABKAUSDQoFZmlsZXMYDiABKAUSDAoEcGFnZRgPIAEoBRINCgVwYWdlcxgQIAEoBRIMCgRmcm9tGBEgASgFEgoKAnRvGBIgASgFEjEKDXZlbmRvcl9mYWNldHMYEyADKAsyGi5uYWdpcGF0aC5hcGkudjEuUnVsZUZhY2V0EjAKDGNsYXNzX2ZhY2V0cxgUIAMoCzIaLm5hZ2lwYXRoLmFwaS52MS5SdWxlRmFjZXQSGAoQcnVsZXNfdW5maWx0ZXJlZBgVIAEoBRIqCgZncm91cHMYFiADKAsyGi5uYWdpcGF0aC5hcGkudjEuUnVsZUdyb3VwEi8KBnNpbGVudBgXIAMoCzIfLm5hZ2lwYXRoLmFwaS52MS5Mb29rdXBSZXN1bHRQQkIxWi9naXRodWIuY29tL25hZ2lmbG93L25hZ2lwYXRoL2ludGVybmFsL2FwaS9wYjtwYmIGcHJvdG8z");
+  fileDesc("ChtuYWdpcGF0aC9hcGkvdjEvcnVsZXMucHJvdG8SD25hZ2lwYXRoLmFwaS52MSLnAQoMTG9va3VwUnVsZVBCEg8KB29yZGluYWwYASABKAUSEQoJZGlyZWN0aXZlGAIgASgJEhQKDGFjdGlvbl9jbGFzcxgDIAEoCRIMCgRhcmdzGAQgASgJEg0KBXNjb3BlGAUgASgJEhEKCWluaGVyaXRlZBgGIAEoCBIQCghzaGFkb3dlZBgHIAEoCBITCgtzaGFkb3dlZF9ieRgIIAEoCRIMCgRwYXRoGAkgASgJEhIKCmJ5dGVfc3RhcnQYCiABKAUSDwoHZmlsZV9pZBgLIAEoAxITCgtzbmFwc2hvdF9pZBgMIAEoAyJCCg5Mb29rdXBCcmFuY2hQQhITCgtob3Bfb3JkaW5hbBgBIAEoBRILCgNyYXcYAiABKAkSDgoGcmVhc29uGAMgASgJIscDCg5Mb29rdXBSZXN1bHRQQhIPCgdpbnN0X2lkGAEgASgDEhkKEWluc3RfZGlzcGxheV9uYW1lGAIgASgJEhYKDmluc3Rfbm9kZV9uYW1lGAMgASgJEhMKC2luc3RfdmVuZG9yGAQgASgJEhUKDWluc3RfZGVncmFkZWQYBSABKAgSGAoQbGlzdGVuZXJfYWRkcmVzcxgGIAEoCRIVCg1saXN0ZW5lcl9wb3J0GAcgASgFEhQKDGxpc3RlbmVyX3RscxgIIAEoCBIRCglzaXRlX25hbWUYCSABKAkSEgoKbWF0Y2hlZF9ieRgKIAEoCRIVCg1yb3V0ZV9wYXR0ZXJuGAsgASgJEhIKCnByZWNlZGVuY2UYDCABKAkSEAoIZGVncmFkZWQYDSABKAgSDgoGcmVhc29uGA4gASgJEiwKBXJ1bGVzGA8gAygLMh0ubmFnaXBhdGguYXBpLnYxLkxvb2t1cFJ1bGVQQhI1Cgx1bmRldGVybWluZWQYECADKAsyHy5uYWdpcGF0aC5hcGkudjEuTG9va3VwQnJhbmNoUEISDwoHbm9kZV9pZBgRIAEoAxIUCgxjbHVzdGVyX25hbWUYEiABKAkibQoJUnVsZUdyb3VwEhEKCW5vZGVfbmFtZRgBIAEoCRIMCgRoYXNoGAIgASgJEg0KBWNvdW50GAMgASgFEjAKB3Jlc3VsdHMYBCADKAsyHy5uYWdpcGF0aC5hcGkudjEuTG9va3VwUmVzdWx0UEIiKQoJUnVsZUZhY2V0Eg0KBXZhbHVlGAEgASgJEg0KBWNvdW50GAIgASgFIo4ECg1SdWxlc1Jlc3BvbnNlEg4KBnNjaGVtZRgBIAEoCRIQCghob3N0bmFtZRgCIAEoCRIMCgRwYXRoGAMgASgJEgwKBHBvcnQYBCABKAUSGAoQY2xhc3Nlc19zZWxlY3RlZBgFIAMoCRIYChB2ZW5kb3JzX3NlbGVjdGVkGAYgAygJEgsKA3VybBgHIAEoCRIPCgdjbGFzc2VzGAggAygJEg8KB3ZlbmRvcnMYCSADKAkSDQoFYXNrZWQYCiABKAgSDQoFZW1wdHkYCyABKAgSDQoFcnVsZXMYDCABKAUSDQoFbm9kZXMYDSABKAUSDQoFZmlsZXMYDiABKAUSDAoEcGFnZRgPIAEoBRINCgVwYWdlcxgQIAEoBRIMCgRmcm9tGBEgASgFEgoKAnRvGBIgASgFEjEKDXZlbmRvcl9mYWNldHMYEyADKAsyGi5uYWdpcGF0aC5hcGkudjEuUnVsZUZhY2V0EjAKDGNsYXNzX2ZhY2V0cxgUIAMoCzIaLm5hZ2lwYXRoLmFwaS52MS5SdWxlRmFjZXQSGAoQcnVsZXNfdW5maWx0ZXJlZBgVIAEoBRIqCgZncm91cHMYFiADKAsyGi5uYWdpcGF0aC5hcGkudjEuUnVsZUdyb3VwEi8KBnNpbGVudBgXIAMoCzIfLm5hZ2lwYXRoLmFwaS52MS5Mb29rdXBSZXN1bHRQQiKJAQoPR2V0UnVsZXNSZXF1ZXN0EgsKA3VybBgBIAEoCRIMCgRwYXRoGAIgASgJEg4KBnNjaGVtZRgDIAEoCRIQCghob3N0bmFtZRgEIAEoCRIMCgRwb3J0GAUgASgFEg0KBWNsYXNzGAYgAygJEg4KBnZlbmRvchgHIAMoCRIMCgRwYWdlGAggASgFMmsKC1J1bGVTZXJ2aWNlElwKCEdldFJ1bGVzEiAubmFnaXBhdGguYXBpLnYxLkdldFJ1bGVzUmVxdWVzdBoeLm5hZ2lwYXRoLmFwaS52MS5SdWxlc1Jlc3BvbnNlIg6C0+STAggSBi9ydWxlc0IxWi9naXRodWIuY29tL25hZ2lmbG93L25hZ2lwYXRoL2ludGVybmFsL2FwaS9wYjtwYmIGcHJvdG8z", [file_google_api_annotations]);
 
 /**
  * LookupRulePB is one rule in evaluation order, with the scope it came from
@@ -201,6 +202,19 @@ export type LookupResultPB = Message<"nagipath.api.v1.LookupResultPB"> & {
    * @generated from field: repeated nagipath.api.v1.LookupBranchPB undetermined = 16;
    */
   undetermined: LookupBranchPB[];
+
+  /**
+   * trace.Inst carries both and the group band names the cluster the way
+   * design/'s screen 2b does; node_id is what the node page is keyed by.
+   *
+   * @generated from field: int64 node_id = 17;
+   */
+  nodeId: bigint;
+
+  /**
+   * @generated from field: string cluster_name = 18;
+   */
+  clusterName: string;
 };
 
 /**
@@ -397,4 +411,74 @@ export type RulesResponse = Message<"nagipath.api.v1.RulesResponse"> & {
  */
 export const RulesResponseSchema: GenMessage<RulesResponse> = /*@__PURE__*/
   messageDesc(file_nagipath_api_v1_rules, 5);
+
+/**
+ * @generated from message nagipath.api.v1.GetRulesRequest
+ */
+export type GetRulesRequest = Message<"nagipath.api.v1.GetRulesRequest"> & {
+  /**
+   * @generated from field: string url = 1;
+   */
+  url: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string scheme = 3;
+   */
+  scheme: string;
+
+  /**
+   * @generated from field: string hostname = 4;
+   */
+  hostname: string;
+
+  /**
+   * @generated from field: int32 port = 5;
+   */
+  port: number;
+
+  /**
+   * @generated from field: repeated string class = 6;
+   */
+  class: string[];
+
+  /**
+   * @generated from field: repeated string vendor = 7;
+   */
+  vendor: string[];
+
+  /**
+   * @generated from field: int32 page = 8;
+   */
+  page: number;
+};
+
+/**
+ * Describes the message nagipath.api.v1.GetRulesRequest.
+ * Use `create(GetRulesRequestSchema)` to create a new message.
+ */
+export const GetRulesRequestSchema: GenMessage<GetRulesRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_rules, 6);
+
+/**
+ * RuleService: GET /rules. GET /rules?export=csv stays outside this service
+ * (api.go) — see SiteService's doc comment in sites.proto.
+ *
+ * @generated from service nagipath.api.v1.RuleService
+ */
+export const RuleService: GenService<{
+  /**
+   * @generated from rpc nagipath.api.v1.RuleService.GetRules
+   */
+  getRules: {
+    methodKind: "unary";
+    input: typeof GetRulesRequestSchema;
+    output: typeof RulesResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_nagipath_api_v1_rules, 0);
 

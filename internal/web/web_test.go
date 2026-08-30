@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -82,22 +81,6 @@ func (c *client) get(path string) *httptest.ResponseRecorder {
 	return w
 }
 
-func (c *client) post(path string, form url.Values) *httptest.ResponseRecorder {
-	c.t.Helper()
-	if c.csrf != "" {
-		form.Set("csrf", c.csrf)
-	}
-	r := httptest.NewRequest("POST", path, strings.NewReader(form.Encode()))
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	if c.cookie != "" {
-		r.AddCookie(&http.Cookie{Name: cookieName, Value: c.cookie})
-	}
-	w := httptest.NewRecorder()
-	c.s.ServeHTTP(w, r)
-	c.absorb(w)
-	return w
-}
-
 // postJSON is api/client.ts's real request shape for the SPA's internal/api
 // endpoints: a JSON body and the CSRF token as a header, not a form field —
 // internal/api/middleware.go's checkCSRF only ever looks at the header.
@@ -123,6 +106,26 @@ func (c *client) postJSON(path string, body any) *httptest.ResponseRecorder {
 	return w
 }
 
+// login is the SPA's real login request shape: JSON to /api/login
+// (internal/api/auth.go) rather than the old form-encoded /login redirect.
+func (c *client) login(username, password string) *httptest.ResponseRecorder {
+	c.t.Helper()
+	return c.postJSON("/api/login", map[string]any{"username": username, "password": password})
+}
+
+// bootstrapAdmin is the SPA's real first-run request shape: JSON to
+// /api/setup (internal/api/auth.go). Validation behavior (short password,
+// mismatch, second-setup-403) is covered in internal/api/auth_test.go now
+// that setup is a JSON endpoint rather than a template with a flash-message
+// redirect — this just proves the one happy path every other test here needs.
+func (c *client) bootstrapAdmin(t *testing.T, username, password string) {
+	t.Helper()
+	w := c.postJSON("/api/setup", map[string]any{"username": username, "password": password, "confirm": password})
+	if w.Code != http.StatusOK || c.cookie == "" {
+		t.Fatalf("bootstrap setup for %q = %d, cookie %q", username, w.Code, c.cookie)
+	}
+}
+
 func (c *client) absorb(w *httptest.ResponseRecorder) {
 	for _, ck := range w.Result().Cookies() {
 		if ck.Name == cookieName && ck.Value != "" {
@@ -140,66 +143,34 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 	if got := c.get("/").Code; got != http.StatusSeeOther {
 		t.Fatalf("GET / with no users = %d, want a redirect", got)
 	}
-	if body := c.get("/setup").Body.String(); !strings.Contains(body, "first administrator") {
-		t.Fatalf("setup page did not render: %q", body[:min(200, len(body))])
+	// /setup is the SPA shell now (docs/adr/0017, Phase 8) — it renders
+	// client-side, so this only proves the Go route serves it at all.
+	if w := c.get("/setup"); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `id="root"`) {
+		t.Fatalf("GET /setup did not serve the SPA shell: %d", w.Code)
 	}
 
-	// A short password is refused rather than accepted quietly.
-	w := c.post("/setup", url.Values{"username": {"admin"}, "password": {"short"}, "confirm": {"short"}})
-	if loc := w.Header().Get("Location"); !strings.Contains(loc, "err=") {
-		t.Errorf("a 5-character password was accepted (redirect to %q)", loc)
-	}
-	if n, _ := db.UserCount(t.Context()); n != 0 {
-		t.Fatal("a user was created despite the rejected password")
-	}
-
-	w = c.post("/setup", url.Values{
-		"username": {"admin"}, "password": {"a good long password"},
-		"confirm": {"a good long password"}})
-	if w.Code != http.StatusSeeOther || c.cookie == "" {
-		t.Fatalf("setup = %d, cookie %q", w.Code, c.cookie)
+	// Setup validation (short password, mismatch, second-setup-403) is exercised
+	// in internal/api/auth_test.go now that it's a JSON endpoint; this just
+	// proves the one happy path every other test in this file depends on.
+	c.bootstrapAdmin(t, "admin", "a good long password")
+	if n, _ := db.UserCount(t.Context()); n != 1 {
+		t.Fatalf("users after setup = %d, want 1", n)
 	}
 
-	// Setup must close permanently once an admin exists.
-	if got := c.post("/setup", url.Values{"username": {"second"}, "password": {"another long password"},
-		"confirm": {"another long password"}}).Code; got != http.StatusForbidden {
-		t.Errorf("second setup = %d, want 403", got)
+	// /password is the SPA shell too, behind s.auth like every other
+	// authenticated page.
+	if w := c.get("/password"); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `id="root"`) {
+		t.Fatalf("GET /password did not serve the SPA shell: %d", w.Code)
 	}
 
-	// Every screen, on an empty fleet. A template referring to a field its data
-	// does not have only fails when that branch is executed, so the branch has to
-	// be executed by something — and an empty fleet is the state every install
-	// starts in.
-	// /instances removed: it redirects to /nodes, which is already tested.
-	// "/", "/clusters", "/sites", "/nodes", "/collections", "/rules", "/search",
-	// "/trace", "/trace/history" and every "/settings/*" page removed: they all
-	// serve the React SPA shell now (TestDashboardServesSPAShell,
-	// TestClustersServesSPAShell, TestSitesServesSPAShell, TestNodesServesSPAShell,
-	// TestAnalysisServesSPAShell, TestSettingsServesSPAShell,
-	// TestExploreServesSPAShell), not a server-rendered page with the
-	// class="pnl"/class="empty" chrome below.
-	for _, path := range []string{
-		"/nodes/import",
-		"/password"} {
-		w := c.get(path)
-		if w.Code != http.StatusOK {
-			t.Errorf("GET %s = %d\n%s", path, w.Code, w.Body.String())
-			continue
-		}
-		if !strings.Contains(w.Body.String(), "</html>") {
-			t.Errorf("GET %s rendered a truncated page (template error mid-render)", path)
-		}
-		// A complete page with nothing on it. {{with .Data}} around a whole screen
-		// skips its own {{else}} when Data is an empty slice, so four settings pages
-		// rendered a chrome-only 200 on an empty fleet — Host keys showed no list, no
-		// empty state and, on Credentials and Users, not even the form that would
-		// have created the first one.
-		if body := w.Body.String(); !strings.Contains(body, `class="pnl`) &&
-			!strings.Contains(body, `class="empty"`) {
-			t.Errorf("GET %s rendered the chrome and no content at all", path)
-		}
+	// Every page is the SPA shell now (docs/adr/0017, Phase 9 — Import
+	// inventory was the last holdout). Per-page content assertions live with
+	// each page's own SPA-shell test (TestDashboardServesSPAShell,
+	// TestNodesServesSPAShell, etc.); this just confirms the last one to move,
+	// /nodes/import, serves the same shell as everything else.
+	if w := c.get("/nodes/import"); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `id="root"`) {
+		t.Fatalf("GET /nodes/import did not serve the SPA shell: %d", w.Code)
 	}
-
 }
 
 // The Content-Security-Policy sets script-src 'self' with no 'unsafe-inline', so
@@ -209,140 +180,6 @@ func TestFirstRunThenEveryPageRenders(t *testing.T) {
 // (a confirm() on an irreversible node delete, one on disabling a user, and three
 // filter selects that submitted nothing), which is why this is a test and not a
 // review note.
-func TestNoTemplateReliesOnInlineScript(t *testing.T) {
-	files, err := fs.Glob(assets, "templates/*.html")
-	if err != nil {
-		t.Fatal(err)
-	}
-	parts, err := fs.Glob(assets, "templates/parts/*.html")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Every HTML event attribute reachable from a template we actually write.
-	attrs := []string{"onclick=", "onsubmit=", "onchange=", "onload=", "oninput=",
-		"onkeydown=", "onkeyup=", "onfocus=", "onblur=", "onmouseover=", "onerror="}
-	for _, name := range append(files, parts...) {
-		b, err := assets.ReadFile(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// Comments explain the ban; they are not markup.
-		body := regexp.MustCompile(`(?s)\{\{/\*.*?\*/\}\}`).ReplaceAllString(string(b), "")
-		for _, a := range attrs {
-			if strings.Contains(body, a) {
-				t.Errorf("%s uses %s — the CSP blocks it, so that control is dead. "+
-					"Use <details>, a real form, htmx, or a delegated listener in app.js.", name, a)
-			}
-		}
-		// <script src="..."> is fine; a <script> with a body is not.
-		for _, m := range regexp.MustCompile(`(?s)<script[^>]*>(.*?)</script>`).FindAllStringSubmatch(body, -1) {
-			if strings.TrimSpace(m[1]) != "" {
-				t.Errorf("%s has an inline <script> body, which the CSP blocks", name)
-			}
-		}
-	}
-}
-
-// `.wrap` is the app-shell flex container (flex:1;min-height:0;display:flex). Seven
-// table cells carried it as if it meant "let this cell wrap", so each of those cells
-// was a flex container: a subject plus a dimmed note rendered side by side rather
-// than stacked, and on the Dashboard "app01.internal.example.com" ran straight into
-// "expires today". The cell modifier is `.brk`.
-func TestNoTableCellCarriesTheShellWrapClass(t *testing.T) {
-	files, err := fs.Glob(assets, "templates/*.html")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cell := regexp.MustCompile(`<t[dh][^>]*class="[^"]*\bwrap\b`)
-	for _, name := range files {
-		b, err := assets.ReadFile(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if m := cell.Find(b); m != nil {
-			t.Errorf(`%s: %q — .wrap makes the cell display:flex; use class="brk"`, name, m)
-		}
-	}
-}
-
-// The CSS reset sets `ol,ul,menu{list-style:none}`, so a list written as a list
-// renders as unmarked lines. That is a content bug, not a cosmetic one: the Master
-// key rotation steps lost their numbers while the paragraph under them said "until
-// step 5", and Retention's four separate exemptions read as one paragraph. Either
-// declare a marker or declare that you want none.
-func TestEveryListDeclaresItsMarker(t *testing.T) {
-	files, err := fs.Glob(assets, "templates/*.html")
-	if err != nil {
-		t.Fatal(err)
-	}
-	parts, err := fs.Glob(assets, "templates/parts/*.html")
-	if err != nil {
-		t.Fatal(err)
-	}
-	lists := regexp.MustCompile(`<(ol|ul)\b[^>]*>`)
-	for _, name := range append(files, parts...) {
-		b, err := assets.ReadFile(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, tag := range lists.FindAllString(string(b), -1) {
-			if !strings.Contains(tag, "list-style") {
-				t.Errorf("%s: %s has no list-style — the reset removes markers, so add "+
-					"list-style:disc/decimal, or list-style:none to say the bareness is deliberate", name, tag)
-			}
-			// display:flex drops markers even when list-style asks for them.
-			if strings.Contains(tag, "display:flex") && !strings.Contains(tag, "list-style:none") {
-				t.Errorf("%s: %s is a flex container, which has no markers to show", name, tag)
-			}
-		}
-	}
-}
-
-// "cols" is a whole header row, so wrapping it in another <tr> emits an empty row
-// above the header. Four templates did, and on the Credentials list the phantom row
-// was part of why its one real row was drawn outside its panel.
-func TestNoTemplateWrapsTheHeaderRowInAnotherRow(t *testing.T) {
-	files, err := fs.Glob(assets, "templates/*.html")
-	if err != nil {
-		t.Fatal(err)
-	}
-	wrapped := regexp.MustCompile(`<tr>\s*\{\{template "cols"`)
-	for _, name := range files {
-		b, err := assets.ReadFile(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if wrapped.Match(b) {
-			t.Errorf(`%s wraps {{template "cols"}} in a <tr> — cols is the row`, name)
-		}
-	}
-}
-
-// The two screens shown before anyone has signed in. They get a bare <main> from
-// layout.html rather than the app shell, so they are the easiest pages in the
-// product to leave styled by nothing at all — which is what happened: both were
-// written against .auth-card/.narrow/.hint, none of which exist.
-func TestSignedOutPagesUseRealClasses(t *testing.T) {
-	css, err := assets.ReadFile("static/app.css")
-	if err != nil {
-		t.Fatal(err)
-	}
-	class := regexp.MustCompile(`class="([^"{}]*)"`)
-	for _, name := range []string{"templates/login.html", "templates/setup.html"} {
-		b, err := assets.ReadFile(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, m := range class.FindAllStringSubmatch(string(b), -1) {
-			for _, c := range strings.Fields(m[1]) {
-				if !bytes.Contains(css, []byte("."+c)) {
-					t.Errorf("%s uses class %q, which app.css does not define", name, c)
-				}
-			}
-		}
-	}
-}
-
 func TestUnauthenticatedRequestsAreRedirected(t *testing.T) {
 	s, db := newTestServer(t)
 	if _, err := db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false); err != nil {
@@ -358,16 +195,19 @@ func TestUnauthenticatedRequestsAreRedirected(t *testing.T) {
 	}
 }
 
-// A 404 has to be a page, not a bare line of text: the operator gets here by
-// mistyping a URL or by following a link to a node someone removed, and both
-// cases need the sidebar to get back out.
+// A 404 has to send a real 404 status and still hand the browser a working
+// app: the operator gets here by mistyping a URL or by following a link to a
+// node someone removed, and both cases need a way back. The SPA's wildcard
+// route renders the actual "not found" content (path shown, link home) —
+// that's client-side, so it's outside what an httptest.Recorder can see; this
+// pins down the Go-level contract the React NotFoundPage depends on.
 func TestNotFoundIsAPageInsideTheShell(t *testing.T) {
 	s, db := newTestServer(t)
 	if _, err := db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false); err != nil {
 		t.Fatal(err)
 	}
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
 	// A mistyped URL, and an id that does not exist: different routes, same page.
 	// /instances/4242 removed: it redirects (301) rather than 404ing. /nodes/4242
@@ -380,12 +220,8 @@ func TestNotFoundIsAPageInsideTheShell(t *testing.T) {
 		if w.Code != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, w.Code)
 		}
-		body := w.Body.String()
-		if !strings.Contains(body, "</html>") || !strings.Contains(body, "Dashboard") {
-			t.Errorf("GET %s did not render the app shell:\n%s", path, body)
-		}
-		if !strings.Contains(body, path) {
-			t.Errorf("GET %s did not name the path it could not find", path)
+		if !strings.Contains(w.Body.String(), `id="root"`) {
+			t.Errorf("GET %s did not serve the SPA shell for the wildcard route to render:\n%s", path, w.Body.String())
 		}
 	}
 
@@ -402,24 +238,24 @@ func TestPostWithoutCSRFTokenIsRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 	if c.cookie == "" {
 		t.Fatal("login did not set a session cookie")
 	}
 
-	// Adding a node is the SPA now (docs/adr/0017): POST /api/ui/nodes
+	// Adding a node is the SPA now (docs/adr/0017): POST /api/nodes
 	// (internal/api/nodes.go), CSRF checked via header only (middleware.go).
 	saved := c.csrf
 	c.csrf = ""
-	if got := c.postJSON("/api/ui/nodes", map[string]any{"address": "10.0.0.1"}).Code; got != http.StatusForbidden {
+	if got := c.postJSON("/api/nodes", map[string]any{"address": "10.0.0.1"}).Code; got != http.StatusForbidden {
 		t.Errorf("POST without a CSRF token = %d, want 403", got)
 	}
 	c.csrf = "forged-token"
-	if got := c.postJSON("/api/ui/nodes", map[string]any{"address": "10.0.0.1"}).Code; got != http.StatusForbidden {
+	if got := c.postJSON("/api/nodes", map[string]any{"address": "10.0.0.1"}).Code; got != http.StatusForbidden {
 		t.Errorf("POST with a forged CSRF token = %d, want 403", got)
 	}
 	c.csrf = saved
-	if got := c.postJSON("/api/ui/nodes", map[string]any{"address": "10.0.0.1"}).Code; got != http.StatusOK {
+	if got := c.postJSON("/api/nodes", map[string]any{"address": "10.0.0.1"}).Code; got != http.StatusOK {
 		t.Errorf("POST with the right CSRF token = %d, want 200", got)
 	}
 	nodes, _ := db.Nodes(t.Context())
@@ -428,35 +264,37 @@ func TestPostWithoutCSRFTokenIsRejected(t *testing.T) {
 	}
 }
 
-// /logout is registered outside auth() (a signed-out request must still reach
-// it harmlessly), so it has to check CSRF itself rather than inherit it — this
-// pins down that it actually does, and that a forced-password-change user can
-// still reach it (auth() would have redirected them to /password instead).
+// POST /api/logout is s.requireAuth-wrapped like every other internal/api
+// mutation, so its CSRF check is inherited rather than hand-rolled — this
+// pins down that it's still enforced, and that a forced-password-change user
+// can still reach it: requireAuth (unlike internal/web's auth() middleware,
+// which still gates every other page) has no must-change-password special
+// case, so it never redirects this request to /password before logout runs.
 func TestLogoutRequiresCSRFAndWorksMidForcedPasswordChange(t *testing.T) {
 	s, db := newTestServer(t)
 	if _, err := db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", true); err != nil {
 		t.Fatal(err)
 	}
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 	if c.cookie == "" {
 		t.Fatal("login did not set a session cookie")
 	}
 
 	saved := c.csrf
 	c.csrf = ""
-	if got := c.post("/logout", url.Values{}).Code; got != http.StatusForbidden {
-		t.Errorf("POST /logout without a CSRF token = %d, want 403", got)
+	if got := c.postJSON("/api/logout", nil).Code; got != http.StatusForbidden {
+		t.Errorf("POST /api/logout without a CSRF token = %d, want 403", got)
 	}
 	c.csrf = "forged-token"
-	if got := c.post("/logout", url.Values{}).Code; got != http.StatusForbidden {
-		t.Errorf("POST /logout with a forged CSRF token = %d, want 403", got)
+	if got := c.postJSON("/api/logout", nil).Code; got != http.StatusForbidden {
+		t.Errorf("POST /api/logout with a forged CSRF token = %d, want 403", got)
 	}
 	sessionBeforeLogout := c.cookie
 	c.csrf = saved
-	w := c.post("/logout", url.Values{})
-	if w.Code != http.StatusSeeOther {
-		t.Errorf("POST /logout with the right CSRF token = %d, want 303", w.Code)
+	w := c.postJSON("/api/logout", nil)
+	if w.Code != http.StatusOK {
+		t.Errorf("POST /api/logout with the right CSRF token = %d, want 200", w.Code)
 	}
 	cleared := false
 	for _, ck := range w.Result().Cookies() {
@@ -492,16 +330,14 @@ func TestAddNodeRejectsNetworkRanges(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
-	w := c.postJSON("/api/ui/nodes", map[string]any{"address": "10.90.4.0/24"})
-	var body struct {
-		Error struct {
-			Code string `json:"code"`
-		} `json:"error"`
-	}
-	json.Unmarshal(w.Body.Bytes(), &body)
-	if w.Code != http.StatusUnprocessableEntity || body.Error.Code != "no_scanning" {
+	w := c.postJSON("/api/nodes", map[string]any{"address": "10.90.4.0/24"})
+	// The machine code is the gRPC status's own name (invalid_argument) now
+	// that AddNode is a NodeService RPC (gateway.go's gatewayError) rather
+	// than a bespoke "no_scanning" string — coarser, but the message text
+	// still says why, which is what a human reads.
+	if w.Code != http.StatusUnprocessableEntity || !strings.Contains(w.Body.String(), "does not scan networks") {
 		t.Errorf("a CIDR was accepted as a node address (status %d, body %s)", w.Code, w.Body.String())
 	}
 	if nodes, _ := db.Nodes(t.Context()); len(nodes) != 0 {
@@ -515,9 +351,9 @@ func TestAdminCreatesASecondUserWhoCanSignIn(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
-	w := c.postJSON("/api/ui/settings/users", map[string]any{
+	w := c.postJSON("/api/settings/users", map[string]any{
 		"username": "newviewer", "password": "a good long password", "confirm": "a good long password", "role": "viewer",
 	})
 	if w.Code != http.StatusOK {
@@ -531,7 +367,7 @@ func TestAdminCreatesASecondUserWhoCanSignIn(t *testing.T) {
 		t.Fatalf("users = %d, want 2", len(users))
 	}
 	var list pb.UsersResponse
-	if err := protojson.Unmarshal(c.get("/api/ui/settings/users").Body.Bytes(), &list); err != nil {
+	if err := protojson.Unmarshal(c.get("/api/settings/users").Body.Bytes(), &list); err != nil {
 		t.Fatal(err)
 	}
 	found := false
@@ -546,21 +382,21 @@ func TestAdminCreatesASecondUserWhoCanSignIn(t *testing.T) {
 
 	// The new account signs in with the role it was created with.
 	c2 := &client{t: t, s: s}
-	w = c2.post("/login", url.Values{"username": {"newviewer"}, "password": {"a good long password"}})
-	if w.Code != http.StatusSeeOther || c2.cookie == "" {
+	w = c2.login("newviewer", "a good long password")
+	if w.Code != http.StatusOK || c2.cookie == "" {
 		t.Fatalf("the new user could not sign in: %d", w.Code)
 	}
-	if got := c2.get("/api/ui/settings/users").Code; got != http.StatusForbidden {
+	if got := c2.get("/api/settings/users").Code; got != http.StatusForbidden {
 		t.Errorf("a viewer reading /settings/users = %d, want 403", got)
 	}
-	if got := c2.postJSON("/api/ui/settings/users", map[string]any{
+	if got := c2.postJSON("/api/settings/users", map[string]any{
 		"username": "x", "password": "a good long password", "confirm": "a good long password", "role": "viewer",
 	}).Code; got != http.StatusForbidden {
 		t.Errorf("a viewer creating a user = %d, want 403", got)
 	}
 
 	// A short password is refused rather than accepted quietly, the same as /setup.
-	w = c.postJSON("/api/ui/settings/users", map[string]any{
+	w = c.postJSON("/api/settings/users", map[string]any{
 		"username": "short", "password": "tooshort", "confirm": "tooshort", "role": "viewer",
 	})
 	if w.Code != http.StatusUnprocessableEntity {
@@ -578,23 +414,23 @@ func TestDisablingAUserPreventsLogin(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
-	w := c.postJSON("/api/ui/settings/users/"+strconv.FormatInt(viewerID, 10)+"/disable", nil)
+	w := c.postJSON("/api/settings/users/"+strconv.FormatInt(viewerID, 10)+"/disable", nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("disabling the viewer failed: %d %s", w.Code, w.Body.String())
 	}
 
 	c2 := &client{t: t, s: s}
-	w = c2.post("/login", url.Values{"username": {"viewer"}, "password": {"a good long password"}})
-	if c2.cookie != "" || !strings.Contains(w.Header().Get("Location"), "err=") {
+	w = c2.login("viewer", "a good long password")
+	if c2.cookie != "" || w.Code < 400 {
 		t.Fatal("a disabled user was able to sign in")
 	}
 
 	// Re-enabling restores it.
-	c.postJSON("/api/ui/settings/users/"+strconv.FormatInt(viewerID, 10)+"/enable", nil)
+	c.postJSON("/api/settings/users/"+strconv.FormatInt(viewerID, 10)+"/enable", nil)
 	c3 := &client{t: t, s: s}
-	c3.post("/login", url.Values{"username": {"viewer"}, "password": {"a good long password"}})
+	c3.login("viewer", "a good long password")
 	if c3.cookie == "" {
 		t.Fatal("the re-enabled user could not sign in")
 	}
@@ -609,9 +445,9 @@ func TestLastAdminCannotBeDisabled(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
-	w := c.postJSON("/api/ui/settings/users/"+strconv.FormatInt(adminID, 10)+"/disable", nil)
+	w := c.postJSON("/api/settings/users/"+strconv.FormatInt(adminID, 10)+"/disable", nil)
 	if w.Code != http.StatusUnprocessableEntity {
 		t.Error("disabling the last admin was allowed")
 	}
@@ -625,90 +461,32 @@ func TestLastAdminCannotBeDisabled(t *testing.T) {
 
 	// With a second enabled admin, disabling the first is allowed.
 	db.CreateUser(t.Context(), "admin2", "a good long password", "admin", "Admin2", false)
-	w = c.postJSON("/api/ui/settings/users/"+strconv.FormatInt(adminID, 10)+"/disable", nil)
+	w = c.postJSON("/api/settings/users/"+strconv.FormatInt(adminID, 10)+"/disable", nil)
 	if w.Code != http.StatusOK {
 		t.Errorf("disabling one of two admins was refused: %d %s", w.Code, w.Body.String())
 	}
 }
 
-// Failed logins are throttled per username, checked before the (deliberately
-// slow) password hash runs, and a limit of 0 turns the guardrail off.
-func TestLoginRateLimitBlocksThenClearsAfterTheWindow(t *testing.T) {
-	s, db := newTestServer(t)
-	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
-	if err := db.SetSetting(t.Context(), "login_rate_limit_max", "3", nil); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.SetSetting(t.Context(), "login_rate_limit_window_seconds", "300", nil); err != nil {
-		t.Fatal(err)
-	}
-
-	c := &client{t: t, s: s}
-	for i := 0; i < 3; i++ {
-		w := c.post("/login", url.Values{"username": {"admin"}, "password": {"wrong password"}})
-		if !strings.Contains(w.Header().Get("Location"), "err=") {
-			t.Fatalf("attempt %d: wrong password was not refused", i)
-		}
-	}
-	// The ceiling is reached: even the correct password is refused now, without
-	// ever reaching Authenticate.
-	w := c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-	if c.cookie != "" {
-		t.Fatal("login succeeded despite the rate limit")
-	}
-	if !strings.Contains(w.Header().Get("Location"), "err=") {
-		t.Fatal("a rate-limited login was not refused")
-	}
-
-	// A different username is not caught by the same limit.
-	db.CreateUser(t.Context(), "someoneelse", "a good long password", "viewer", "Someone", false)
-	c2 := &client{t: t, s: s}
-	c2.post("/login", url.Values{"username": {"someoneelse"}, "password": {"a good long password"}})
-	if c2.cookie == "" {
-		t.Error("a different username was blocked by another account's rate limit")
-	}
-
-	// Once the window has passed, the correct password works again.
-	if _, err := db.W.ExecContext(t.Context(),
-		`UPDATE audit_event SET at = ? WHERE action = 'auth.login' AND target_label = 'admin'`,
-		time.Now().UTC().Add(-10*time.Minute).Format("2006-01-02T15:04:05Z")); err != nil {
-		t.Fatal(err)
-	}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-	if c.cookie == "" {
-		t.Error("login after the rate-limit window passed should have succeeded")
-	}
-
-	// A limit of 0 disables the guardrail rather than blocking everything.
-	if err := db.SetSetting(t.Context(), "login_rate_limit_max", "0", nil); err != nil {
-		t.Fatal(err)
-	}
-	c3 := &client{t: t, s: s}
-	for i := 0; i < 5; i++ {
-		c3.post("/login", url.Values{"username": {"admin"}, "password": {"wrong password"}})
-	}
-	w = c3.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-	if c3.cookie == "" {
-		t.Errorf("login_rate_limit_max=0 should disable the guardrail, got %d -> %q",
-			w.Code, w.Header().Get("Location"))
-	}
-}
+// Login rate limiting (throttled per username, checked before the
+// deliberately slow password hash runs, off when the limit is 0) is business
+// logic that now lives in internal/api/auth.go's postLogin — see
+// TestLoginRateLimitBlocksThenClearsAfterTheWindow in internal/api/auth_test.go.
 
 func TestViewerCannotChangeAnything(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "viewer", "a good long password", "viewer", "Viewer", false)
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"viewer"}, "password": {"a good long password"}})
+	c.login("viewer", "a good long password")
 	if c.cookie == "" {
 		t.Fatal("viewer could not sign in")
 	}
 	if got := c.get("/nodes").Code; got != http.StatusOK {
 		t.Errorf("a viewer must still be able to read /nodes, got %d", got)
 	}
-	if got := c.postJSON("/api/ui/nodes", map[string]any{"address": "10.0.0.9"}).Code; got != http.StatusForbidden {
+	if got := c.postJSON("/api/nodes", map[string]any{"address": "10.0.0.9"}).Code; got != http.StatusForbidden {
 		t.Errorf("viewer adding a node = %d, want 403", got)
 	}
-	if got := c.get("/api/ui/settings/audit").Code; got != http.StatusOK {
+	if got := c.get("/api/settings/audit").Code; got != http.StatusOK {
 		t.Errorf("viewer reading the audit log = %d, want 200", got)
 	}
 }
@@ -717,7 +495,7 @@ func TestMustChangePasswordBlocksEverythingElse(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "admin", "a temporary password", "admin", "Admin", true)
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a temporary password"}})
+	c.login("admin", "a temporary password")
 
 	w := c.get("/nodes")
 	if w.Code != http.StatusSeeOther || w.Header().Get("Location") != "/password" {
@@ -727,9 +505,9 @@ func TestMustChangePasswordBlocksEverythingElse(t *testing.T) {
 		t.Fatalf("GET /password = %d", got)
 	}
 	// No current password is asked for, because the temporary one was assigned.
-	if got := c.post("/password", url.Values{
-		"new": {"a properly chosen password"}, "confirm": {"a properly chosen password"},
-	}).Code; got != http.StatusSeeOther {
+	if got := c.postJSON("/api/password", map[string]any{
+		"new": "a properly chosen password", "confirm": "a properly chosen password",
+	}).Code; got != http.StatusOK {
 		t.Fatal("password change was refused")
 	}
 	if got := c.get("/nodes").Code; got != http.StatusOK {
@@ -742,9 +520,9 @@ func TestPrivateKeyIsNeverRendered(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
-	w := c.postJSON("/api/ui/settings/credentials", map[string]any{
+	w := c.postJSON("/api/settings/credentials", map[string]any{
 		"name": "lab", "username": "nagipath", "privateKey": testKey,
 	})
 	if w.Code != http.StatusOK {
@@ -754,7 +532,7 @@ func TestPrivateKeyIsNeverRendered(t *testing.T) {
 	if len(creds) != 1 {
 		t.Fatalf("credentials = %d, want 1", len(creds))
 	}
-	body := c.get("/api/ui/settings/credentials").Body.String()
+	body := c.get("/api/settings/credentials").Body.String()
 	if !strings.Contains(body, "lab") || !strings.Contains(body, creds[0].Fingerprint) {
 		t.Error("the credential is not listed at all")
 	}
@@ -771,19 +549,19 @@ func TestTraceFormWithNoInstancesSaysSo(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
 	var empty pb.TraceResponse
-	if err := protojson.Unmarshal(c.get("/api/ui/trace").Body.Bytes(), &empty); err != nil {
+	if err := protojson.Unmarshal(c.get("/api/trace").Body.Bytes(), &empty); err != nil {
 		t.Fatal(err)
 	}
 	if !empty.Empty {
 		t.Error("the trace response should say why it cannot trace anything")
 	}
 	// A trace against an empty fleet must render a result, not a 500.
-	w := c.get("/api/ui/trace?scheme=https&hostname=shop.example.com&path=/")
+	w := c.get("/api/trace?scheme=https&hostname=shop.example.com&path=/")
 	if w.Code != http.StatusOK {
-		t.Fatalf("GET /api/ui/trace on an empty fleet = %d\n%s", w.Code, w.Body.String())
+		t.Fatalf("GET /api/trace on an empty fleet = %d\n%s", w.Code, w.Body.String())
 	}
 	var result pb.TraceResponse
 	if err := protojson.Unmarshal(w.Body.Bytes(), &result); err != nil {
@@ -794,7 +572,7 @@ func TestTraceFormWithNoInstancesSaysSo(t *testing.T) {
 	}
 	// The old scheme/hostname/path parameters still work, because every deep
 	// link in the app is built from them; a pasted url=... also works.
-	w = c.get("/api/ui/trace?url=" + url.QueryEscape("shop.example.com/v2/charge"))
+	w = c.get("/api/trace?url=" + url.QueryEscape("shop.example.com/v2/charge"))
 	result = pb.TraceResponse{}
 	if err := protojson.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatal(err)
@@ -835,7 +613,7 @@ func TestDetailPagesRender(t *testing.T) {
 	}
 
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 	// /instances/{id} removed: it redirects to /nodes/{nodeID}?process={id}.
 	// The node detail page is already tested, and the redirect is tested separately.
 	for _, path := range []string{
@@ -934,9 +712,9 @@ func TestPagesRenderOverAParsedSnapshot(t *testing.T) {
 	}
 
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
-	// Node, not instance: the tabs hang off the node with the process in the query
-	// string. The old /instances URLs are checked below, as redirects.
+	c.login("admin", "a good long password")
+	// Node, not instance: the tabs hang off the node with the process in the
+	// query string.
 	node := "/nodes/" + strconv.FormatInt(nodeID, 10)
 	proc := "?process=" + strconv.FormatInt(instID, 10)
 	for _, path := range []string{
@@ -963,45 +741,32 @@ func TestPagesRenderOverAParsedSnapshot(t *testing.T) {
 			t.Errorf("GET %s rendered a truncated page (template error mid-render)", path)
 		}
 	}
-	// The instance hierarchy is gone, and every link anyone had bookmarked has to
-	// land on the same process under the node that replaced it.
-	for path, want := range map[string]string{
-		"/instances":                             "/nodes",
-		"/instances/" + itoa(instID):             node + proc,
-		"/instances/" + itoa(instID) + "/routes": node + "/routes" + proc,
-	} {
-		w := c.get(path)
-		if w.Code != http.StatusMovedPermanently || w.Header().Get("Location") != want {
-			t.Errorf("GET %s = %d -> %q, want 301 -> %q", path, w.Code, w.Header().Get("Location"), want)
-		}
-	}
-
 	// Sites is the SPA now (docs/adr/0017); the CSV export moved with it to
-	// GET /api/ui/sites?export=csv (internal/api/sites.go).
-	if w := c.get("/api/ui/sites?export=csv"); w.Code != http.StatusOK ||
+	// GET /api/sites?export=csv (internal/api/sites.go).
+	if w := c.get("/api/sites?export=csv"); w.Code != http.StatusOK ||
 		!strings.Contains(w.Header().Get("Content-Type"), "text/csv") ||
 		!strings.Contains(w.Body.String(), "shop.example.com") {
-		t.Errorf("GET /api/ui/sites?export=csv did not return the filtered site export: %d %q", w.Code, w.Body.String())
+		t.Errorf("GET /api/sites?export=csv did not return the filtered site export: %d %q", w.Code, w.Body.String())
 	}
 
-	// Search is the SPA now (docs/adr/0017, Phase 5); GET /api/ui/search
+	// Search is the SPA now (docs/adr/0017, Phase 5); GET /api/search
 	// (internal/api/search.go) returns a typed proto response, so the class of
 	// bug this used to guard — a template reading a field store.TextHit does
 	// not have — cannot recur: a mismatched field fails to compile.
-	if w := c.get("/api/ui/search?q=proxy_pass"); w.Code != http.StatusOK {
-		t.Errorf("GET /api/ui/search?q=proxy_pass = %d\n%s", w.Code, w.Body.String())
+	if w := c.get("/api/search?q=proxy_pass"); w.Code != http.StatusOK {
+		t.Errorf("GET /api/search?q=proxy_pass = %d\n%s", w.Code, w.Body.String())
 	}
 
 	// A POST stores the Trace, and the bare GET then lists it. That table was
 	// only ever rendered against an empty history, so a field it read that
 	// trace.Summary does not have reached a real install as a 500.
-	if w := c.postJSON("/api/ui/trace", map[string]any{"url": "shop.example.com/api/v2"}); w.Code != http.StatusOK {
-		t.Fatalf("POST /api/ui/trace = %d\n%s", w.Code, w.Body.String())
+	if w := c.postJSON("/api/trace", map[string]any{"url": "shop.example.com/api/v2"}); w.Code != http.StatusOK {
+		t.Fatalf("POST /api/trace = %d\n%s", w.Code, w.Body.String())
 	}
 	var recent pb.TraceResponse
-	recentW := c.get("/api/ui/trace")
+	recentW := c.get("/api/trace")
 	if recentW.Code != http.StatusOK {
-		t.Fatalf("GET /api/ui/trace with a stored trace = %d\n%s", recentW.Code, recentW.Body.String())
+		t.Fatalf("GET /api/trace with a stored trace = %d\n%s", recentW.Code, recentW.Body.String())
 	}
 	if err := protojson.Unmarshal(recentW.Body.Bytes(), &recent); err != nil {
 		t.Fatal(err)
@@ -1017,8 +782,8 @@ func TestPagesRenderOverAParsedSnapshot(t *testing.T) {
 	}
 
 	// Nodes is the SPA now (docs/adr/0017); what used to be HTML substring checks
-	// per tab are field assertions against GET /api/ui/nodes/{id}[/{tab}] instead.
-	nodeAPI := "/api/ui/nodes/" + strconv.FormatInt(nodeID, 10)
+	// per tab are field assertions against GET /api/nodes/{id}[/{tab}] instead.
+	nodeAPI := "/api/nodes/" + strconv.FormatInt(nodeID, 10)
 
 	var overview pb.NodeDetailResponse
 	if err := protojson.Unmarshal(c.get(nodeAPI+proc).Body.Bytes(), &overview); err != nil {
@@ -1141,17 +906,17 @@ func TestClustersAreDiscoveredFromIdenticalConfiguration(t *testing.T) {
 	}
 
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
 	// Clusters is the React SPA now (docs/adr/0017); the fact it used to read off
-	// rendered HTML is asserted against GET /api/ui/clusters instead, decoded via
+	// rendered HTML is asserted against GET /api/clusters instead, decoded via
 	// protojson against the generated schema (docs/adr/0018). One cluster, two
 	// members, vendor nginx, the third (different-vendor) host excluded.
 	getClusters := func() *pb.ClustersResponse {
 		t.Helper()
 		got := &pb.ClustersResponse{}
-		if err := protojson.Unmarshal(c.get("/api/ui/clusters").Body.Bytes(), got); err != nil {
-			t.Fatalf("decode /api/ui/clusters: %v", err)
+		if err := protojson.Unmarshal(c.get("/api/clusters").Body.Bytes(), got); err != nil {
+			t.Fatalf("decode /api/clusters: %v", err)
 		}
 		return got
 	}
@@ -1192,32 +957,6 @@ func TestClustersAreDiscoveredFromIdenticalConfiguration(t *testing.T) {
 	for _, in := range list {
 		if in.ClusterID.Valid {
 			t.Errorf("%s is still clustered after its configuration diverged", in.DisplayName)
-		}
-	}
-}
-
-// redirect used to append "?ok=..." unconditionally, so a redirect back to a
-// filtered list produced /drift?cluster=all?ok=... — the second "?" landed inside
-// the cluster value, the scope was silently lost, and the message never rendered.
-func TestRedirectKeepsExistingQuery(t *testing.T) {
-	for _, tc := range []struct{ path, ok, err, want string }{
-		{"/drift?cluster=all", "5 compared", "", "/drift?cluster=all&ok=5+compared"},
-		{"/drift", "5 compared", "", "/drift?ok=5+compared"},
-		{"/collections?range=7d", "", "no such node", "/collections?range=7d&err=no+such+node"},
-		{"/nodes", "", "", "/nodes"},
-	} {
-		w := httptest.NewRecorder()
-		redirect(w, httptest.NewRequest("POST", "/x", nil), tc.path, tc.ok, tc.err)
-		if got := w.Header().Get("Location"); got != tc.want {
-			t.Errorf("redirect(%q) = %q, want %q", tc.path, got, tc.want)
-		}
-		// The round trip is what matters: the scope has to survive as its own value.
-		u, err := url.Parse(w.Header().Get("Location"))
-		if err != nil {
-			t.Fatalf("redirect produced an unparseable URL: %v", err)
-		}
-		if strings.Contains(u.RawQuery, "?") {
-			t.Errorf("redirect(%q) put a %q inside the query: %q", tc.path, "?", u.RawQuery)
 		}
 	}
 }
@@ -1282,19 +1021,19 @@ func TestDriftRendersItsFindingsAndProvenance(t *testing.T) {
 	}
 
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
 	// Drift is the React SPA now (docs/adr/0017); the same guarantees are
-	// asserted against GET /api/ui/drift and /api/ui/drift/review/{id}
+	// asserted against GET /api/drift and /api/drift/review/{id}
 	// (docs/adr/0018) instead of rendered HTML.
 	var driftResp pb.DriftResponse
-	if err := protojson.Unmarshal(c.get("/api/ui/drift?cluster=all").Body.Bytes(), &driftResp); err != nil {
-		t.Fatalf("decode /api/ui/drift?cluster=all: %v", err)
+	if err := protojson.Unmarshal(c.get("/api/drift?cluster=all").Body.Bytes(), &driftResp); err != nil {
+		t.Fatalf("decode /api/drift?cluster=all: %v", err)
 	}
 	// /drift is the summary: which nodes are off baseline and by how much. The
 	// findings themselves live one click deeper, on the review screen.
 	if len(driftResp.InstancesWithDrift) == 0 {
-		t.Errorf("/api/ui/drift rendered no divergence despite stored findings: %+v", driftResp.InstancesWithDrift)
+		t.Errorf("/api/drift rendered no divergence despite stored findings: %+v", driftResp.InstancesWithDrift)
 	}
 	// The node, for the same reason every fleet-wide list needs it: "nginx
 	// nginx.conf" is what every host running stock nginx is called, so a finding
@@ -1306,12 +1045,12 @@ func TestDriftRendersItsFindingsAndProvenance(t *testing.T) {
 		}
 	}
 	if !foundWeb02 {
-		t.Errorf("/api/ui/drift rendered a finding without naming the node it is on: %+v", driftResp.InstancesWithDrift)
+		t.Errorf("/api/drift rendered a finding without naming the node it is on: %+v", driftResp.InstancesWithDrift)
 	}
 
 	var reviewResp pb.DriftReviewResponse
-	if err := protojson.Unmarshal(c.get("/api/ui/drift/review/"+itoa(instID)).Body.Bytes(), &reviewResp); err != nil {
-		t.Fatalf("decode /api/ui/drift/review/%d: %v", instID, err)
+	if err := protojson.Unmarshal(c.get("/api/drift/review/"+strconv.FormatInt(instID, 10)).Body.Bytes(), &reviewResp); err != nil {
+		t.Fatalf("decode /api/drift/review/%d: %v", instID, err)
 	}
 	// The link has to be well formed, not merely present. Handing the finding's
 	// raw sql.NullInt64 fields straight to a template put "{5 true}" in the URL,
@@ -1343,11 +1082,11 @@ func TestDriftRendersItsFindingsAndProvenance(t *testing.T) {
 		t.Fatalf("two byte-identical hosts formed no cluster (%v), so this test proves nothing", err)
 	}
 	var landing pb.DriftResponse
-	if err := protojson.Unmarshal(c.get("/api/ui/drift").Body.Bytes(), &landing); err != nil {
-		t.Fatalf("decode /api/ui/drift: %v", err)
+	if err := protojson.Unmarshal(c.get("/api/drift").Body.Bytes(), &landing); err != nil {
+		t.Fatalf("decode /api/drift: %v", err)
 	}
 	if len(landing.InstancesWithDrift) == 0 {
-		t.Error("/api/ui/drift with no scope landed on a scope with nothing in it while the fleet had a divergence")
+		t.Error("/api/drift with no scope landed on a scope with nothing in it while the fleet had a divergence")
 	}
 }
 
@@ -1377,12 +1116,12 @@ func TestSnapshotFileHighlightsTheByteOffsetFromTheQuery(t *testing.T) {
 	}
 
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
 	// The file viewer is the React SPA now (docs/adr/0017); the byte-offset ->
-	// line resolution is asserted against GET /api/ui/snapshots/.../file/...
+	// line resolution is asserted against GET /api/snapshots/.../file/...
 	// (docs/adr/0018) instead of rendered HTML.
-	path := fmt.Sprintf("/api/ui/snapshots/1/file/%d?b=%d", files[0].ID, off)
+	path := fmt.Sprintf("/api/snapshots/1/file/%d?b=%d", files[0].ID, off)
 	w := c.get(path)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET %s = %d", path, w.Code)
@@ -1399,11 +1138,10 @@ func TestSnapshotFileHighlightsTheByteOffsetFromTheQuery(t *testing.T) {
 	// And without an offset, which is the other branch of the same panel — the one
 	// reached by browsing an instance's files rather than following a claim.
 	var plain pb.SnapshotFileResponse
-	if err := protojson.Unmarshal(c.get(fmt.Sprintf("/api/ui/snapshots/1/file/%d", files[0].ID)).Body.Bytes(), &plain); err != nil {
+	if err := protojson.Unmarshal(c.get(fmt.Sprintf("/api/snapshots/1/file/%d", files[0].ID)).Body.Bytes(), &plain); err != nil {
 		t.Fatalf("decode file with no offset: %v", err)
 	}
 	if plain.HasAnchor {
 		t.Error("a file opened with no provenance offset resolved an anchor anyway")
 	}
 }
-

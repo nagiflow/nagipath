@@ -27,7 +27,7 @@ func TestReadAPIRequiresAndAcceptsAPIKey(t *testing.T) {
 		{"wrong", http.StatusUnauthorized},
 		{token, http.StatusOK},
 	} {
-		r := httptest.NewRequest("GET", "/api/v1/nodes", nil)
+		r := httptest.NewRequest("GET", "/api/nodes", nil)
 		if tc.token != "" {
 			r.Header.Set("Authorization", "Bearer "+tc.token)
 		}

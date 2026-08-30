@@ -4,10 +4,6 @@
 /tmp/
 /--full-page
 
-# The Tailwind standalone CLI, fetched by `make css`. The CSS it generates
-# (internal/web/static/app.css) IS committed — that is what the binary embeds.
-/tools/
-
 *.db
 *.db-shm
 *.db-wal
@@ -16,3 +12,5 @@
 # every laptop that clones it, lab or not.
 testlab/keys/
 testlab/certs/
+
+internal/web/ui/

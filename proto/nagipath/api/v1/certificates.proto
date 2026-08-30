@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
 import "nagipath/api/v1/drift.proto";
 
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
@@ -17,6 +18,11 @@ message CertificateListItem {
   int32 bindings = 8;
   string hosts = 9;
   repeated string serves = 10;
+  // store.Certificates() reads sans/key_algorithm/key_bits per row and they
+  // had nowhere to go — the list's SAN count and Key column need them.
+  repeated string sans = 11;
+  string key_algorithm = 12;
+  int32 key_bits = 13;
 }
 
 message CertificatesListResponse {
@@ -45,10 +51,17 @@ message Certificate {
   string sig_algorithm = 12;
   bool self_signed = 13;
   bool is_ca = 14;
+  // Both are stored and read by CertificateByID; the detail screen's "first
+  // seen" needs them.
+  string first_seen = 15;
+  string last_seen = 16;
 }
 
 message CertBinding {
   int64 instance_id = 1;
+  // The bindings table links to the node page, which is keyed by node id, not
+  // instance id — the store query already joins node for the display name.
+  int64 node_id = 11;
   string instance = 2;
   string node = 3;
   string cluster_name = 4;
@@ -73,4 +86,28 @@ message CertificateDetailResponse {
   string active_tab = 4;
   int32 binding_count = 5;
   int32 file_count = 6;
+}
+
+message ListCertificatesRequest {
+  string expires = 1;
+  string issuer = 2;
+  string cluster = 3;
+  bool include_cas = 4;
+}
+
+message GetCertificateRequest {
+  int64 id = 1;
+  string tab = 2;
+}
+
+// CertificateService: GET /certificates and GET /certificates/{id}. GET
+// /certificates?export=csv stays outside this service (api.go) — see
+// SiteService's doc comment in sites.proto.
+service CertificateService {
+  rpc ListCertificates(ListCertificatesRequest) returns (CertificatesListResponse) {
+    option (google.api.http) = { get: "/certificates" };
+  }
+  rpc GetCertificate(GetCertificateRequest) returns (CertificateDetailResponse) {
+    option (google.api.http) = { get: "/certificates/{id}" };
+  }
 }

@@ -2,7 +2,6 @@ package web
 
 import (
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 )
@@ -19,10 +18,7 @@ func TestDashboardServesSPAShell(t *testing.T) {
 		t.Fatalf("GET / with no users = %d, want a redirect", got)
 	}
 
-	c.post("/setup", url.Values{
-		"username": {"admin"}, "password": {"a good long password"},
-		"confirm": {"a good long password"},
-	})
+	c.bootstrapAdmin(t, "admin", "a good long password")
 
 	w := c.get("/")
 	if w.Code != http.StatusOK {
@@ -47,10 +43,7 @@ func TestDashboardServesSPAShell(t *testing.T) {
 func TestClustersServesSPAShell(t *testing.T) {
 	s, _ := newTestServer(t)
 	c := &client{t: t, s: s}
-	c.post("/setup", url.Values{
-		"username": {"admin"}, "password": {"a good long password"},
-		"confirm": {"a good long password"},
-	})
+	c.bootstrapAdmin(t, "admin", "a good long password")
 
 	w := c.get("/clusters")
 	if w.Code != http.StatusOK {
@@ -66,10 +59,7 @@ func TestClustersServesSPAShell(t *testing.T) {
 func TestSitesServesSPAShell(t *testing.T) {
 	s, _ := newTestServer(t)
 	c := &client{t: t, s: s}
-	c.post("/setup", url.Values{
-		"username": {"admin"}, "password": {"a good long password"},
-		"confirm": {"a good long password"},
-	})
+	c.bootstrapAdmin(t, "admin", "a good long password")
 
 	for _, path := range []string{"/sites", "/sites/shop.example.com"} {
 		w := c.get(path)
@@ -90,10 +80,7 @@ func TestSitesServesSPAShell(t *testing.T) {
 func TestNodesServesSPAShell(t *testing.T) {
 	s, _ := newTestServer(t)
 	c := &client{t: t, s: s}
-	c.post("/setup", url.Values{
-		"username": {"admin"}, "password": {"a good long password"},
-		"confirm": {"a good long password"},
-	})
+	c.bootstrapAdmin(t, "admin", "a good long password")
 
 	for _, path := range []string{"/nodes", "/nodes/4242"} {
 		w := c.get(path)
@@ -112,10 +99,7 @@ func TestNodesServesSPAShell(t *testing.T) {
 func TestAnalysisServesSPAShell(t *testing.T) {
 	s, _ := newTestServer(t)
 	c := &client{t: t, s: s}
-	c.post("/setup", url.Values{
-		"username": {"admin"}, "password": {"a good long password"},
-		"confirm": {"a good long password"},
-	})
+	c.bootstrapAdmin(t, "admin", "a good long password")
 
 	for _, path := range []string{
 		"/drift", "/drift/review/4242",
@@ -137,10 +121,7 @@ func TestAnalysisServesSPAShell(t *testing.T) {
 func TestSettingsServesSPAShell(t *testing.T) {
 	s, _ := newTestServer(t)
 	c := &client{t: t, s: s}
-	c.post("/setup", url.Values{
-		"username": {"admin"}, "password": {"a good long password"},
-		"confirm": {"a good long password"},
-	})
+	c.bootstrapAdmin(t, "admin", "a good long password")
 
 	for _, path := range []string{
 		"/collections", "/settings", "/settings/credentials", "/settings/hostkeys",
@@ -164,10 +145,7 @@ func TestSettingsServesSPAShell(t *testing.T) {
 func TestExploreServesSPAShell(t *testing.T) {
 	s, _ := newTestServer(t)
 	c := &client{t: t, s: s}
-	c.post("/setup", url.Values{
-		"username": {"admin"}, "password": {"a good long password"},
-		"confirm": {"a good long password"},
-	})
+	c.bootstrapAdmin(t, "admin", "a good long password")
 
 	for _, path := range []string{
 		"/rules", "/rules?hostname=shop.example.com&path=/api",

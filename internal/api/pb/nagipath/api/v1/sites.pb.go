@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -229,19 +230,88 @@ func (x *SiteStats) GetExpiringBindings() int32 {
 	return 0
 }
 
+type SiteVariantRoute struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Pattern       string                 `protobuf:"bytes,1,opt,name=pattern,proto3" json:"pattern,omitempty"`
+	Action        string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	Target        string                 `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
+	Upstream      string                 `protobuf:"bytes,4,opt,name=upstream,proto3" json:"upstream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SiteVariantRoute) Reset() {
+	*x = SiteVariantRoute{}
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SiteVariantRoute) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SiteVariantRoute) ProtoMessage() {}
+
+func (x *SiteVariantRoute) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SiteVariantRoute.ProtoReflect.Descriptor instead.
+func (*SiteVariantRoute) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SiteVariantRoute) GetPattern() string {
+	if x != nil {
+		return x.Pattern
+	}
+	return ""
+}
+
+func (x *SiteVariantRoute) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *SiteVariantRoute) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *SiteVariantRoute) GetUpstream() string {
+	if x != nil {
+		return x.Upstream
+	}
+	return ""
+}
+
 type SiteVariant struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	RawText       string                 `protobuf:"bytes,2,opt,name=raw_text,json=rawText,proto3" json:"raw_text,omitempty"`
 	Nodes         int32                  `protobuf:"varint,3,opt,name=nodes,proto3" json:"nodes,omitempty"`
 	NodeNames     []string               `protobuf:"bytes,4,rep,name=node_names,json=nodeNames,proto3" json:"node_names,omitempty"`
+	Routes        []*SiteVariantRoute    `protobuf:"bytes,5,rep,name=routes,proto3" json:"routes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SiteVariant) Reset() {
 	*x = SiteVariant{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[2]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -253,7 +323,7 @@ func (x *SiteVariant) String() string {
 func (*SiteVariant) ProtoMessage() {}
 
 func (x *SiteVariant) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[2]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -266,7 +336,7 @@ func (x *SiteVariant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SiteVariant.ProtoReflect.Descriptor instead.
 func (*SiteVariant) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{2}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SiteVariant) GetKey() string {
@@ -297,6 +367,13 @@ func (x *SiteVariant) GetNodeNames() []string {
 	return nil
 }
 
+func (x *SiteVariant) GetRoutes() []*SiteVariantRoute {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
+}
+
 type SitesListResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rows          []*SiteListRow         `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
@@ -311,7 +388,7 @@ type SitesListResponse struct {
 
 func (x *SitesListResponse) Reset() {
 	*x = SitesListResponse{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[3]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -323,7 +400,7 @@ func (x *SitesListResponse) String() string {
 func (*SitesListResponse) ProtoMessage() {}
 
 func (x *SitesListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[3]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -336,7 +413,7 @@ func (x *SitesListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SitesListResponse.ProtoReflect.Descriptor instead.
 func (*SitesListResponse) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{3}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SitesListResponse) GetRows() []*SiteListRow {
@@ -393,7 +470,7 @@ type SiteTabItem struct {
 
 func (x *SiteTabItem) Reset() {
 	*x = SiteTabItem{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[4]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -405,7 +482,7 @@ func (x *SiteTabItem) String() string {
 func (*SiteTabItem) ProtoMessage() {}
 
 func (x *SiteTabItem) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[4]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -418,7 +495,7 @@ func (x *SiteTabItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SiteTabItem.ProtoReflect.Descriptor instead.
 func (*SiteTabItem) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{4}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SiteTabItem) GetLabel() string {
@@ -460,7 +537,7 @@ type SiteVariantOpt struct {
 
 func (x *SiteVariantOpt) Reset() {
 	*x = SiteVariantOpt{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[5]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -472,7 +549,7 @@ func (x *SiteVariantOpt) String() string {
 func (*SiteVariantOpt) ProtoMessage() {}
 
 func (x *SiteVariantOpt) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[5]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -485,7 +562,7 @@ func (x *SiteVariantOpt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SiteVariantOpt.ProtoReflect.Descriptor instead.
 func (*SiteVariantOpt) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{5}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SiteVariantOpt) GetKey() string {
@@ -519,7 +596,7 @@ type ClusterCount struct {
 
 func (x *ClusterCount) Reset() {
 	*x = ClusterCount{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[6]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -531,7 +608,7 @@ func (x *ClusterCount) String() string {
 func (*ClusterCount) ProtoMessage() {}
 
 func (x *ClusterCount) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[6]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -544,7 +621,7 @@ func (x *ClusterCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClusterCount.ProtoReflect.Descriptor instead.
 func (*ClusterCount) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{6}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ClusterCount) GetName() string {
@@ -572,7 +649,7 @@ type UpstreamSummary struct {
 
 func (x *UpstreamSummary) Reset() {
 	*x = UpstreamSummary{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[7]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -584,7 +661,7 @@ func (x *UpstreamSummary) String() string {
 func (*UpstreamSummary) ProtoMessage() {}
 
 func (x *UpstreamSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[7]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -597,7 +674,7 @@ func (x *UpstreamSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpstreamSummary.ProtoReflect.Descriptor instead.
 func (*UpstreamSummary) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{7}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UpstreamSummary) GetName() string {
@@ -636,7 +713,7 @@ type SiteDetailRoute struct {
 
 func (x *SiteDetailRoute) Reset() {
 	*x = SiteDetailRoute{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[8]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -648,7 +725,7 @@ func (x *SiteDetailRoute) String() string {
 func (*SiteDetailRoute) ProtoMessage() {}
 
 func (x *SiteDetailRoute) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[8]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -661,7 +738,7 @@ func (x *SiteDetailRoute) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SiteDetailRoute.ProtoReflect.Descriptor instead.
 func (*SiteDetailRoute) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{8}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SiteDetailRoute) GetOrdinal() int32 {
@@ -727,7 +804,7 @@ type SiteDetailStats struct {
 
 func (x *SiteDetailStats) Reset() {
 	*x = SiteDetailStats{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[9]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -739,7 +816,7 @@ func (x *SiteDetailStats) String() string {
 func (*SiteDetailStats) ProtoMessage() {}
 
 func (x *SiteDetailStats) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[9]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -752,7 +829,7 @@ func (x *SiteDetailStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SiteDetailStats.ProtoReflect.Descriptor instead.
 func (*SiteDetailStats) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{9}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SiteDetailStats) GetNodes() int32 {
@@ -822,7 +899,7 @@ type SiteOverview struct {
 
 func (x *SiteOverview) Reset() {
 	*x = SiteOverview{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[10]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -834,7 +911,7 @@ func (x *SiteOverview) String() string {
 func (*SiteOverview) ProtoMessage() {}
 
 func (x *SiteOverview) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[10]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -847,7 +924,7 @@ func (x *SiteOverview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SiteOverview.ProtoReflect.Descriptor instead.
 func (*SiteOverview) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{10}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SiteOverview) GetName() string {
@@ -986,7 +1063,7 @@ type SiteNodeRow struct {
 
 func (x *SiteNodeRow) Reset() {
 	*x = SiteNodeRow{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[11]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -998,7 +1075,7 @@ func (x *SiteNodeRow) String() string {
 func (*SiteNodeRow) ProtoMessage() {}
 
 func (x *SiteNodeRow) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[11]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1011,7 +1088,7 @@ func (x *SiteNodeRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SiteNodeRow.ProtoReflect.Descriptor instead.
 func (*SiteNodeRow) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{11}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SiteNodeRow) GetNodeId() int64 {
@@ -1092,7 +1169,7 @@ type SiteUpstreamMember struct {
 
 func (x *SiteUpstreamMember) Reset() {
 	*x = SiteUpstreamMember{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[12]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1104,7 +1181,7 @@ func (x *SiteUpstreamMember) String() string {
 func (*SiteUpstreamMember) ProtoMessage() {}
 
 func (x *SiteUpstreamMember) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[12]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1117,7 +1194,7 @@ func (x *SiteUpstreamMember) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SiteUpstreamMember.ProtoReflect.Descriptor instead.
 func (*SiteUpstreamMember) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{12}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SiteUpstreamMember) GetUpstream() string {
@@ -1184,7 +1261,7 @@ type SiteCertBinding struct {
 
 func (x *SiteCertBinding) Reset() {
 	*x = SiteCertBinding{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[13]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1196,7 +1273,7 @@ func (x *SiteCertBinding) String() string {
 func (*SiteCertBinding) ProtoMessage() {}
 
 func (x *SiteCertBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[13]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1209,7 +1286,7 @@ func (x *SiteCertBinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SiteCertBinding.ProtoReflect.Descriptor instead.
 func (*SiteCertBinding) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{13}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SiteCertBinding) GetSubject() string {
@@ -1278,7 +1355,7 @@ type SiteDetailResponse struct {
 
 func (x *SiteDetailResponse) Reset() {
 	*x = SiteDetailResponse{}
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[14]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1290,7 +1367,7 @@ func (x *SiteDetailResponse) String() string {
 func (*SiteDetailResponse) ProtoMessage() {}
 
 func (x *SiteDetailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_sites_proto_msgTypes[14]
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1303,7 +1380,7 @@ func (x *SiteDetailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SiteDetailResponse.ProtoReflect.Descriptor instead.
 func (*SiteDetailResponse) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{14}
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SiteDetailResponse) GetName() string {
@@ -1369,11 +1446,123 @@ func (x *SiteDetailResponse) GetVariantOpts() []*SiteVariantOpt {
 	return nil
 }
 
+type ListSitesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Site          string                 `protobuf:"bytes,1,opt,name=site,proto3" json:"site,omitempty"`
+	Q             string                 `protobuf:"bytes,2,opt,name=q,proto3" json:"q,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSitesRequest) Reset() {
+	*x = ListSitesRequest{}
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSitesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSitesRequest) ProtoMessage() {}
+
+func (x *ListSitesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSitesRequest.ProtoReflect.Descriptor instead.
+func (*ListSitesRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ListSitesRequest) GetSite() string {
+	if x != nil {
+		return x.Site
+	}
+	return ""
+}
+
+func (x *ListSitesRequest) GetQ() string {
+	if x != nil {
+		return x.Q
+	}
+	return ""
+}
+
+type GetSiteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Tab           string                 `protobuf:"bytes,2,opt,name=tab,proto3" json:"tab,omitempty"`
+	Variant       string                 `protobuf:"bytes,3,opt,name=variant,proto3" json:"variant,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSiteRequest) Reset() {
+	*x = GetSiteRequest{}
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSiteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSiteRequest) ProtoMessage() {}
+
+func (x *GetSiteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_sites_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSiteRequest.ProtoReflect.Descriptor instead.
+func (*GetSiteRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_sites_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetSiteRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetSiteRequest) GetTab() string {
+	if x != nil {
+		return x.Tab
+	}
+	return ""
+}
+
+func (x *GetSiteRequest) GetVariant() string {
+	if x != nil {
+		return x.Variant
+	}
+	return ""
+}
+
 var File_nagipath_api_v1_sites_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_sites_proto_rawDesc = "" +
 	"\n" +
-	"\x1bnagipath/api/v1/sites.proto\x12\x0fnagipath.api.v1\"\xad\x02\n" +
+	"\x1bnagipath/api/v1/sites.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\"\xad\x02\n" +
 	"\vSiteListRow\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1f\n" +
 	"\valias_count\x18\x02 \x01(\x05R\n" +
@@ -1394,13 +1583,19 @@ const file_nagipath_api_v1_sites_proto_rawDesc = "" +
 	"\x0etls_terminated\x18\x04 \x01(\x05R\rtlsTerminated\x12\x1c\n" +
 	"\tplaintext\x18\x05 \x01(\x05R\tplaintext\x12%\n" +
 	"\x0eexpiring_certs\x18\x06 \x01(\x05R\rexpiringCerts\x12+\n" +
-	"\x11expiring_bindings\x18\a \x01(\x05R\x10expiringBindings\"o\n" +
+	"\x11expiring_bindings\x18\a \x01(\x05R\x10expiringBindings\"x\n" +
+	"\x10SiteVariantRoute\x12\x18\n" +
+	"\apattern\x18\x01 \x01(\tR\apattern\x12\x16\n" +
+	"\x06action\x18\x02 \x01(\tR\x06action\x12\x16\n" +
+	"\x06target\x18\x03 \x01(\tR\x06target\x12\x1a\n" +
+	"\bupstream\x18\x04 \x01(\tR\bupstream\"\xaa\x01\n" +
 	"\vSiteVariant\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x19\n" +
 	"\braw_text\x18\x02 \x01(\tR\arawText\x12\x14\n" +
 	"\x05nodes\x18\x03 \x01(\x05R\x05nodes\x12\x1d\n" +
 	"\n" +
-	"node_names\x18\x04 \x03(\tR\tnodeNames\"\xef\x01\n" +
+	"node_names\x18\x04 \x03(\tR\tnodeNames\x129\n" +
+	"\x06routes\x18\x05 \x03(\v2!.nagipath.api.v1.SiteVariantRouteR\x06routes\"\xef\x01\n" +
 	"\x11SitesListResponse\x120\n" +
 	"\x04rows\x18\x01 \x03(\v2\x1c.nagipath.api.v1.SiteListRowR\x04rows\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12\x14\n" +
@@ -1498,7 +1693,17 @@ const file_nagipath_api_v1_sites_proto_rawDesc = "" +
 	"\tupstreams\x18\x06 \x03(\v2#.nagipath.api.v1.SiteUpstreamMemberR\tupstreams\x126\n" +
 	"\x05certs\x18\a \x03(\v2 .nagipath.api.v1.SiteCertBindingR\x05certs\x120\n" +
 	"\x04tabs\x18\b \x03(\v2\x1c.nagipath.api.v1.SiteTabItemR\x04tabs\x12B\n" +
-	"\fvariant_opts\x18\t \x03(\v2\x1f.nagipath.api.v1.SiteVariantOptR\vvariantOptsB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	"\fvariant_opts\x18\t \x03(\v2\x1f.nagipath.api.v1.SiteVariantOptR\vvariantOpts\"4\n" +
+	"\x10ListSitesRequest\x12\x12\n" +
+	"\x04site\x18\x01 \x01(\tR\x04site\x12\f\n" +
+	"\x01q\x18\x02 \x01(\tR\x01q\"P\n" +
+	"\x0eGetSiteRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
+	"\x03tab\x18\x02 \x01(\tR\x03tab\x12\x18\n" +
+	"\avariant\x18\x03 \x01(\tR\avariant2\xd9\x01\n" +
+	"\vSiteService\x12b\n" +
+	"\tListSites\x12!.nagipath.api.v1.ListSitesRequest\x1a\".nagipath.api.v1.SitesListResponse\"\x0e\x82\xd3\xe4\x93\x02\b\x12\x06/sites\x12f\n" +
+	"\aGetSite\x12\x1f.nagipath.api.v1.GetSiteRequest\x1a#.nagipath.api.v1.SiteDetailResponse\"\x15\x82\xd3\xe4\x93\x02\x0f\x12\r/sites/{name}B1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_sites_proto_rawDescOnce sync.Once
@@ -1512,43 +1717,51 @@ func file_nagipath_api_v1_sites_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_sites_proto_rawDescData
 }
 
-var file_nagipath_api_v1_sites_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_nagipath_api_v1_sites_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_nagipath_api_v1_sites_proto_goTypes = []any{
 	(*SiteListRow)(nil),        // 0: nagipath.api.v1.SiteListRow
 	(*SiteStats)(nil),          // 1: nagipath.api.v1.SiteStats
-	(*SiteVariant)(nil),        // 2: nagipath.api.v1.SiteVariant
-	(*SitesListResponse)(nil),  // 3: nagipath.api.v1.SitesListResponse
-	(*SiteTabItem)(nil),        // 4: nagipath.api.v1.SiteTabItem
-	(*SiteVariantOpt)(nil),     // 5: nagipath.api.v1.SiteVariantOpt
-	(*ClusterCount)(nil),       // 6: nagipath.api.v1.ClusterCount
-	(*UpstreamSummary)(nil),    // 7: nagipath.api.v1.UpstreamSummary
-	(*SiteDetailRoute)(nil),    // 8: nagipath.api.v1.SiteDetailRoute
-	(*SiteDetailStats)(nil),    // 9: nagipath.api.v1.SiteDetailStats
-	(*SiteOverview)(nil),       // 10: nagipath.api.v1.SiteOverview
-	(*SiteNodeRow)(nil),        // 11: nagipath.api.v1.SiteNodeRow
-	(*SiteUpstreamMember)(nil), // 12: nagipath.api.v1.SiteUpstreamMember
-	(*SiteCertBinding)(nil),    // 13: nagipath.api.v1.SiteCertBinding
-	(*SiteDetailResponse)(nil), // 14: nagipath.api.v1.SiteDetailResponse
+	(*SiteVariantRoute)(nil),   // 2: nagipath.api.v1.SiteVariantRoute
+	(*SiteVariant)(nil),        // 3: nagipath.api.v1.SiteVariant
+	(*SitesListResponse)(nil),  // 4: nagipath.api.v1.SitesListResponse
+	(*SiteTabItem)(nil),        // 5: nagipath.api.v1.SiteTabItem
+	(*SiteVariantOpt)(nil),     // 6: nagipath.api.v1.SiteVariantOpt
+	(*ClusterCount)(nil),       // 7: nagipath.api.v1.ClusterCount
+	(*UpstreamSummary)(nil),    // 8: nagipath.api.v1.UpstreamSummary
+	(*SiteDetailRoute)(nil),    // 9: nagipath.api.v1.SiteDetailRoute
+	(*SiteDetailStats)(nil),    // 10: nagipath.api.v1.SiteDetailStats
+	(*SiteOverview)(nil),       // 11: nagipath.api.v1.SiteOverview
+	(*SiteNodeRow)(nil),        // 12: nagipath.api.v1.SiteNodeRow
+	(*SiteUpstreamMember)(nil), // 13: nagipath.api.v1.SiteUpstreamMember
+	(*SiteCertBinding)(nil),    // 14: nagipath.api.v1.SiteCertBinding
+	(*SiteDetailResponse)(nil), // 15: nagipath.api.v1.SiteDetailResponse
+	(*ListSitesRequest)(nil),   // 16: nagipath.api.v1.ListSitesRequest
+	(*GetSiteRequest)(nil),     // 17: nagipath.api.v1.GetSiteRequest
 }
 var file_nagipath_api_v1_sites_proto_depIdxs = []int32{
-	0,  // 0: nagipath.api.v1.SitesListResponse.rows:type_name -> nagipath.api.v1.SiteListRow
-	1,  // 1: nagipath.api.v1.SitesListResponse.stats:type_name -> nagipath.api.v1.SiteStats
-	2,  // 2: nagipath.api.v1.SitesListResponse.variants:type_name -> nagipath.api.v1.SiteVariant
-	6,  // 3: nagipath.api.v1.SiteOverview.clusters:type_name -> nagipath.api.v1.ClusterCount
-	7,  // 4: nagipath.api.v1.SiteOverview.upstreams:type_name -> nagipath.api.v1.UpstreamSummary
-	8,  // 5: nagipath.api.v1.SiteOverview.routes:type_name -> nagipath.api.v1.SiteDetailRoute
-	9,  // 6: nagipath.api.v1.SiteOverview.stats:type_name -> nagipath.api.v1.SiteDetailStats
-	10, // 7: nagipath.api.v1.SiteDetailResponse.overview:type_name -> nagipath.api.v1.SiteOverview
-	11, // 8: nagipath.api.v1.SiteDetailResponse.nodes:type_name -> nagipath.api.v1.SiteNodeRow
-	12, // 9: nagipath.api.v1.SiteDetailResponse.upstreams:type_name -> nagipath.api.v1.SiteUpstreamMember
-	13, // 10: nagipath.api.v1.SiteDetailResponse.certs:type_name -> nagipath.api.v1.SiteCertBinding
-	4,  // 11: nagipath.api.v1.SiteDetailResponse.tabs:type_name -> nagipath.api.v1.SiteTabItem
-	5,  // 12: nagipath.api.v1.SiteDetailResponse.variant_opts:type_name -> nagipath.api.v1.SiteVariantOpt
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	2,  // 0: nagipath.api.v1.SiteVariant.routes:type_name -> nagipath.api.v1.SiteVariantRoute
+	0,  // 1: nagipath.api.v1.SitesListResponse.rows:type_name -> nagipath.api.v1.SiteListRow
+	1,  // 2: nagipath.api.v1.SitesListResponse.stats:type_name -> nagipath.api.v1.SiteStats
+	3,  // 3: nagipath.api.v1.SitesListResponse.variants:type_name -> nagipath.api.v1.SiteVariant
+	7,  // 4: nagipath.api.v1.SiteOverview.clusters:type_name -> nagipath.api.v1.ClusterCount
+	8,  // 5: nagipath.api.v1.SiteOverview.upstreams:type_name -> nagipath.api.v1.UpstreamSummary
+	9,  // 6: nagipath.api.v1.SiteOverview.routes:type_name -> nagipath.api.v1.SiteDetailRoute
+	10, // 7: nagipath.api.v1.SiteOverview.stats:type_name -> nagipath.api.v1.SiteDetailStats
+	11, // 8: nagipath.api.v1.SiteDetailResponse.overview:type_name -> nagipath.api.v1.SiteOverview
+	12, // 9: nagipath.api.v1.SiteDetailResponse.nodes:type_name -> nagipath.api.v1.SiteNodeRow
+	13, // 10: nagipath.api.v1.SiteDetailResponse.upstreams:type_name -> nagipath.api.v1.SiteUpstreamMember
+	14, // 11: nagipath.api.v1.SiteDetailResponse.certs:type_name -> nagipath.api.v1.SiteCertBinding
+	5,  // 12: nagipath.api.v1.SiteDetailResponse.tabs:type_name -> nagipath.api.v1.SiteTabItem
+	6,  // 13: nagipath.api.v1.SiteDetailResponse.variant_opts:type_name -> nagipath.api.v1.SiteVariantOpt
+	16, // 14: nagipath.api.v1.SiteService.ListSites:input_type -> nagipath.api.v1.ListSitesRequest
+	17, // 15: nagipath.api.v1.SiteService.GetSite:input_type -> nagipath.api.v1.GetSiteRequest
+	4,  // 16: nagipath.api.v1.SiteService.ListSites:output_type -> nagipath.api.v1.SitesListResponse
+	15, // 17: nagipath.api.v1.SiteService.GetSite:output_type -> nagipath.api.v1.SiteDetailResponse
+	16, // [16:18] is the sub-list for method output_type
+	14, // [14:16] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_nagipath_api_v1_sites_proto_init() }
@@ -1562,9 +1775,9 @@ func file_nagipath_api_v1_sites_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_sites_proto_rawDesc), len(file_nagipath_api_v1_sites_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   18,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_nagipath_api_v1_sites_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_sites_proto_depIdxs,

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
+
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
 
 message RuleFiredPB {
@@ -46,6 +48,9 @@ message TraceHopPB {
 
 message TraceCandidate {
   int64 inst_id = 1;
+  // The candidate list links to the node page, which is keyed by node id;
+  // store.Instance already carries it.
+  int64 node_id = 7;
   string inst_display_name = 2;
   string inst_node_address = 3;
   int32 listener_port = 4;
@@ -155,4 +160,60 @@ message TraceResponse {
   ProbeRunPB run = 23;
   ProvenancePB prov = 24;
   bool prov_picked = 25;
+}
+
+message GetTraceRequest {
+  string url = 1;
+  string scheme = 2;
+  string hostname = 3;
+  string path = 4;
+  int32 port = 5;
+  string method = 6;
+  int64 run = 7;
+  int64 prov = 8;
+}
+
+message PostTraceRequest {
+  string url = 1;
+  string scheme = 2;
+  string hostname = 3;
+  string path = 4;
+  int32 port = 5;
+  string method = 6;
+}
+
+message StartProbeRequest {
+  string url = 1;
+  string method = 2;
+  int64 trace = 3;
+}
+
+message StartProbeResponse {
+  bool ok = 1;
+  int64 run_id = 2;
+  int64 trace_id = 3;
+  string url = 4;
+}
+
+message GetProbeRunRequest {
+  int64 id = 1;
+}
+
+// TraceService: GET/POST /trace, POST /trace/probe and GET /trace/run/{id}
+// (internal/api/traceservice.go). requireAuth wraps the whole gateway;
+// StartProbe calls requireAdminRPC as its own first line — same reasoning
+// as DriftService's mutations (drift.proto).
+service TraceService {
+  rpc GetTrace(GetTraceRequest) returns (TraceResponse) {
+    option (google.api.http) = { get: "/trace" };
+  }
+  rpc PostTrace(PostTraceRequest) returns (TraceResponse) {
+    option (google.api.http) = { post: "/trace", body: "*" };
+  }
+  rpc StartProbe(StartProbeRequest) returns (StartProbeResponse) {
+    option (google.api.http) = { post: "/trace/probe", body: "*" };
+  }
+  rpc GetProbeRun(GetProbeRunRequest) returns (ProbeRunPB) {
+    option (google.api.http) = { get: "/trace/run/{id}" };
+  }
 }

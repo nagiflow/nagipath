@@ -120,6 +120,9 @@ type PendingHostKey struct {
 	// A key that replaces one is a rekey or an interception, and the operator
 	// cannot tell which without seeing both.
 	Previous string
+	// Cluster names every cluster this node's processes sit in, comma-separated.
+	// Only AllHostKeys fills it — the node page already knows its own clusters.
+	Cluster string
 }
 
 func (db *DB) PendingHostKeys(ctx context.Context) ([]PendingHostKey, error) {

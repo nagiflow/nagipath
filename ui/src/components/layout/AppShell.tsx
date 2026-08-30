@@ -1,115 +1,113 @@
-import type { ReactNode } from 'react'
-import {
-  EuiAvatar,
-  EuiBadge,
-  EuiHeader,
-  EuiHeaderLogo,
-  EuiHeaderSectionItemButton,
-  EuiIcon,
-  EuiLoadingLogo,
-  EuiPageTemplate,
-  EuiSideNav,
-  type EuiSideNavItemType,
-} from '@elastic/eui'
-import { useLocation } from 'react-router-dom'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useSession } from '../../api/queries/session'
 import { logout } from '../../lib/auth'
-import { navGroups, settingsHref } from './navConfig'
+import { breadcrumbFor, navGroups, settingsHref } from './navConfig'
+import { EmptyPrompt, Loading, navIcons, SettingsIcon } from '../ui'
 
-function useNavItems(): EuiSideNavItemType<{}>[] {
-  const { data } = useSession()
-  const { pathname } = useLocation()
+// design/'s header search box ("Search hosts, rules, certificates" · ⌘K) —
+// routes into the existing Config search page rather than a new search
+// engine; ⌘K/Ctrl+K focuses it from anywhere in the app.
+function GlobalSearch() {
+  const navigate = useNavigate()
+  const ref = useRef<HTMLInputElement | null>(null)
+  const [value, setValue] = useState('')
 
-  const groups: EuiSideNavItemType<{}>[] = navGroups.map((group) => ({
-    id: group.section,
-    name: group.section,
-    items: group.items.map((item) => {
-      const count = item.countKey ? data?.navCounts?.[item.countKey] : undefined
-      return {
-        id: item.href,
-        name: (
-          <span>
-            {item.label}
-            {count !== undefined && (
-              <EuiBadge color={item.warnOnCount && count > 0 ? 'warning' : 'hollow'} style={{ marginLeft: 8 }}>
-                {count}
-              </EuiBadge>
-            )}
-          </span>
-        ),
-        href: item.href,
-        isSelected: pathname === item.href,
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        ref.current?.focus()
       }
-    }),
-  }))
-
-  groups.push({
-    id: 'Settings',
-    name: 'Settings',
-    href: settingsHref,
-    icon: <EuiIcon type="gear" />,
-  })
-
-  return groups
-}
-
-// AppShell is the SPA's persistent chrome (docs/adr/0017): sidebar, header,
-// license banner — the same shell every ported page renders inside, driven
-// entirely by GET /api/v1/session the way internal/web/nav.go's one table
-// used to drive layout.html's sidebar + breadcrumb.
-export function AppShell({ children }: { children: ReactNode }) {
-  const { data: session, isPending, isError, error } = useSession()
-  const items = useNavItems()
-
-  if (isPending) {
-    return (
-      <EuiPageTemplate>
-        <EuiPageTemplate.EmptyPrompt icon={<EuiLoadingLogo logo="logoElastic" size="xl" />} title={<h2>Loading…</h2>} />
-      </EuiPageTemplate>
-    )
-  }
-
-  if (isError) {
-    return (
-      <EuiPageTemplate>
-        <EuiPageTemplate.EmptyPrompt iconType="alert" color="danger" title={<h2>Could not load session</h2>} body={<p>{error.message}</p>} />
-      </EuiPageTemplate>
-    )
-  }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   return (
-    <>
-      <EuiHeader
-        position="fixed"
-        sections={[
-          {
-            items: [
-              <EuiHeaderLogo iconType="logoElastic" href="/" key="logo">
-                nagipath
-              </EuiHeaderLogo>,
-              ...(session.demoMode ? [<EuiBadge color="warning" key="demo">DEMO</EuiBadge>] : []),
-            ],
-          },
-          {
-            items: [
-              <EuiHeaderSectionItemButton aria-label="Sign out" onClick={() => logout(session.csrfToken)} key="avatar">
-                <EuiAvatar name={session.user?.username ?? '?'} size="s" />
-              </EuiHeaderSectionItemButton>,
-            ],
-          },
-        ]}
+    <div className="gsearch">
+      <input
+        ref={ref}
+        placeholder="Search hosts, rules, certificates"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && value.trim()) navigate(`/search?q=${encodeURIComponent(value.trim())}`)
+        }}
       />
+      <span style={{ flex: 1 }} />
+      <span className="kbd">⌘K</span>
+    </div>
+  )
+}
 
-      {session.licenseNotice && (
-        <div style={{ background: '#fdf3e2', padding: '8px 16px', borderBottom: '1px solid #f2cd8e' }}>{session.licenseNotice}</div>
-      )}
+// AppShell is the SPA's persistent chrome (docs/adr/0017): sidebar and
+// header — the same shell every ported page renders inside, driven
+// entirely by GET /api/session the way internal/web/nav.go's one table
+// used to drive layout.html's sidebar + breadcrumb. Renders design/'s literal
+// .hdr/.nav/.wrap/.main markup (ui/src/theme/theme.css) rather than an
+// EUI approximation of it.
+export function AppShell({ children }: { children: ReactNode }) {
+  const { data: session, isPending, isError, error } = useSession()
+  const { pathname } = useLocation()
+  const crumb = breadcrumbFor(pathname)
 
-      <EuiPageTemplate paddingSize="none">
-        <EuiPageTemplate.Sidebar sticky>
-          <EuiSideNav items={items} mobileTitle="Menu" />
-        </EuiPageTemplate.Sidebar>
-        <EuiPageTemplate.Section>{children}</EuiPageTemplate.Section>
-      </EuiPageTemplate>
-    </>
+  if (isPending) return <Loading label="Loading…" />
+  if (isError) return <EmptyPrompt danger title="Could not load session" body={error.message} />
+
+  // GET /session is public now (Login/Setup need it before any session
+  // exists), so it no longer 401s an anonymous caller into the branch above.
+  // A full page load never reaches this — internal/web's auth() middleware
+  // still redirects to /login server-side before React mounts — but a
+  // background refetch (staleTime 60s) discovering a session expired while
+  // already inside the SPA could otherwise render this shell with no user.
+  if (!session.authenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  const initials = (session.user?.username ?? '?').slice(0, 2).toUpperCase()
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <header className="hdr">
+        <Link to="/" className="lg">nagipath</Link>
+        {session.demoMode && <span className="bg d">DEMO</span>}
+        {crumb && (
+          <span className="crumb">
+            {crumb.section && <>{crumb.section} /</>} <b>{crumb.label}</b>
+          </span>
+        )}
+        <div style={{ flex: 1 }} />
+        <GlobalSearch />
+        <button className="av" onClick={() => logout()} title="Sign out">{initials}</button>
+      </header>
+
+      <div className="wrap">
+        <nav className="nav">
+          {navGroups.map((group) => (
+            <div key={group.section}>
+              <div className="ngrp">{group.section}</div>
+              {group.items.map((item) => {
+                const count = item.countKey ? session.navCounts?.[item.countKey] : undefined
+                const on = pathname === item.href
+                const Icon = navIcons[item.icon]
+                return (
+                  <Link key={item.href} to={item.href} className={`ni${on ? ' on' : ''}`}>
+                    <span className="ic"><Icon /></span>
+                    {item.label}
+                    {count !== undefined && <span className={`ct${item.warnOnCount && count > 0 ? ' warn' : ''}`}>{count}</span>}
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
+          <div style={{ flex: 1 }} />
+          <Link to={settingsHref} className={`ni${pathname.startsWith(settingsHref) ? ' on' : ''}`}>
+            <span className="ic"><SettingsIcon /></span>Settings
+          </Link>
+        </nav>
+        <main className="main">{children}</main>
+      </div>
+    </div>
   )
 }

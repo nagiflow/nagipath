@@ -4,14 +4,33 @@ import (
 	"context"
 	"fmt"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
 	"github.com/nagiflow/nagipath/internal/store"
-	"google.golang.org/protobuf/encoding/protojson"
 )
+
+// probeHistoryRequestFrom turns a "/trace/history?..." test path into the
+// typed request GetProbeHistory now takes — every existing test call site
+// keeps its query string unchanged, only the plumbing to reach the RPC
+// method (rather than an http.HandlerFunc) is new.
+func probeHistoryRequestFrom(t *testing.T, path string) *pb.GetProbeHistoryRequest {
+	t.Helper()
+	u, err := url.Parse(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := u.Query()
+	probeID, _ := strconv.ParseInt(q.Get("probe"), 10, 64)
+	return &pb.GetProbeHistoryRequest{
+		Url: q.Get("url"), Q: q.Get("q"), Range: q.Get("range"),
+		Actor: q.Get("actor"), Outcome: q.Get("outcome"), Cursor: q.Get("cursor"), Probe: probeID,
+	}
+}
 
 // seedProbes ports internal/web's old seedProbes fixture: three probes (one
 // recent, one 40 days old, one that never got a response) plus evidence
@@ -83,16 +102,16 @@ func TestProbeHistoryListsFiltersAndSelects(t *testing.T) {
 	}
 	newest, older := seedProbes(t, db, actor)
 	s := New(db, nil, false)
+	ps := &probeService{s: s}
 	adminUser := store.User{ID: actor, Role: "admin"}
+	ctx = context.WithValue(ctx, userKey, adminUser)
 	get := func(path string) *pb.ProbeHistoryResponse {
 		t.Helper()
-		w := httptest.NewRecorder()
-		s.getProbeHistory(w, httptest.NewRequest("GET", path, nil))
-		var resp pb.ProbeHistoryResponse
-		if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		resp, err := ps.GetProbeHistory(ctx, probeHistoryRequestFrom(t, path))
+		if err != nil {
 			t.Fatal(err)
 		}
-		return &resp
+		return resp
 	}
 	hasToken := func(resp *pb.ProbeHistoryResponse, token string) bool {
 		for _, p := range resp.Probes {
@@ -176,7 +195,7 @@ func TestProbeHistoryListsFiltersAndSelects(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/trace/history?range=all&outcome=failed&export=csv", nil)
 	req = req.WithContext(context.WithValue(req.Context(), userKey, adminUser))
-	s.getProbeHistory(w, req)
+	s.getProbeHistoryCSV(w, req)
 	if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/csv") {
 		t.Fatalf("export Content-Type = %q, not text/csv", ct)
 	}
@@ -226,11 +245,10 @@ func TestProbeHistoryEmptyStatesAreDistinct(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := New(db, nil, false)
+	ps := &probeService{s: s}
 
-	w := httptest.NewRecorder()
-	s.getProbeHistory(w, httptest.NewRequest("GET", "/trace/history?range=all", nil))
-	var empty pb.ProbeHistoryResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &empty); err != nil {
+	empty, err := ps.GetProbeHistory(ctx, probeHistoryRequestFrom(t, "/trace/history?range=all"))
+	if err != nil {
 		t.Fatal(err)
 	}
 	if empty.Total != 0 || len(empty.Probes) != 0 {
@@ -239,20 +257,16 @@ func TestProbeHistoryEmptyStatesAreDistinct(t *testing.T) {
 
 	seedProbes(t, db, actor)
 
-	w = httptest.NewRecorder()
-	s.getProbeHistory(w, httptest.NewRequest("GET", "/trace/history?range=all&q=nothing-matches-this", nil))
-	var filtered pb.ProbeHistoryResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &filtered); err != nil {
+	filtered, err := ps.GetProbeHistory(ctx, probeHistoryRequestFrom(t, "/trace/history?range=all&q=nothing-matches-this"))
+	if err != nil {
 		t.Fatal(err)
 	}
 	if filtered.Total != 0 {
 		t.Error("a filter that matched nothing should report Total=0, distinguishable from no probes ever sent")
 	}
 
-	w = httptest.NewRecorder()
-	s.getProbeHistory(w, httptest.NewRequest("GET", "/trace/history?range=all&url=https://legacy.example.com/", nil))
-	var scoped pb.ProbeHistoryResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &scoped); err != nil {
+	scoped, err := ps.GetProbeHistory(ctx, probeHistoryRequestFrom(t, "/trace/history?range=all&url=https://legacy.example.com/"))
+	if err != nil {
 		t.Fatal(err)
 	}
 	if scoped.Total != 0 || scoped.Url != "https://legacy.example.com/" {
@@ -282,11 +296,10 @@ func TestProbeHistoryPagesRatherThanTruncating(t *testing.T) {
 		}
 	}
 	s := New(db, nil, false)
+	ps := &probeService{s: s}
 
-	w := httptest.NewRecorder()
-	s.getProbeHistory(w, httptest.NewRequest("GET", "/trace/history", nil))
-	var first pb.ProbeHistoryResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &first); err != nil {
+	first, err := ps.GetProbeHistory(ctx, probeHistoryRequestFrom(t, "/trace/history"))
+	if err != nil {
 		t.Fatal(err)
 	}
 	if first.From != 1 || first.To != int32(probesPageSize) || first.Total != int32(probesPageSize+10) {
@@ -296,10 +309,8 @@ func TestProbeHistoryPagesRatherThanTruncating(t *testing.T) {
 		t.Fatal("with more rows than a page there is no way to reach the older ones")
 	}
 
-	w = httptest.NewRecorder()
-	s.getProbeHistory(w, httptest.NewRequest("GET", "/trace/history?cursor="+first.NextCursor, nil))
-	var next pb.ProbeHistoryResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &next); err != nil {
+	next, err := ps.GetProbeHistory(ctx, probeHistoryRequestFrom(t, "/trace/history?cursor="+first.NextCursor))
+	if err != nil {
 		t.Fatal(err)
 	}
 	if next.From != int32(probesPageSize+1) || next.To != int32(probesPageSize+10) {

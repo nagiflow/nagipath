@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -373,11 +374,131 @@ func (x *ClustersResponse) GetSelected() *ClusterDetail {
 	return nil
 }
 
+type ListClustersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Q             string                 `protobuf:"bytes,1,opt,name=q,proto3" json:"q,omitempty"`
+	Drift         string                 `protobuf:"bytes,2,opt,name=drift,proto3" json:"drift,omitempty"`
+	Sort          string                 `protobuf:"bytes,3,opt,name=sort,proto3" json:"sort,omitempty"`
+	Cluster       int64                  `protobuf:"varint,4,opt,name=cluster,proto3" json:"cluster,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListClustersRequest) Reset() {
+	*x = ListClustersRequest{}
+	mi := &file_nagipath_api_v1_clusters_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListClustersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListClustersRequest) ProtoMessage() {}
+
+func (x *ListClustersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_clusters_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListClustersRequest.ProtoReflect.Descriptor instead.
+func (*ListClustersRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_clusters_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ListClustersRequest) GetQ() string {
+	if x != nil {
+		return x.Q
+	}
+	return ""
+}
+
+func (x *ListClustersRequest) GetDrift() string {
+	if x != nil {
+		return x.Drift
+	}
+	return ""
+}
+
+func (x *ListClustersRequest) GetSort() string {
+	if x != nil {
+		return x.Sort
+	}
+	return ""
+}
+
+func (x *ListClustersRequest) GetCluster() int64 {
+	if x != nil {
+		return x.Cluster
+	}
+	return 0
+}
+
+type RenameClusterRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cluster       int64                  `protobuf:"varint,1,opt,name=cluster,proto3" json:"cluster,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameClusterRequest) Reset() {
+	*x = RenameClusterRequest{}
+	mi := &file_nagipath_api_v1_clusters_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameClusterRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameClusterRequest) ProtoMessage() {}
+
+func (x *RenameClusterRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_clusters_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameClusterRequest.ProtoReflect.Descriptor instead.
+func (*RenameClusterRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_clusters_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *RenameClusterRequest) GetCluster() int64 {
+	if x != nil {
+		return x.Cluster
+	}
+	return 0
+}
+
+func (x *RenameClusterRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
 var File_nagipath_api_v1_clusters_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_clusters_proto_rawDesc = "" +
 	"\n" +
-	"\x1enagipath/api/v1/clusters.proto\x12\x0fnagipath.api.v1\"\xb8\x02\n" +
+	"\x1enagipath/api/v1/clusters.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1cnagipath/api/v1/common.proto\"\xb8\x02\n" +
 	"\x0fClusterListItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -412,7 +533,18 @@ const file_nagipath_api_v1_clusters_proto_rawDesc = "" +
 	"\x05query\x18\x03 \x01(\tR\x05query\x12!\n" +
 	"\fdrift_filter\x18\x04 \x01(\tR\vdriftFilter\x12\x12\n" +
 	"\x04sort\x18\x05 \x01(\tR\x04sort\x12:\n" +
-	"\bselected\x18\x06 \x01(\v2\x1e.nagipath.api.v1.ClusterDetailR\bselectedB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	"\bselected\x18\x06 \x01(\v2\x1e.nagipath.api.v1.ClusterDetailR\bselected\"g\n" +
+	"\x13ListClustersRequest\x12\f\n" +
+	"\x01q\x18\x01 \x01(\tR\x01q\x12\x14\n" +
+	"\x05drift\x18\x02 \x01(\tR\x05drift\x12\x12\n" +
+	"\x04sort\x18\x03 \x01(\tR\x04sort\x12\x18\n" +
+	"\acluster\x18\x04 \x01(\x03R\acluster\"D\n" +
+	"\x14RenameClusterRequest\x12\x18\n" +
+	"\acluster\x18\x01 \x01(\x03R\acluster\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name2\xe6\x01\n" +
+	"\x0eClusterService\x12j\n" +
+	"\fListClusters\x12$.nagipath.api.v1.ListClustersRequest\x1a!.nagipath.api.v1.ClustersResponse\"\x11\x82\xd3\xe4\x93\x02\v\x12\t/clusters\x12h\n" +
+	"\rRenameCluster\x12%.nagipath.api.v1.RenameClusterRequest\x1a\x13.nagipath.api.v1.Ok\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/clusters/renameB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_clusters_proto_rawDescOnce sync.Once
@@ -426,19 +558,26 @@ func file_nagipath_api_v1_clusters_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_clusters_proto_rawDescData
 }
 
-var file_nagipath_api_v1_clusters_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_nagipath_api_v1_clusters_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_nagipath_api_v1_clusters_proto_goTypes = []any{
-	(*ClusterListItem)(nil),   // 0: nagipath.api.v1.ClusterListItem
-	(*ClusterMemberItem)(nil), // 1: nagipath.api.v1.ClusterMemberItem
-	(*ClusterDetail)(nil),     // 2: nagipath.api.v1.ClusterDetail
-	(*ClustersResponse)(nil),  // 3: nagipath.api.v1.ClustersResponse
+	(*ClusterListItem)(nil),      // 0: nagipath.api.v1.ClusterListItem
+	(*ClusterMemberItem)(nil),    // 1: nagipath.api.v1.ClusterMemberItem
+	(*ClusterDetail)(nil),        // 2: nagipath.api.v1.ClusterDetail
+	(*ClustersResponse)(nil),     // 3: nagipath.api.v1.ClustersResponse
+	(*ListClustersRequest)(nil),  // 4: nagipath.api.v1.ListClustersRequest
+	(*RenameClusterRequest)(nil), // 5: nagipath.api.v1.RenameClusterRequest
+	(*Ok)(nil),                   // 6: nagipath.api.v1.Ok
 }
 var file_nagipath_api_v1_clusters_proto_depIdxs = []int32{
 	1, // 0: nagipath.api.v1.ClusterDetail.member_list:type_name -> nagipath.api.v1.ClusterMemberItem
 	0, // 1: nagipath.api.v1.ClustersResponse.clusters:type_name -> nagipath.api.v1.ClusterListItem
 	2, // 2: nagipath.api.v1.ClustersResponse.selected:type_name -> nagipath.api.v1.ClusterDetail
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
+	4, // 3: nagipath.api.v1.ClusterService.ListClusters:input_type -> nagipath.api.v1.ListClustersRequest
+	5, // 4: nagipath.api.v1.ClusterService.RenameCluster:input_type -> nagipath.api.v1.RenameClusterRequest
+	3, // 5: nagipath.api.v1.ClusterService.ListClusters:output_type -> nagipath.api.v1.ClustersResponse
+	6, // 6: nagipath.api.v1.ClusterService.RenameCluster:output_type -> nagipath.api.v1.Ok
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -449,6 +588,7 @@ func file_nagipath_api_v1_clusters_proto_init() {
 	if File_nagipath_api_v1_clusters_proto != nil {
 		return
 	}
+	file_nagipath_api_v1_common_proto_init()
 	file_nagipath_api_v1_clusters_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -456,9 +596,9 @@ func file_nagipath_api_v1_clusters_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_clusters_proto_rawDesc), len(file_nagipath_api_v1_clusters_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_nagipath_api_v1_clusters_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_clusters_proto_depIdxs,

@@ -1,0 +1,3 @@
+.tabs{display:flex;gap:18px;padding:0 16px;background:#fff;border-bottom:1px solid #d3dae6;flex:none}
+.tab{padding:8px 0 7px;font-size:13px;color:#535966;cursor:pointer;border:0;background:none;font-family:inherit}
+.tab.on{color:#0061a6;font-weight:600;box-shadow:inset 0 -2px 0 #0077cc}

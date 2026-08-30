@@ -1,0 +1,58 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+
+<Meta title="Design/Introduction" />
+
+# nagipath design workspace
+
+This Storybook is the single source of truth for how this product looks. It
+holds **35 screens**, each with an id (`2j`, `5a`, `8f`…), a title, and a short
+list of design decisions:
+
+- **Pages** — the real React page for each screen, with real API shapes, inside
+  the real chrome. Its Docs tab lists the design notes for the screen it ports.
+- **Components** — every primitive the pages are built from.
+- **Design › Canvas** — all of those pages live on one zoomable wall, in
+  screen order: the mockup sheet, built from the real app.
+- **Design › Screens** — the index: screen → route → page story, and which
+  screens have no page yet.
+
+## The one rule
+
+> Frontend work starts here. Storybook first, page second.
+
+Concretely: a screen that has no page story does not get built twice; a
+component that is not in `Components` does not get invented inside a page; a
+colour, radius or font size that is not in `theme.css` does not get typed
+into a `style={{}}`.
+
+This is also written into `CLAUDE.md` and `AGENTS.md`, so the same rule applies
+to anyone — human or agent — touching `ui/`.
+
+## How a screen's design notes get in here
+
+Each screen's id, title and design notes live in `src/stories/screens.json`,
+and `pageMeta({ screen })` pulls them into that page story's Docs tab — so the
+notes travel with the story, not in a second document to keep in sync.
+
+`src/theme/theme.css` holds the app's literal CSS class names (`.pnl`,
+`.qbar`, `.bg.d`, `.t`) — not a component library themed to resemble a design,
+this IS the design. Don't invent a colour, radius or size that isn't already
+in that file.
+
+## How pages get their data
+
+There is no server behind Storybook and no MSW. `window.fetch` is overridden to
+answer `/api*` from the story's `parameters.api` map. Fixtures are built with
+
+```ts
+pb(NodesListResponseSchema, { rows: [...], total: 428 })
+```
+
+which creates a real protobuf message and marshals it exactly the way the Go
+backend does. A field the page reads that the `.proto` does not have is a
+TypeScript error, not a blank cell — so these fixtures cannot quietly drift away
+from the API.
+
+Unmatched `GET` returns a visible `no story fixture for GET <path>` error;
+unmatched mutations return `{ok:true}` so forms are clickable without a fixture
+per button.

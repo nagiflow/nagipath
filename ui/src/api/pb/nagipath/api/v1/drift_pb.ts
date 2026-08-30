@@ -2,8 +2,11 @@
 // @generated from file nagipath/api/v1/drift.proto (package nagipath.api.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_api_annotations } from "../../../google/api/annotations_pb";
+import type { OkSchema } from "./common_pb";
+import { file_nagipath_api_v1_common } from "./common_pb";
 import type { DriftFinding, DriftRun } from "./nodes_pb";
 import { file_nagipath_api_v1_nodes } from "./nodes_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file nagipath/api/v1/drift.proto.
  */
 export const file_nagipath_api_v1_drift: GenFile = /*@__PURE__*/
-  fileDesc("ChtuYWdpcGF0aC9hcGkvdjEvZHJpZnQucHJvdG8SD25hZ2lwYXRoLmFwaS52MSIyChNEcmlmdEJhc2VsaW5lT3B0aW9uEgwKBGtpbmQYASABKAkSDQoFbGFiZWwYAiABKAkilwEKEERyaWZ0SW5zdGFuY2VSb3cSCgoCaWQYASABKAMSFAoMZGlzcGxheV9uYW1lGAIgASgJEhkKEW5vZGVfZGlzcGxheV9uYW1lGAMgASgJEhgKEGRpdmVyZ2VuY2VfY291bnQYBCABKAUSGAoQb2JqZWN0X2JyZWFrZG93bhgFIAEoCRISCgpmaXJzdF9zZWVuGAYgASgJIqUBChFEcmlmdENsdXN0ZXJHcm91cBIUCgxjbHVzdGVyX25hbWUYASABKAkSFQoNYmFzZWxpbmVfbmFtZRgCIAEoCRIYChBub2Rlc193aXRoX2RyaWZ0GAMgASgFEhMKC3RvdGFsX25vZGVzGAQgASgFEjQKCWluc3RhbmNlcxgFIAMoCzIhLm5hZ2lwYXRoLmFwaS52MS5EcmlmdEluc3RhbmNlUm93Ij8KEkRyaWZ0Q2x1c3Rlck9wdGlvbhIKCgJpZBgBIAEoAxIMCgRuYW1lGAIgASgJEg8KB21lbWJlcnMYAyABKAUilgEKCklnbm9yZVJ1bGUSCgoCaWQYASABKAMSEgoKY2x1c3Rlcl9pZBgCIAEoAxITCgtvYmplY3Rfa2luZBgDIAEoCRINCgVmaWVsZBgEIAEoCRIPCgdwYXR0ZXJuGAUgASgJEg4KBnJlYXNvbhgGIAEoCRISCgpjcmVhdGVkX2F0GAcgASgJEg8KB21hdGNoZWQYCCABKAUisAQKDURyaWZ0UmVzcG9uc2USNQoIY2x1c3RlcnMYASADKAsyIy5uYWdpcGF0aC5hcGkudjEuRHJpZnRDbHVzdGVyT3B0aW9uEhIKCmNsdXN0ZXJfaWQYAiABKAMSFAoMY2x1c3Rlcl9uYW1lGAMgASgJEhAKCGJhc2VsaW5lGAQgASgJEjcKCWJhc2VsaW5lcxgFIAMoCzIkLm5hZ2lwYXRoLmFwaS52MS5EcmlmdEJhc2VsaW5lT3B0aW9uEhEKCWFsbF9zY29wZRgGIAEoCBINCgVzY29wZRgHIAEoCRIUCgxzY29wZV9maWx0ZXIYCCABKAkSLAoHaWdub3JlcxgJIAMoCzIbLm5hZ2lwYXRoLmFwaS52MS5JZ25vcmVSdWxlEj8KFGluc3RhbmNlc193aXRoX2RyaWZ0GAogAygLMiEubmFnaXBhdGguYXBpLnYxLkRyaWZ0SW5zdGFuY2VSb3cSOgoOY2x1c3Rlcl9ncm91cHMYCyADKAsyIi5uYWdpcGF0aC5hcGkudjEuRHJpZnRDbHVzdGVyR3JvdXASJwoEcnVucxgMIAMoCzIZLm5hZ2lwYXRoLmFwaS52MS5EcmlmdFJ1bhIfChd0b3RhbF9kaXZlcmdlbnRfb2JqZWN0cxgNIAEoBRIhChljbHVzdGVyc193aXRob3V0X2Jhc2VsaW5lGA4gASgFEhQKDG1lbWJlcl9jb3VudBgPIAEoBRINCgVlbXB0eRgQIAEoCCJRChBEcmlmdE9iamVjdEdyb3VwEgwKBGtpbmQYASABKAkSLwoIZmluZGluZ3MYAiADKAsyHS5uYWdpcGF0aC5hcGkudjEuRHJpZnRGaW5kaW5nItUCChNEcmlmdFJldmlld1Jlc3BvbnNlEhMKC2luc3RhbmNlX2lkGAEgASgDEh0KFWluc3RhbmNlX2Rpc3BsYXlfbmFtZRgCIAEoCRIZChFub2RlX2Rpc3BsYXlfbmFtZRgDIAEoCRIPCgdub2RlX2lkGAQgASgDEhQKDG9iamVjdF9jb3VudBgFIAEoBRIWCg5iYXNlbGluZV9sYWJlbBgGIAEoCRIUCgxzdWJqZWN0X3RpbWUYByABKAkSFQoNYmFzZWxpbmVfdGltZRgIIAEoCRI4Cg1vYmplY3RfZ3JvdXBzGAkgAygLMiEubmFnaXBhdGguYXBpLnYxLkRyaWZ0T2JqZWN0R3JvdXASGAoQbmV4dF9pbnN0YW5jZV9pZBgKIAEoAxIYChBjb25mb3JtaW5nX2NvdW50GAsgASgFEhUKDWlnbm9yZWRfY291bnQYDCABKAVCMVovZ2l0aHViLmNvbS9uYWdpZmxvdy9uYWdpcGF0aC9pbnRlcm5hbC9hcGkvcGI7cGJiBnByb3RvMw", [file_nagipath_api_v1_nodes]);
+  fileDesc("ChtuYWdpcGF0aC9hcGkvdjEvZHJpZnQucHJvdG8SD25hZ2lwYXRoLmFwaS52MSIyChNEcmlmdEJhc2VsaW5lT3B0aW9uEgwKBGtpbmQYASABKAkSDQoFbGFiZWwYAiABKAkilwEKEERyaWZ0SW5zdGFuY2VSb3cSCgoCaWQYASABKAMSFAoMZGlzcGxheV9uYW1lGAIgASgJEhkKEW5vZGVfZGlzcGxheV9uYW1lGAMgASgJEhgKEGRpdmVyZ2VuY2VfY291bnQYBCABKAUSGAoQb2JqZWN0X2JyZWFrZG93bhgFIAEoCRISCgpmaXJzdF9zZWVuGAYgASgJIrkBChFEcmlmdENsdXN0ZXJHcm91cBIUCgxjbHVzdGVyX25hbWUYASABKAkSFQoNYmFzZWxpbmVfbmFtZRgCIAEoCRIYChBub2Rlc193aXRoX2RyaWZ0GAMgASgFEhMKC3RvdGFsX25vZGVzGAQgASgFEjQKCWluc3RhbmNlcxgFIAMoCzIhLm5hZ2lwYXRoLmFwaS52MS5EcmlmdEluc3RhbmNlUm93EhIKCmNsdXN0ZXJfaWQYBiABKAMiPwoSRHJpZnRDbHVzdGVyT3B0aW9uEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSDwoHbWVtYmVycxgDIAEoBSKWAQoKSWdub3JlUnVsZRIKCgJpZBgBIAEoAxISCgpjbHVzdGVyX2lkGAIgASgDEhMKC29iamVjdF9raW5kGAMgASgJEg0KBWZpZWxkGAQgASgJEg8KB3BhdHRlcm4YBSABKAkSDgoGcmVhc29uGAYgASgJEhIKCmNyZWF0ZWRfYXQYByABKAkSDwoHbWF0Y2hlZBgIIAEoBSKwBAoNRHJpZnRSZXNwb25zZRI1CghjbHVzdGVycxgBIAMoCzIjLm5hZ2lwYXRoLmFwaS52MS5EcmlmdENsdXN0ZXJPcHRpb24SEgoKY2x1c3Rlcl9pZBgCIAEoAxIUCgxjbHVzdGVyX25hbWUYAyABKAkSEAoIYmFzZWxpbmUYBCABKAkSNwoJYmFzZWxpbmVzGAUgAygLMiQubmFnaXBhdGguYXBpLnYxLkRyaWZ0QmFzZWxpbmVPcHRpb24SEQoJYWxsX3Njb3BlGAYgASgIEg0KBXNjb3BlGAcgASgJEhQKDHNjb3BlX2ZpbHRlchgIIAEoCRIsCgdpZ25vcmVzGAkgAygLMhsubmFnaXBhdGguYXBpLnYxLklnbm9yZVJ1bGUSPwoUaW5zdGFuY2VzX3dpdGhfZHJpZnQYCiADKAsyIS5uYWdpcGF0aC5hcGkudjEuRHJpZnRJbnN0YW5jZVJvdxI6Cg5jbHVzdGVyX2dyb3VwcxgLIAMoCzIiLm5hZ2lwYXRoLmFwaS52MS5EcmlmdENsdXN0ZXJHcm91cBInCgRydW5zGAwgAygLMhkubmFnaXBhdGguYXBpLnYxLkRyaWZ0UnVuEh8KF3RvdGFsX2RpdmVyZ2VudF9vYmplY3RzGA0gASgFEiEKGWNsdXN0ZXJzX3dpdGhvdXRfYmFzZWxpbmUYDiABKAUSFAoMbWVtYmVyX2NvdW50GA8gASgFEg0KBWVtcHR5GBAgASgIIlEKEERyaWZ0T2JqZWN0R3JvdXASDAoEa2luZBgBIAEoCRIvCghmaW5kaW5ncxgCIAMoCzIdLm5hZ2lwYXRoLmFwaS52MS5EcmlmdEZpbmRpbmcizwIKE0RyaWZ0UmV2aWV3UmVzcG9uc2USEwoLaW5zdGFuY2VfaWQYASABKAMSHQoVaW5zdGFuY2VfZGlzcGxheV9uYW1lGAIgASgJEhkKEW5vZGVfZGlzcGxheV9uYW1lGAMgASgJEg8KB25vZGVfaWQYBCABKAMSFAoMb2JqZWN0X2NvdW50GAUgASgFEhYKDmJhc2VsaW5lX2xhYmVsGAYgASgJEhQKDHN1YmplY3RfdGltZRgHIAEoCRIVCg1iYXNlbGluZV90aW1lGAggASgJEjgKDW9iamVjdF9ncm91cHMYCSADKAsyIS5uYWdpcGF0aC5hcGkudjEuRHJpZnRPYmplY3RHcm91cBIYChBuZXh0X2luc3RhbmNlX2lkGAogASgDEhIKCmNsdXN0ZXJfaWQYCyABKAMSFQoNaWdub3JlZF9jb3VudBgMIAEoBSJDCg9HZXREcmlmdFJlcXVlc3QSDQoFc2NvcGUYASABKAkSEAoIYmFzZWxpbmUYAiABKAkSDwoHY2x1c3RlchgDIAEoCSIsChVHZXREcmlmdFJldmlld1JlcXVlc3QSEwoLaW5zdGFuY2VfaWQYASABKAMiOgoVUmVjb21wdXRlRHJpZnRSZXF1ZXN0Eg8KB2NsdXN0ZXIYASABKAkSEAoIYmFzZWxpbmUYAiABKAkiRwoWUmVjb21wdXRlRHJpZnRSZXNwb25zZRIKCgJvaxgBIAEoCBIQCghjb21wYXJlZBgCIAEoBRIPCgdza2lwcGVkGAMgAygJImoKEklnbm9yZURyaWZ0UmVxdWVzdBIPCgdjbHVzdGVyGAEgASgDEhMKC29iamVjdF9raW5kGAIgASgJEg0KBWZpZWxkGAMgASgJEg8KB3BhdHRlcm4YBCABKAkSDgoGcmVhc29uGAUgASgJIiIKFFVuaWdub3JlRHJpZnRSZXF1ZXN0EgoKAmlkGAEgASgDIjkKFFNldEdvbGRlblBlZXJSZXF1ZXN0Eg8KB2NsdXN0ZXIYASABKAMSEAoIaW5zdGFuY2UYAiABKAMyrAUKDERyaWZ0U2VydmljZRJcCghHZXREcmlmdBIgLm5hZ2lwYXRoLmFwaS52MS5HZXREcmlmdFJlcXVlc3QaHi5uYWdpcGF0aC5hcGkudjEuRHJpZnRSZXNwb25zZSIOgtPkkwIIEgYvZHJpZnQSgwEKDkdldERyaWZ0UmV2aWV3EiYubmFnaXBhdGguYXBpLnYxLkdldERyaWZ0UmV2aWV3UmVxdWVzdBokLm5hZ2lwYXRoLmFwaS52MS5EcmlmdFJldmlld1Jlc3BvbnNlIiOC0+STAh0SGy9kcmlmdC9yZXZpZXcve2luc3RhbmNlX2lkfRJ+Cg5SZWNvbXB1dGVEcmlmdBImLm5hZ2lwYXRoLmFwaS52MS5SZWNvbXB1dGVEcmlmdFJlcXVlc3QaJy5uYWdpcGF0aC5hcGkudjEuUmVjb21wdXRlRHJpZnRSZXNwb25zZSIbgtPkkwIVOgEqIhAvZHJpZnQvcmVjb21wdXRlEmEKC0lnbm9yZURyaWZ0EiMubmFnaXBhdGguYXBpLnYxLklnbm9yZURyaWZ0UmVxdWVzdBoTLm5hZ2lwYXRoLmFwaS52MS5PayIYgtPkkwISOgEqIg0vZHJpZnQvaWdub3JlEm4KDVVuaWdub3JlRHJpZnQSJS5uYWdpcGF0aC5hcGkudjEuVW5pZ25vcmVEcmlmdFJlcXVlc3QaEy5uYWdpcGF0aC5hcGkudjEuT2siIYLT5JMCGyIZL2RyaWZ0L2lnbm9yZS97aWR9L2RlbGV0ZRJlCg1TZXRHb2xkZW5QZWVyEiUubmFnaXBhdGguYXBpLnYxLlNldEdvbGRlblBlZXJSZXF1ZXN0GhMubmFnaXBhdGguYXBpLnYxLk9rIhiC0+STAhI6ASoiDS9kcmlmdC9nb2xkZW5CMVovZ2l0aHViLmNvbS9uYWdpZmxvdy9uYWdpcGF0aC9pbnRlcm5hbC9hcGkvcGI7cGJiBnByb3RvMw", [file_google_api_annotations, file_nagipath_api_v1_common, file_nagipath_api_v1_nodes]);
 
 /**
  * @generated from message nagipath.api.v1.DriftBaselineOption
@@ -106,6 +109,14 @@ export type DriftClusterGroup = Message<"nagipath.api.v1.DriftClusterGroup"> & {
    * @generated from field: repeated nagipath.api.v1.DriftInstanceRow instances = 5;
    */
   instances: DriftInstanceRow[];
+
+  /**
+   * 0 for the "No cluster" group. Lets the group band offer "Set baseline"
+   * without a second round trip to resolve a name back to an id.
+   *
+   * @generated from field: int64 cluster_id = 6;
+   */
+  clusterId: bigint;
 };
 
 /**
@@ -363,9 +374,12 @@ export type DriftReviewResponse = Message<"nagipath.api.v1.DriftReviewResponse">
   nextInstanceId: bigint;
 
   /**
-   * @generated from field: int32 conforming_count = 11;
+   * The review page's "Ignore this object" scopes an IgnoreRule to the
+   * instance's cluster, so it has to know which one that is.
+   *
+   * @generated from field: int64 cluster_id = 11;
    */
-  conformingCount: number;
+  clusterId: bigint;
 
   /**
    * @generated from field: int32 ignored_count = 12;
@@ -379,4 +393,232 @@ export type DriftReviewResponse = Message<"nagipath.api.v1.DriftReviewResponse">
  */
 export const DriftReviewResponseSchema: GenMessage<DriftReviewResponse> = /*@__PURE__*/
   messageDesc(file_nagipath_api_v1_drift, 7);
+
+/**
+ * @generated from message nagipath.api.v1.GetDriftRequest
+ */
+export type GetDriftRequest = Message<"nagipath.api.v1.GetDriftRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: string baseline = 2;
+   */
+  baseline: string;
+
+  /**
+   * @generated from field: string cluster = 3;
+   */
+  cluster: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.GetDriftRequest.
+ * Use `create(GetDriftRequestSchema)` to create a new message.
+ */
+export const GetDriftRequestSchema: GenMessage<GetDriftRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_drift, 8);
+
+/**
+ * @generated from message nagipath.api.v1.GetDriftReviewRequest
+ */
+export type GetDriftReviewRequest = Message<"nagipath.api.v1.GetDriftReviewRequest"> & {
+  /**
+   * @generated from field: int64 instance_id = 1;
+   */
+  instanceId: bigint;
+};
+
+/**
+ * Describes the message nagipath.api.v1.GetDriftReviewRequest.
+ * Use `create(GetDriftReviewRequestSchema)` to create a new message.
+ */
+export const GetDriftReviewRequestSchema: GenMessage<GetDriftReviewRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_drift, 9);
+
+/**
+ * @generated from message nagipath.api.v1.RecomputeDriftRequest
+ */
+export type RecomputeDriftRequest = Message<"nagipath.api.v1.RecomputeDriftRequest"> & {
+  /**
+   * @generated from field: string cluster = 1;
+   */
+  cluster: string;
+
+  /**
+   * @generated from field: string baseline = 2;
+   */
+  baseline: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.RecomputeDriftRequest.
+ * Use `create(RecomputeDriftRequestSchema)` to create a new message.
+ */
+export const RecomputeDriftRequestSchema: GenMessage<RecomputeDriftRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_drift, 10);
+
+/**
+ * @generated from message nagipath.api.v1.RecomputeDriftResponse
+ */
+export type RecomputeDriftResponse = Message<"nagipath.api.v1.RecomputeDriftResponse"> & {
+  /**
+   * @generated from field: bool ok = 1;
+   */
+  ok: boolean;
+
+  /**
+   * @generated from field: int32 compared = 2;
+   */
+  compared: number;
+
+  /**
+   * @generated from field: repeated string skipped = 3;
+   */
+  skipped: string[];
+};
+
+/**
+ * Describes the message nagipath.api.v1.RecomputeDriftResponse.
+ * Use `create(RecomputeDriftResponseSchema)` to create a new message.
+ */
+export const RecomputeDriftResponseSchema: GenMessage<RecomputeDriftResponse> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_drift, 11);
+
+/**
+ * @generated from message nagipath.api.v1.IgnoreDriftRequest
+ */
+export type IgnoreDriftRequest = Message<"nagipath.api.v1.IgnoreDriftRequest"> & {
+  /**
+   * @generated from field: int64 cluster = 1;
+   */
+  cluster: bigint;
+
+  /**
+   * @generated from field: string object_kind = 2;
+   */
+  objectKind: string;
+
+  /**
+   * @generated from field: string field = 3;
+   */
+  field: string;
+
+  /**
+   * @generated from field: string pattern = 4;
+   */
+  pattern: string;
+
+  /**
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.IgnoreDriftRequest.
+ * Use `create(IgnoreDriftRequestSchema)` to create a new message.
+ */
+export const IgnoreDriftRequestSchema: GenMessage<IgnoreDriftRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_drift, 12);
+
+/**
+ * @generated from message nagipath.api.v1.UnignoreDriftRequest
+ */
+export type UnignoreDriftRequest = Message<"nagipath.api.v1.UnignoreDriftRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message nagipath.api.v1.UnignoreDriftRequest.
+ * Use `create(UnignoreDriftRequestSchema)` to create a new message.
+ */
+export const UnignoreDriftRequestSchema: GenMessage<UnignoreDriftRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_drift, 13);
+
+/**
+ * @generated from message nagipath.api.v1.SetGoldenPeerRequest
+ */
+export type SetGoldenPeerRequest = Message<"nagipath.api.v1.SetGoldenPeerRequest"> & {
+  /**
+   * @generated from field: int64 cluster = 1;
+   */
+  cluster: bigint;
+
+  /**
+   * @generated from field: int64 instance = 2;
+   */
+  instance: bigint;
+};
+
+/**
+ * Describes the message nagipath.api.v1.SetGoldenPeerRequest.
+ * Use `create(SetGoldenPeerRequestSchema)` to create a new message.
+ */
+export const SetGoldenPeerRequestSchema: GenMessage<SetGoldenPeerRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_drift, 14);
+
+/**
+ * DriftService: GET /drift, GET /drift/review/{instance_id},
+ * POST /drift/recompute, POST /drift/ignore, POST /drift/ignore/{id}/delete
+ * and POST /drift/golden (internal/api/driftservice.go).
+ *
+ * @generated from service nagipath.api.v1.DriftService
+ */
+export const DriftService: GenService<{
+  /**
+   * @generated from rpc nagipath.api.v1.DriftService.GetDrift
+   */
+  getDrift: {
+    methodKind: "unary";
+    input: typeof GetDriftRequestSchema;
+    output: typeof DriftResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.DriftService.GetDriftReview
+   */
+  getDriftReview: {
+    methodKind: "unary";
+    input: typeof GetDriftReviewRequestSchema;
+    output: typeof DriftReviewResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.DriftService.RecomputeDrift
+   */
+  recomputeDrift: {
+    methodKind: "unary";
+    input: typeof RecomputeDriftRequestSchema;
+    output: typeof RecomputeDriftResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.DriftService.IgnoreDrift
+   */
+  ignoreDrift: {
+    methodKind: "unary";
+    input: typeof IgnoreDriftRequestSchema;
+    output: typeof OkSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.DriftService.UnignoreDrift
+   */
+  unignoreDrift: {
+    methodKind: "unary";
+    input: typeof UnignoreDriftRequestSchema;
+    output: typeof OkSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.DriftService.SetGoldenPeer
+   */
+  setGoldenPeer: {
+    methodKind: "unary";
+    input: typeof SetGoldenPeerRequestSchema;
+    output: typeof OkSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_nagipath_api_v1_drift, 0);
 

@@ -1,0 +1,7 @@
+/* The app's most-used class by far: "this came from a machine" (hostnames,
+   paths, counts, times) is `.m`, muted with `.mu`/`.mus` — used raw in
+   dozens of pages, not only through the Mono component, since a lot of
+   machine-data text is a plain <span> with no other behavior worth wrapping. */
+.m{font:12px "Roboto Mono",monospace}
+.mu{color:#69707d}
+.mus{color:#98a2b3}

@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
+import "nagipath/api/v1/common.proto";
+
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
 
 message ClusterListItem {
@@ -40,4 +43,35 @@ message ClustersResponse {
   string drift_filter = 4;
   string sort = 5;
   ClusterDetail selected = 6;
+}
+
+message ListClustersRequest {
+  string q = 1;
+  string drift = 2;
+  string sort = 3;
+  int64 cluster = 4;
+}
+
+message RenameClusterRequest {
+  int64 cluster = 1;
+  string name = 2;
+}
+
+// ClusterService is this domain's whole HTTP surface: internal/web mounts
+// internal/api once at /api/ (docs/adr/0017), and this service's
+// google.api.http annotations are what carry GET /clusters and
+// POST /clusters/rename the rest of the way — no separate net/http
+// registration for either (internal/api/api.go). See
+// internal/api/clusterservice.go for the implementation and why it's
+// registered in-process rather than behind a real gRPC listener.
+service ClusterService {
+  rpc ListClusters(ListClustersRequest) returns (ClustersResponse) {
+    option (google.api.http) = { get: "/clusters" };
+  }
+  rpc RenameCluster(RenameClusterRequest) returns (Ok) {
+    option (google.api.http) = {
+      post: "/clusters/rename"
+      body: "*"
+    };
+  }
 }

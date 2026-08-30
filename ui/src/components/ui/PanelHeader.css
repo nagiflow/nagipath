@@ -1,0 +1,5 @@
+/* flex-wrap: design/'s panel headers carry two controls and always fit on one
+   line; real ones carry four filters and would otherwise push the last one out
+   of the panel. Wraps only when it has to, so single-line headers are unchanged. */
+.phd{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #edf0f5;flex:none;flex-wrap:wrap}
+.ph2{font:600 12px Inter,system-ui,sans-serif;color:#1d1e24;margin:0}

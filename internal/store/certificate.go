@@ -97,6 +97,7 @@ type CertificateView struct {
 type CertBinding struct {
 	InstanceID  int64
 	Instance    string
+	NodeID      int64
 	Node        string
 	ClusterName string
 	SnapshotID  int64
@@ -109,7 +110,7 @@ type CertBinding struct {
 
 func (db *DB) CertBindings(ctx context.Context, certID int64) ([]CertBinding, error) {
 	rows, err := db.R.QueryContext(ctx, `SELECT b.instance_id, i.display_name,
-		n.display_name, COALESCE(c.name, ''), b.snapshot_id, COALESCE(b.prov_file_id, 0), b.file_path,
+		n.id, n.display_name, COALESCE(c.name, ''), b.snapshot_id, COALESCE(b.prov_file_id, 0), b.file_path,
 		COALESCE((SELECT group_concat(DISTINCT sn.name) FROM site_name sn
 		   WHERE sn.site_id = b.site_id), ''),
 		COALESCE((SELECT l.port FROM listener l WHERE l.id = b.listener_id), 0),
@@ -128,7 +129,7 @@ func (db *DB) CertBindings(ctx context.Context, certID int64) ([]CertBinding, er
 	var out []CertBinding
 	for rows.Next() {
 		var b CertBinding
-		if err := rows.Scan(&b.InstanceID, &b.Instance, &b.Node, &b.ClusterName, &b.SnapshotID, &b.FileID,
+		if err := rows.Scan(&b.InstanceID, &b.Instance, &b.NodeID, &b.Node, &b.ClusterName, &b.SnapshotID, &b.FileID,
 			&b.FilePath, &b.SiteNames, &b.Port, &b.CombinedPEM); err != nil {
 			return nil, err
 		}

@@ -24,12 +24,16 @@ export function useRenameCluster() {
 }
 
 // useSetGoldenPeer declares a cluster's golden peer (internal/api/drift.go's
-// postDriftGolden) — "Change baseline" on ClustersPage, and the same
-// mutation Drift's own baseline picker uses once that page ships.
+// postDriftGolden) — omitting `instance` clears it. Used by NodesListPage's
+// "Clear baseline" and DriftPage's "Set/Change baseline" picker; both read
+// through GetDrift or ListClusters, so both need invalidating.
 export function useSetGoldenPeer() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: { cluster: number; instance?: number }) => api.postAction('/drift/golden', body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['clusters'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clusters'] })
+      queryClient.invalidateQueries({ queryKey: ['drift'] })
+    },
   })
 }

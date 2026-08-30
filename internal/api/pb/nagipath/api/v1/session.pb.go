@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -165,8 +166,13 @@ type SessionResponse struct {
 	NavCounts          *NavCounts             `protobuf:"bytes,4,opt,name=nav_counts,json=navCounts,proto3" json:"nav_counts,omitempty"`
 	LicenseNotice      string                 `protobuf:"bytes,5,opt,name=license_notice,json=licenseNotice,proto3" json:"license_notice,omitempty"`
 	DemoMode           bool                   `protobuf:"varint,6,opt,name=demo_mode,json=demoMode,proto3" json:"demo_mode,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// authenticated and setup_required let GET /session serve an anonymous
+	// caller a 200 instead of a 401 — the SPA's Login/Setup pages need to know
+	// which of themselves to render before any session exists at all.
+	Authenticated bool `protobuf:"varint,7,opt,name=authenticated,proto3" json:"authenticated,omitempty"`
+	SetupRequired bool `protobuf:"varint,8,opt,name=setup_required,json=setupRequired,proto3" json:"setup_required,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SessionResponse) Reset() {
@@ -241,11 +247,201 @@ func (x *SessionResponse) GetDemoMode() bool {
 	return false
 }
 
+func (x *SessionResponse) GetAuthenticated() bool {
+	if x != nil {
+		return x.Authenticated
+	}
+	return false
+}
+
+func (x *SessionResponse) GetSetupRequired() bool {
+	if x != nil {
+		return x.SetupRequired
+	}
+	return false
+}
+
+type SetupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	Confirm       string                 `protobuf:"bytes,3,opt,name=confirm,proto3" json:"confirm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetupRequest) Reset() {
+	*x = SetupRequest{}
+	mi := &file_nagipath_api_v1_session_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetupRequest) ProtoMessage() {}
+
+func (x *SetupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_session_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetupRequest.ProtoReflect.Descriptor instead.
+func (*SetupRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_session_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SetupRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *SetupRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+func (x *SetupRequest) GetConfirm() string {
+	if x != nil {
+		return x.Confirm
+	}
+	return ""
+}
+
+type LoginRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoginRequest) Reset() {
+	*x = LoginRequest{}
+	mi := &file_nagipath_api_v1_session_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoginRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginRequest) ProtoMessage() {}
+
+func (x *LoginRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_session_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
+func (*LoginRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_session_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *LoginRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *LoginRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+type ChangePasswordRequest struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Current string                 `protobuf:"bytes,1,opt,name=current,proto3" json:"current,omitempty"`
+	// Named to match the wire field the frontend already sends
+	// (ui/src/api/queries/session.ts posts plain JSON, not protobuf toJson,
+	// for this one request body — {current, new, confirm}), not proto/Go
+	// naming convention.
+	New           string `protobuf:"bytes,2,opt,name=new,proto3" json:"new,omitempty"`
+	Confirm       string `protobuf:"bytes,3,opt,name=confirm,proto3" json:"confirm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChangePasswordRequest) Reset() {
+	*x = ChangePasswordRequest{}
+	mi := &file_nagipath_api_v1_session_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangePasswordRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangePasswordRequest) ProtoMessage() {}
+
+func (x *ChangePasswordRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_session_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangePasswordRequest.ProtoReflect.Descriptor instead.
+func (*ChangePasswordRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_session_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ChangePasswordRequest) GetCurrent() string {
+	if x != nil {
+		return x.Current
+	}
+	return ""
+}
+
+func (x *ChangePasswordRequest) GetNew() string {
+	if x != nil {
+		return x.New
+	}
+	return ""
+}
+
+func (x *ChangePasswordRequest) GetConfirm() string {
+	if x != nil {
+		return x.Confirm
+	}
+	return ""
+}
+
 var File_nagipath_api_v1_session_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_session_proto_rawDesc = "" +
 	"\n" +
-	"\x1dnagipath/api/v1/session.proto\x12\x0fnagipath.api.v1\"\x8d\x01\n" +
+	"\x1dnagipath/api/v1/session.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1cnagipath/api/v1/common.proto\"\x8d\x01\n" +
 	"\tNavCounts\x12\x14\n" +
 	"\x05nodes\x18\x01 \x01(\x05R\x05nodes\x12\x14\n" +
 	"\x05sites\x18\x02 \x01(\x05R\x05sites\x12\x1a\n" +
@@ -255,7 +451,7 @@ const file_nagipath_api_v1_session_proto_rawDesc = "" +
 	"\vSessionUser\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x12\n" +
-	"\x04role\x18\x03 \x01(\tR\x04role\"\x93\x02\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\"\xe0\x02\n" +
 	"\x0fSessionResponse\x120\n" +
 	"\x04user\x18\x01 \x01(\v2\x1c.nagipath.api.v1.SessionUserR\x04user\x12\x1d\n" +
 	"\n" +
@@ -264,7 +460,25 @@ const file_nagipath_api_v1_session_proto_rawDesc = "" +
 	"\n" +
 	"nav_counts\x18\x04 \x01(\v2\x1a.nagipath.api.v1.NavCountsR\tnavCounts\x12%\n" +
 	"\x0elicense_notice\x18\x05 \x01(\tR\rlicenseNotice\x12\x1b\n" +
-	"\tdemo_mode\x18\x06 \x01(\bR\bdemoModeB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	"\tdemo_mode\x18\x06 \x01(\bR\bdemoMode\x12$\n" +
+	"\rauthenticated\x18\a \x01(\bR\rauthenticated\x12%\n" +
+	"\x0esetup_required\x18\b \x01(\bR\rsetupRequired\"`\n" +
+	"\fSetupRequest\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x18\n" +
+	"\aconfirm\x18\x03 \x01(\tR\aconfirm\"F\n" +
+	"\fLoginRequest\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"]\n" +
+	"\x15ChangePasswordRequest\x12\x18\n" +
+	"\acurrent\x18\x01 \x01(\tR\acurrent\x12\x10\n" +
+	"\x03new\x18\x02 \x01(\tR\x03new\x12\x18\n" +
+	"\aconfirm\x18\x03 \x01(\tR\aconfirm2\x84\x03\n" +
+	"\x0eSessionService\x12[\n" +
+	"\x05Setup\x12\x1d.nagipath.api.v1.SetupRequest\x1a .nagipath.api.v1.SessionResponse\"\x11\x82\xd3\xe4\x93\x02\v:\x01*\"\x06/setup\x12[\n" +
+	"\x05Login\x12\x1d.nagipath.api.v1.LoginRequest\x1a .nagipath.api.v1.SessionResponse\"\x11\x82\xd3\xe4\x93\x02\v:\x01*\"\x06/login\x12F\n" +
+	"\x06Logout\x12\x16.nagipath.api.v1.Empty\x1a\x13.nagipath.api.v1.Ok\"\x0f\x82\xd3\xe4\x93\x02\t\"\a/logout\x12p\n" +
+	"\x0eChangePassword\x12&.nagipath.api.v1.ChangePasswordRequest\x1a .nagipath.api.v1.SessionResponse\"\x14\x82\xd3\xe4\x93\x02\x0e:\x01*\"\t/passwordB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_session_proto_rawDescOnce sync.Once
@@ -278,17 +492,30 @@ func file_nagipath_api_v1_session_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_session_proto_rawDescData
 }
 
-var file_nagipath_api_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_nagipath_api_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_nagipath_api_v1_session_proto_goTypes = []any{
-	(*NavCounts)(nil),       // 0: nagipath.api.v1.NavCounts
-	(*SessionUser)(nil),     // 1: nagipath.api.v1.SessionUser
-	(*SessionResponse)(nil), // 2: nagipath.api.v1.SessionResponse
+	(*NavCounts)(nil),             // 0: nagipath.api.v1.NavCounts
+	(*SessionUser)(nil),           // 1: nagipath.api.v1.SessionUser
+	(*SessionResponse)(nil),       // 2: nagipath.api.v1.SessionResponse
+	(*SetupRequest)(nil),          // 3: nagipath.api.v1.SetupRequest
+	(*LoginRequest)(nil),          // 4: nagipath.api.v1.LoginRequest
+	(*ChangePasswordRequest)(nil), // 5: nagipath.api.v1.ChangePasswordRequest
+	(*Empty)(nil),                 // 6: nagipath.api.v1.Empty
+	(*Ok)(nil),                    // 7: nagipath.api.v1.Ok
 }
 var file_nagipath_api_v1_session_proto_depIdxs = []int32{
 	1, // 0: nagipath.api.v1.SessionResponse.user:type_name -> nagipath.api.v1.SessionUser
 	0, // 1: nagipath.api.v1.SessionResponse.nav_counts:type_name -> nagipath.api.v1.NavCounts
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
+	3, // 2: nagipath.api.v1.SessionService.Setup:input_type -> nagipath.api.v1.SetupRequest
+	4, // 3: nagipath.api.v1.SessionService.Login:input_type -> nagipath.api.v1.LoginRequest
+	6, // 4: nagipath.api.v1.SessionService.Logout:input_type -> nagipath.api.v1.Empty
+	5, // 5: nagipath.api.v1.SessionService.ChangePassword:input_type -> nagipath.api.v1.ChangePasswordRequest
+	2, // 6: nagipath.api.v1.SessionService.Setup:output_type -> nagipath.api.v1.SessionResponse
+	2, // 7: nagipath.api.v1.SessionService.Login:output_type -> nagipath.api.v1.SessionResponse
+	7, // 8: nagipath.api.v1.SessionService.Logout:output_type -> nagipath.api.v1.Ok
+	2, // 9: nagipath.api.v1.SessionService.ChangePassword:output_type -> nagipath.api.v1.SessionResponse
+	6, // [6:10] is the sub-list for method output_type
+	2, // [2:6] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -299,15 +526,16 @@ func file_nagipath_api_v1_session_proto_init() {
 	if File_nagipath_api_v1_session_proto != nil {
 		return
 	}
+	file_nagipath_api_v1_common_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_session_proto_rawDesc), len(file_nagipath_api_v1_session_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   6,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_nagipath_api_v1_session_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_session_proto_depIdxs,

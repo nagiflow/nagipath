@@ -400,7 +400,11 @@ func (db *DB) SiteOverviewData(ctx context.Context, name, variantKey string) (Si
 	}
 	upstreamRows.Close()
 
-	// Get routes for selected variant
+	// Get routes for selected variant. Scoped to one representative site row
+	// (the lowest id matching this hostname+raw_text+current snapshot), not
+	// every site row that shares the variant: two nodes running byte-identical
+	// config each parse their own site+route rows, and joining across all of
+	// them would return the same context path once per node instead of once.
 	if selectedRawText != "" {
 		routeRows, err := db.R.QueryContext(ctx, `
 			-- Older databases could contain a NULL route pattern for a catch-all
@@ -408,13 +412,15 @@ func (db *DB) SiteOverviewData(ctx context.Context, name, variantKey string) (Si
 			-- those historical rows on the current NOT NULL schema.
 			SELECT r.ordinal, COALESCE(r.pattern, ''), COALESCE(r.match_type, ''), COALESCE(r.target_raw, ''),
 			       COALESCE(u.name, ''), r.prov_file_id, r.snapshot_id, r.prov_byte_start
-			FROM site s
-			JOIN snapshot snap ON snap.id = s.snapshot_id AND snap.is_current = 1
-			JOIN route r ON r.site_id = s.id
+			FROM route r
 			LEFT JOIN upstream u ON u.id = r.upstream_id
-			WHERE s.primary_name = ? AND s.raw_text = ?
-			ORDER BY r.precedence_rank, r.specificity DESC, r.ordinal
-			LIMIT 1`, name, selectedRawText)
+			WHERE r.site_id = (
+				SELECT s.id FROM site s
+				JOIN snapshot snap ON snap.id = s.snapshot_id AND snap.is_current = 1
+				WHERE s.primary_name = ? AND s.raw_text = ?
+				ORDER BY s.id LIMIT 1
+			)
+			ORDER BY r.precedence_rank, r.specificity DESC, r.ordinal`, name, selectedRawText)
 		if err != nil {
 			return d, err
 		}

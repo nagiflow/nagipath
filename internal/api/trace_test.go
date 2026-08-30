@@ -1,14 +1,11 @@
 package api
 
 import (
-	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 
 	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
 	"github.com/nagiflow/nagipath/internal/trace"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // TestTraceProvenancePanelShowsTheRealLines ports internal/web's old
@@ -21,15 +18,12 @@ func TestTraceProvenancePanelShowsTheRealLines(t *testing.T) {
 	db := testDB(t)
 	seedNginx(t, db, "web02", "10.90.4.11")
 	s := New(db, nil, false)
+	ts := &traceService{s: s}
+	ctx := t.Context()
 
-	w := httptest.NewRecorder()
-	s.getTrace(w, httptest.NewRequest("GET", "/trace?url=https://shop.example.com/api/v2", nil))
-	if w.Code != 200 {
-		t.Fatalf("GET /trace = %d\n%s", w.Code, w.Body.String())
-	}
-	var resp pb.TraceResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatal(err)
+	resp, err := ts.GetTrace(ctx, &pb.GetTraceRequest{Url: "https://shop.example.com/api/v2"})
+	if err != nil {
+		t.Fatalf("GetTrace: %v", err)
 	}
 	if resp.Prov == nil {
 		t.Fatal("/trace returned no Provenance, so no rule on the page can be checked without leaving it")
@@ -59,11 +53,9 @@ func TestTraceProvenancePanelShowsTheRealLines(t *testing.T) {
 	if ruleID == 0 {
 		t.Fatal("no hop has a fired rule to select into the provenance panel")
 	}
-	w = httptest.NewRecorder()
-	s.getTrace(w, httptest.NewRequest("GET", "/trace?url=https://shop.example.com/api/v2&prov="+strconv.FormatInt(ruleID, 10), nil))
-	var picked pb.TraceResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &picked); err != nil {
-		t.Fatal(err)
+	picked, err := ts.GetTrace(ctx, &pb.GetTraceRequest{Url: "https://shop.example.com/api/v2", Prov: ruleID})
+	if err != nil {
+		t.Fatalf("GetTrace with prov: %v", err)
 	}
 	if !picked.ProvPicked || picked.Prov == nil || picked.Prov.RuleId != ruleID {
 		t.Errorf("selecting rule %d did not come back as the picked provenance: %+v", ruleID, picked.Prov)

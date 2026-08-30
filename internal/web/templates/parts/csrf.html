@@ -1,3 +1,0 @@
-{{/* Every state-changing form owes this field; the middleware rejects the
-     request without it. Call it as {{template "csrf" $.CSRF}}. */}}
-{{define "csrf"}}<input type="hidden" name="csrf" value="{{.}}">{{end}}

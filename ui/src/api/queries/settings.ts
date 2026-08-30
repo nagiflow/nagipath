@@ -133,14 +133,15 @@ export function useSetUserDisabled() {
 
 // ---------------------------------------------------------------- audit
 
-export function useAudit(params: { actor: string; action: string; range: string; page: number }) {
+export function useAudit(params: { actor: string; action: string; range: string; page: number; perPage?: number }) {
   const qs = new URLSearchParams()
   if (params.actor) qs.set('actor', params.actor)
   if (params.action) qs.set('action', params.action)
   if (params.range) qs.set('range', params.range)
   if (params.page > 1) qs.set('page', String(params.page))
+  if (params.perPage) qs.set('per_page', String(params.perPage))
   return useQuery({
-    queryKey: ['settings-audit', params.actor, params.action, params.range, params.page],
+    queryKey: ['settings-audit', params.actor, params.action, params.range, params.page, params.perPage],
     queryFn: () => api.get(`/settings/audit?${qs.toString()}`, AuditResponseSchema),
   })
 }
@@ -190,10 +191,11 @@ export function useInstallLicense() {
 
 // ---------------------------------------------------------------- system
 
-export function useDiagnostics() {
+export function useDiagnostics(opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['settings-system'],
     queryFn: () => api.get('/settings/system', DiagnosticsResponseSchema),
+    enabled: opts?.enabled,
   })
 }
 

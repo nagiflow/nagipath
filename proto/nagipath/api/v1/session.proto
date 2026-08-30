@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
+import "nagipath/api/v1/common.proto";
+
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
 
 message NavCounts {
@@ -25,4 +28,56 @@ message SessionResponse {
   NavCounts nav_counts = 4;
   string license_notice = 5;
   bool demo_mode = 6;
+  // authenticated and setup_required let GET /session serve an anonymous
+  // caller a 200 instead of a 401 — the SPA's Login/Setup pages need to know
+  // which of themselves to render before any session exists at all.
+  bool authenticated = 7;
+  bool setup_required = 8;
+}
+
+message SetupRequest {
+  string username = 1;
+  string password = 2;
+  string confirm = 3;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message ChangePasswordRequest {
+  string current = 1;
+  // Named to match the wire field the frontend already sends
+  // (ui/src/api/queries/session.ts posts plain JSON, not protobuf toJson,
+  // for this one request body — {current, new, confirm}), not proto/Go
+  // naming convention.
+  string new = 2;
+  string confirm = 3;
+}
+
+// SessionService is login/setup/logout/password-change — everything except
+// GET /session itself (internal/api/session.go), which stays a plain
+// net/http handler: it is the one endpoint in this whole API an anonymous
+// caller (no cookie, or one SessionUser rejects) must still get a 200 from,
+// peeking at the cookie rather than requiring it the way requireAuth does,
+// so it does not fit this package's usual gateway-plus-requireAuth shape.
+// Setup and Login aren't requireAuth-wrapped either (there is no session yet
+// to check) — see api.go's registration of these routes. Both mutate the
+// session cookie via grpc.SetHeader (internal/api/sessionservice.go), since
+// an RPC method has no http.ResponseWriter to call http.SetCookie on
+// directly.
+service SessionService {
+  rpc Setup(SetupRequest) returns (SessionResponse) {
+    option (google.api.http) = { post: "/setup", body: "*" };
+  }
+  rpc Login(LoginRequest) returns (SessionResponse) {
+    option (google.api.http) = { post: "/login", body: "*" };
+  }
+  rpc Logout(Empty) returns (Ok) {
+    option (google.api.http) = { post: "/logout" };
+  }
+  rpc ChangePassword(ChangePasswordRequest) returns (SessionResponse) {
+    option (google.api.http) = { post: "/password", body: "*" };
+  }
 }

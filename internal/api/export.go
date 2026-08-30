@@ -10,7 +10,7 @@ import (
 // package (audit, collections) is a plain download, not a proto response —
 // there is no TypeScript consumer decoding this, just a browser save.
 func (s *Server) writeCSV(w http.ResponseWriter, r *http.Request, name string, rows [][]string) {
-	u := userOf(r)
+	u := userOf(r.Context())
 	// len(rows)-1 because the first row is the header.
 	_ = s.DB.Audit(r.Context(), &u.ID, "export.csv", name, nil, fmt.Sprintf("%d row(s)", len(rows)-1))
 

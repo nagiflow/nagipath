@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
+import "nagipath/api/v1/common.proto";
+
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
 
 message NodeListRow {
@@ -97,6 +100,9 @@ message PendingHostKey {
   string node_name = 2;
   string node_address = 3;
   string previous = 4;
+  // Every cluster this node's processes sit in, comma-separated. A node has no
+  // cluster of its own, so this is a list, not a single name.
+  string cluster = 5;
 }
 
 message NodeStats {
@@ -300,4 +306,133 @@ message NodeDetailResponse {
   string selected_site_name = 29;
   Route selected_route = 30;
   RouteEffect route_effect = 31;
+}
+
+// ImportedNode is one row of what Import inventory actually added — enough
+// to link to the new node and offer a "Collect now" button without a
+// second round trip.
+message ImportedNode {
+  int64 id = 1;
+  string display_name = 2;
+  string address = 3;
+  int32 ssh_port = 4;
+}
+
+message ImportNodesResponse {
+  repeated ImportedNode added = 1;
+  // refused is one line per host the parser or AddNode rejected, human
+  // readable ("10.90.4.0/24: nagipath does not scan networks; add one host
+  // at a time") — the same messages the pre-SPA flash banner showed.
+  repeated string refused = 2;
+}
+
+message ListNodesRequest {
+  string q = 1;
+}
+
+message AddNodeRequest {
+  string address = 1;
+  int32 port = 2;
+  string display_name = 3;
+  string username = 4;
+  int64 credential_id = 5;
+}
+
+message ImportNodesRequest {
+  string inventory = 1;
+  int64 credential_id = 2;
+}
+
+// GetNodeRequest covers every tab's query params in one flat message — the
+// same way the pre-gateway handler read all of them off one *http.Request
+// regardless of which tab ended up using them (nodes.go's getNode).
+message GetNodeRequest {
+  int64 id = 1;
+  string tab = 2;
+  int64 process = 3;
+  int64 pool = 4;
+  string site = 5;
+  string route = 6;
+  int64 file = 7;
+  string b = 8;
+}
+
+message NodeIdRequest {
+  int64 id = 1;
+}
+
+message ChangeNodeCredentialRequest {
+  int64 id = 1;
+  int64 credential_id = 2;
+}
+
+message DecideHostKeyRequest {
+  int64 id = 1;
+  string decision = 2;
+}
+
+message DecideHostKeyResponse {
+  bool ok = 1;
+  bool approved = 2;
+}
+
+// TestConnectionResponse is one attempt to reach an already-added node over
+// SSH — the same dial and Check() the collector opens with, without running a
+// collection. Used by Import inventory's step 2 (test connections and host
+// keys) and by a "Retry" on any node stuck FAILED, so both share one result
+// shape. A brand-new node has no approved key on file yet, so its first test
+// always comes back host_key_pending — approving it (DecideHostKey) is what
+// lets a retest reach connected.
+message TestConnectionResponse {
+  // "connected" | "host_key_pending" | "failed"
+  string status = 1;
+  int32 latency_ms = 2;
+  // Set when status == "failed".
+  string error = 3;
+  // Set when status == "connected".
+  string os_family = 4;
+  // Set when status == "host_key_pending": the key blocking this attempt,
+  // already recorded pending by the same CheckHostKey path Settings / Host
+  // keys reads — approving it there (or retesting) needs no separate call.
+  HostKey pending_key = 5;
+  // The previously-approved fingerprint for pending_key's algorithm, if any —
+  // empty for a node seeing its first key ever, set when this is a rekey.
+  string previous_fingerprint = 6;
+}
+
+// NodeService: every /nodes and /hostkeys route (internal/api/nodes.go).
+// requireAuth wraps the whole gateway; every RPC but ListNodes and GetNode
+// calls requireAdminRPC as its own first line — same reasoning as
+// DriftService's mutations (drift.proto).
+service NodeService {
+  rpc ListNodes(ListNodesRequest) returns (NodesListResponse) {
+    option (google.api.http) = { get: "/nodes" };
+  }
+  rpc AddNode(AddNodeRequest) returns (IdResponse) {
+    option (google.api.http) = { post: "/nodes", body: "*" };
+  }
+  rpc ImportNodes(ImportNodesRequest) returns (ImportNodesResponse) {
+    option (google.api.http) = { post: "/nodes/import", body: "*" };
+  }
+  rpc GetNode(GetNodeRequest) returns (NodeDetailResponse) {
+    option (google.api.http) = {
+      get: "/nodes/{id}/{tab}"
+      additional_bindings { get: "/nodes/{id}" }
+    };
+  }
+  rpc CollectNode(NodeIdRequest) returns (Ok) {
+    option (google.api.http) = { post: "/nodes/{id}/collect" };
+  }
+  rpc DeleteNode(NodeIdRequest) returns (Ok) {
+    option (google.api.http) = { post: "/nodes/{id}/delete" };
+  }
+  rpc ChangeNodeCredential(ChangeNodeCredentialRequest) returns (Ok) {
+    option (google.api.http) = { post: "/nodes/{id}/credential", body: "*" };
+  }
+  rpc DecideHostKey(DecideHostKeyRequest) returns (DecideHostKeyResponse) {
+    option (google.api.http) = { post: "/hostkeys/{id}/decide", body: "*" };
+  }
+  rpc TestNodeConnection(NodeIdRequest) returns (TestConnectionResponse) {
+    option (google.api.http) = { post: "/nodes/{id}/test" };
+  }
 }

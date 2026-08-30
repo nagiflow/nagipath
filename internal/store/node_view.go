@@ -177,7 +177,7 @@ func (db *DB) NodeStats(ctx context.Context, instanceID int64) (NodeStats, error
 			(SELECT COUNT(*) FROM site WHERE snapshot_id = ?),
 			(SELECT COUNT(*) FROM route WHERE snapshot_id = ?),
 			(SELECT COUNT(*) FROM upstream WHERE snapshot_id = ?),
-			(SELECT COUNT(DISTINCT subject_cn) FROM certificate_binding WHERE snapshot_id = ?)`,
+			(SELECT COUNT(DISTINCT certificate_id) FROM certificate_binding WHERE snapshot_id = ?)`,
 		snapshotID, snapshotID, snapshotID, snapshotID).Scan(
 		&s.Sites, &s.Routes, &s.Upstreams, &s.CertCount)
 

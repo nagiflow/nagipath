@@ -71,6 +71,28 @@ services:
         exec air -c .air.toml
     depends_on: [lb01, web02, web03, web05, app01]
 
+  # The React SPA's dev server (docs/adr/0017), for frontend hot reload —
+  # `nagipath` above only rebuilds and restarts the Go binary, which embeds
+  # ui/dist as it stood at the last `make ui`. Vite serves ui/src directly
+  # with HMR instead, proxying everything under /api to the nagipath
+  # container over the compose network. Bind-mounted like nagipath is, so
+  # edits under ui/src take effect without a rebuild; CHOKIDAR_USEPOLLING
+  # works around the same Docker Desktop bind-mount fsnotify gap .air.toml's
+  # poll=true exists for.
+  ui:
+    image: oven/bun:1.3.14
+    working_dir: /workspace/ui
+    networks: [lab]
+    ports:
+      - "127.0.0.1:5173:5173"
+    environment:
+      VITE_API_PROXY_TARGET: http://nagipath:8080
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ..:/workspace
+    command: ["sh", "-c", "bun install --frozen-lockfile && exec bun run dev"]
+    depends_on: [nagipath]
+
   # The edge. One long haproxy.cfg — haproxy has no `include`, so its complexity
   # is in the number of sections rather than the number of files. The maps and
   # error pages are separate because they are data the config reads at request

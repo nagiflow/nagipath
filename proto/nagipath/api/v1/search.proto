@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
+
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
 
 message RuleHitPB {
@@ -75,4 +77,21 @@ message SearchResponse {
   string error = 21;
   string regex_error = 22;
   repeated SearchGroup groups = 23;
+}
+
+message GetSearchRequest {
+  string q = 1;
+  string match = 2;
+  string scope = 3;
+  repeated string vendor = 4;
+  repeated string file = 5;
+  repeated string cluster = 6;
+  repeated string age = 7;
+  int32 page = 8;
+}
+
+service SearchService {
+  rpc GetSearch(GetSearchRequest) returns (SearchResponse) {
+    option (google.api.http) = { get: "/search" };
+  }
 }

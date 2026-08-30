@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -164,8 +165,11 @@ type DriftClusterGroup struct {
 	NodesWithDrift int32                  `protobuf:"varint,3,opt,name=nodes_with_drift,json=nodesWithDrift,proto3" json:"nodes_with_drift,omitempty"`
 	TotalNodes     int32                  `protobuf:"varint,4,opt,name=total_nodes,json=totalNodes,proto3" json:"total_nodes,omitempty"`
 	Instances      []*DriftInstanceRow    `protobuf:"bytes,5,rep,name=instances,proto3" json:"instances,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// 0 for the "No cluster" group. Lets the group band offer "Set baseline"
+	// without a second round trip to resolve a name back to an id.
+	ClusterId     int64 `protobuf:"varint,6,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DriftClusterGroup) Reset() {
@@ -231,6 +235,13 @@ func (x *DriftClusterGroup) GetInstances() []*DriftInstanceRow {
 		return x.Instances
 	}
 	return nil
+}
+
+func (x *DriftClusterGroup) GetClusterId() int64 {
+	if x != nil {
+		return x.ClusterId
+	}
+	return 0
 }
 
 type DriftClusterOption struct {
@@ -621,10 +632,12 @@ type DriftReviewResponse struct {
 	BaselineTime        string                 `protobuf:"bytes,8,opt,name=baseline_time,json=baselineTime,proto3" json:"baseline_time,omitempty"`
 	ObjectGroups        []*DriftObjectGroup    `protobuf:"bytes,9,rep,name=object_groups,json=objectGroups,proto3" json:"object_groups,omitempty"`
 	NextInstanceId      int64                  `protobuf:"varint,10,opt,name=next_instance_id,json=nextInstanceId,proto3" json:"next_instance_id,omitempty"`
-	ConformingCount     int32                  `protobuf:"varint,11,opt,name=conforming_count,json=conformingCount,proto3" json:"conforming_count,omitempty"`
-	IgnoredCount        int32                  `protobuf:"varint,12,opt,name=ignored_count,json=ignoredCount,proto3" json:"ignored_count,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// The review page's "Ignore this object" scopes an IgnoreRule to the
+	// instance's cluster, so it has to know which one that is.
+	ClusterId     int64 `protobuf:"varint,11,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	IgnoredCount  int32 `protobuf:"varint,12,opt,name=ignored_count,json=ignoredCount,proto3" json:"ignored_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DriftReviewResponse) Reset() {
@@ -727,9 +740,9 @@ func (x *DriftReviewResponse) GetNextInstanceId() int64 {
 	return 0
 }
 
-func (x *DriftReviewResponse) GetConformingCount() int32 {
+func (x *DriftReviewResponse) GetClusterId() int64 {
 	if x != nil {
-		return x.ConformingCount
+		return x.ClusterId
 	}
 	return 0
 }
@@ -741,11 +754,399 @@ func (x *DriftReviewResponse) GetIgnoredCount() int32 {
 	return 0
 }
 
+type GetDriftRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Baseline      string                 `protobuf:"bytes,2,opt,name=baseline,proto3" json:"baseline,omitempty"`
+	Cluster       string                 `protobuf:"bytes,3,opt,name=cluster,proto3" json:"cluster,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriftRequest) Reset() {
+	*x = GetDriftRequest{}
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriftRequest) ProtoMessage() {}
+
+func (x *GetDriftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriftRequest.ProtoReflect.Descriptor instead.
+func (*GetDriftRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_drift_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetDriftRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *GetDriftRequest) GetBaseline() string {
+	if x != nil {
+		return x.Baseline
+	}
+	return ""
+}
+
+func (x *GetDriftRequest) GetCluster() string {
+	if x != nil {
+		return x.Cluster
+	}
+	return ""
+}
+
+type GetDriftReviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	InstanceId    int64                  `protobuf:"varint,1,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriftReviewRequest) Reset() {
+	*x = GetDriftReviewRequest{}
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriftReviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriftReviewRequest) ProtoMessage() {}
+
+func (x *GetDriftReviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriftReviewRequest.ProtoReflect.Descriptor instead.
+func (*GetDriftReviewRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_drift_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetDriftReviewRequest) GetInstanceId() int64 {
+	if x != nil {
+		return x.InstanceId
+	}
+	return 0
+}
+
+type RecomputeDriftRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cluster       string                 `protobuf:"bytes,1,opt,name=cluster,proto3" json:"cluster,omitempty"`
+	Baseline      string                 `protobuf:"bytes,2,opt,name=baseline,proto3" json:"baseline,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecomputeDriftRequest) Reset() {
+	*x = RecomputeDriftRequest{}
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecomputeDriftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecomputeDriftRequest) ProtoMessage() {}
+
+func (x *RecomputeDriftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecomputeDriftRequest.ProtoReflect.Descriptor instead.
+func (*RecomputeDriftRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_drift_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RecomputeDriftRequest) GetCluster() string {
+	if x != nil {
+		return x.Cluster
+	}
+	return ""
+}
+
+func (x *RecomputeDriftRequest) GetBaseline() string {
+	if x != nil {
+		return x.Baseline
+	}
+	return ""
+}
+
+type RecomputeDriftResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Compared      int32                  `protobuf:"varint,2,opt,name=compared,proto3" json:"compared,omitempty"`
+	Skipped       []string               `protobuf:"bytes,3,rep,name=skipped,proto3" json:"skipped,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecomputeDriftResponse) Reset() {
+	*x = RecomputeDriftResponse{}
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecomputeDriftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecomputeDriftResponse) ProtoMessage() {}
+
+func (x *RecomputeDriftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecomputeDriftResponse.ProtoReflect.Descriptor instead.
+func (*RecomputeDriftResponse) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_drift_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RecomputeDriftResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *RecomputeDriftResponse) GetCompared() int32 {
+	if x != nil {
+		return x.Compared
+	}
+	return 0
+}
+
+func (x *RecomputeDriftResponse) GetSkipped() []string {
+	if x != nil {
+		return x.Skipped
+	}
+	return nil
+}
+
+type IgnoreDriftRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cluster       int64                  `protobuf:"varint,1,opt,name=cluster,proto3" json:"cluster,omitempty"`
+	ObjectKind    string                 `protobuf:"bytes,2,opt,name=object_kind,json=objectKind,proto3" json:"object_kind,omitempty"`
+	Field         string                 `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
+	Pattern       string                 `protobuf:"bytes,4,opt,name=pattern,proto3" json:"pattern,omitempty"`
+	Reason        string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IgnoreDriftRequest) Reset() {
+	*x = IgnoreDriftRequest{}
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IgnoreDriftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IgnoreDriftRequest) ProtoMessage() {}
+
+func (x *IgnoreDriftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IgnoreDriftRequest.ProtoReflect.Descriptor instead.
+func (*IgnoreDriftRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_drift_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *IgnoreDriftRequest) GetCluster() int64 {
+	if x != nil {
+		return x.Cluster
+	}
+	return 0
+}
+
+func (x *IgnoreDriftRequest) GetObjectKind() string {
+	if x != nil {
+		return x.ObjectKind
+	}
+	return ""
+}
+
+func (x *IgnoreDriftRequest) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *IgnoreDriftRequest) GetPattern() string {
+	if x != nil {
+		return x.Pattern
+	}
+	return ""
+}
+
+func (x *IgnoreDriftRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type UnignoreDriftRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnignoreDriftRequest) Reset() {
+	*x = UnignoreDriftRequest{}
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnignoreDriftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnignoreDriftRequest) ProtoMessage() {}
+
+func (x *UnignoreDriftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnignoreDriftRequest.ProtoReflect.Descriptor instead.
+func (*UnignoreDriftRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_drift_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *UnignoreDriftRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type SetGoldenPeerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cluster       int64                  `protobuf:"varint,1,opt,name=cluster,proto3" json:"cluster,omitempty"`
+	Instance      int64                  `protobuf:"varint,2,opt,name=instance,proto3" json:"instance,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetGoldenPeerRequest) Reset() {
+	*x = SetGoldenPeerRequest{}
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetGoldenPeerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetGoldenPeerRequest) ProtoMessage() {}
+
+func (x *SetGoldenPeerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_drift_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetGoldenPeerRequest.ProtoReflect.Descriptor instead.
+func (*SetGoldenPeerRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_drift_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SetGoldenPeerRequest) GetCluster() int64 {
+	if x != nil {
+		return x.Cluster
+	}
+	return 0
+}
+
+func (x *SetGoldenPeerRequest) GetInstance() int64 {
+	if x != nil {
+		return x.Instance
+	}
+	return 0
+}
+
 var File_nagipath_api_v1_drift_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_drift_proto_rawDesc = "" +
 	"\n" +
-	"\x1bnagipath/api/v1/drift.proto\x12\x0fnagipath.api.v1\x1a\x1bnagipath/api/v1/nodes.proto\"?\n" +
+	"\x1bnagipath/api/v1/drift.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1cnagipath/api/v1/common.proto\x1a\x1bnagipath/api/v1/nodes.proto\"?\n" +
 	"\x13DriftBaselineOption\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\"\xe6\x01\n" +
@@ -756,14 +1157,16 @@ const file_nagipath_api_v1_drift_proto_rawDesc = "" +
 	"\x10divergence_count\x18\x04 \x01(\x05R\x0fdivergenceCount\x12)\n" +
 	"\x10object_breakdown\x18\x05 \x01(\tR\x0fobjectBreakdown\x12\x1d\n" +
 	"\n" +
-	"first_seen\x18\x06 \x01(\tR\tfirstSeen\"\xe7\x01\n" +
+	"first_seen\x18\x06 \x01(\tR\tfirstSeen\"\x86\x02\n" +
 	"\x11DriftClusterGroup\x12!\n" +
 	"\fcluster_name\x18\x01 \x01(\tR\vclusterName\x12#\n" +
 	"\rbaseline_name\x18\x02 \x01(\tR\fbaselineName\x12(\n" +
 	"\x10nodes_with_drift\x18\x03 \x01(\x05R\x0enodesWithDrift\x12\x1f\n" +
 	"\vtotal_nodes\x18\x04 \x01(\x05R\n" +
 	"totalNodes\x12?\n" +
-	"\tinstances\x18\x05 \x03(\v2!.nagipath.api.v1.DriftInstanceRowR\tinstances\"R\n" +
+	"\tinstances\x18\x05 \x03(\v2!.nagipath.api.v1.DriftInstanceRowR\tinstances\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x06 \x01(\x03R\tclusterId\"R\n" +
 	"\x12DriftClusterOption\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -802,7 +1205,7 @@ const file_nagipath_api_v1_drift_proto_rawDesc = "" +
 	"\x05empty\x18\x10 \x01(\bR\x05empty\"a\n" +
 	"\x10DriftObjectGroup\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x129\n" +
-	"\bfindings\x18\x02 \x03(\v2\x1d.nagipath.api.v1.DriftFindingR\bfindings\"\x83\x04\n" +
+	"\bfindings\x18\x02 \x03(\v2\x1d.nagipath.api.v1.DriftFindingR\bfindings\"\xf7\x03\n" +
 	"\x13DriftReviewResponse\x12\x1f\n" +
 	"\vinstance_id\x18\x01 \x01(\x03R\n" +
 	"instanceId\x122\n" +
@@ -815,9 +1218,43 @@ const file_nagipath_api_v1_drift_proto_rawDesc = "" +
 	"\rbaseline_time\x18\b \x01(\tR\fbaselineTime\x12F\n" +
 	"\robject_groups\x18\t \x03(\v2!.nagipath.api.v1.DriftObjectGroupR\fobjectGroups\x12(\n" +
 	"\x10next_instance_id\x18\n" +
-	" \x01(\x03R\x0enextInstanceId\x12)\n" +
-	"\x10conforming_count\x18\v \x01(\x05R\x0fconformingCount\x12#\n" +
-	"\rignored_count\x18\f \x01(\x05R\fignoredCountB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	" \x01(\x03R\x0enextInstanceId\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\v \x01(\x03R\tclusterId\x12#\n" +
+	"\rignored_count\x18\f \x01(\x05R\fignoredCount\"]\n" +
+	"\x0fGetDriftRequest\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1a\n" +
+	"\bbaseline\x18\x02 \x01(\tR\bbaseline\x12\x18\n" +
+	"\acluster\x18\x03 \x01(\tR\acluster\"8\n" +
+	"\x15GetDriftReviewRequest\x12\x1f\n" +
+	"\vinstance_id\x18\x01 \x01(\x03R\n" +
+	"instanceId\"M\n" +
+	"\x15RecomputeDriftRequest\x12\x18\n" +
+	"\acluster\x18\x01 \x01(\tR\acluster\x12\x1a\n" +
+	"\bbaseline\x18\x02 \x01(\tR\bbaseline\"^\n" +
+	"\x16RecomputeDriftResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x1a\n" +
+	"\bcompared\x18\x02 \x01(\x05R\bcompared\x12\x18\n" +
+	"\askipped\x18\x03 \x03(\tR\askipped\"\x97\x01\n" +
+	"\x12IgnoreDriftRequest\x12\x18\n" +
+	"\acluster\x18\x01 \x01(\x03R\acluster\x12\x1f\n" +
+	"\vobject_kind\x18\x02 \x01(\tR\n" +
+	"objectKind\x12\x14\n" +
+	"\x05field\x18\x03 \x01(\tR\x05field\x12\x18\n" +
+	"\apattern\x18\x04 \x01(\tR\apattern\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"&\n" +
+	"\x14UnignoreDriftRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"L\n" +
+	"\x14SetGoldenPeerRequest\x12\x18\n" +
+	"\acluster\x18\x01 \x01(\x03R\acluster\x12\x1a\n" +
+	"\binstance\x18\x02 \x01(\x03R\binstance2\xac\x05\n" +
+	"\fDriftService\x12\\\n" +
+	"\bGetDrift\x12 .nagipath.api.v1.GetDriftRequest\x1a\x1e.nagipath.api.v1.DriftResponse\"\x0e\x82\xd3\xe4\x93\x02\b\x12\x06/drift\x12\x83\x01\n" +
+	"\x0eGetDriftReview\x12&.nagipath.api.v1.GetDriftReviewRequest\x1a$.nagipath.api.v1.DriftReviewResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/drift/review/{instance_id}\x12~\n" +
+	"\x0eRecomputeDrift\x12&.nagipath.api.v1.RecomputeDriftRequest\x1a'.nagipath.api.v1.RecomputeDriftResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/drift/recompute\x12a\n" +
+	"\vIgnoreDrift\x12#.nagipath.api.v1.IgnoreDriftRequest\x1a\x13.nagipath.api.v1.Ok\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/drift/ignore\x12n\n" +
+	"\rUnignoreDrift\x12%.nagipath.api.v1.UnignoreDriftRequest\x1a\x13.nagipath.api.v1.Ok\"!\x82\xd3\xe4\x93\x02\x1b\"\x19/drift/ignore/{id}/delete\x12e\n" +
+	"\rSetGoldenPeer\x12%.nagipath.api.v1.SetGoldenPeerRequest\x1a\x13.nagipath.api.v1.Ok\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/drift/goldenB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_drift_proto_rawDescOnce sync.Once
@@ -831,34 +1268,54 @@ func file_nagipath_api_v1_drift_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_drift_proto_rawDescData
 }
 
-var file_nagipath_api_v1_drift_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_nagipath_api_v1_drift_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_nagipath_api_v1_drift_proto_goTypes = []any{
-	(*DriftBaselineOption)(nil), // 0: nagipath.api.v1.DriftBaselineOption
-	(*DriftInstanceRow)(nil),    // 1: nagipath.api.v1.DriftInstanceRow
-	(*DriftClusterGroup)(nil),   // 2: nagipath.api.v1.DriftClusterGroup
-	(*DriftClusterOption)(nil),  // 3: nagipath.api.v1.DriftClusterOption
-	(*IgnoreRule)(nil),          // 4: nagipath.api.v1.IgnoreRule
-	(*DriftResponse)(nil),       // 5: nagipath.api.v1.DriftResponse
-	(*DriftObjectGroup)(nil),    // 6: nagipath.api.v1.DriftObjectGroup
-	(*DriftReviewResponse)(nil), // 7: nagipath.api.v1.DriftReviewResponse
-	(*DriftRun)(nil),            // 8: nagipath.api.v1.DriftRun
-	(*DriftFinding)(nil),        // 9: nagipath.api.v1.DriftFinding
+	(*DriftBaselineOption)(nil),    // 0: nagipath.api.v1.DriftBaselineOption
+	(*DriftInstanceRow)(nil),       // 1: nagipath.api.v1.DriftInstanceRow
+	(*DriftClusterGroup)(nil),      // 2: nagipath.api.v1.DriftClusterGroup
+	(*DriftClusterOption)(nil),     // 3: nagipath.api.v1.DriftClusterOption
+	(*IgnoreRule)(nil),             // 4: nagipath.api.v1.IgnoreRule
+	(*DriftResponse)(nil),          // 5: nagipath.api.v1.DriftResponse
+	(*DriftObjectGroup)(nil),       // 6: nagipath.api.v1.DriftObjectGroup
+	(*DriftReviewResponse)(nil),    // 7: nagipath.api.v1.DriftReviewResponse
+	(*GetDriftRequest)(nil),        // 8: nagipath.api.v1.GetDriftRequest
+	(*GetDriftReviewRequest)(nil),  // 9: nagipath.api.v1.GetDriftReviewRequest
+	(*RecomputeDriftRequest)(nil),  // 10: nagipath.api.v1.RecomputeDriftRequest
+	(*RecomputeDriftResponse)(nil), // 11: nagipath.api.v1.RecomputeDriftResponse
+	(*IgnoreDriftRequest)(nil),     // 12: nagipath.api.v1.IgnoreDriftRequest
+	(*UnignoreDriftRequest)(nil),   // 13: nagipath.api.v1.UnignoreDriftRequest
+	(*SetGoldenPeerRequest)(nil),   // 14: nagipath.api.v1.SetGoldenPeerRequest
+	(*DriftRun)(nil),               // 15: nagipath.api.v1.DriftRun
+	(*DriftFinding)(nil),           // 16: nagipath.api.v1.DriftFinding
+	(*Ok)(nil),                     // 17: nagipath.api.v1.Ok
 }
 var file_nagipath_api_v1_drift_proto_depIdxs = []int32{
-	1, // 0: nagipath.api.v1.DriftClusterGroup.instances:type_name -> nagipath.api.v1.DriftInstanceRow
-	3, // 1: nagipath.api.v1.DriftResponse.clusters:type_name -> nagipath.api.v1.DriftClusterOption
-	0, // 2: nagipath.api.v1.DriftResponse.baselines:type_name -> nagipath.api.v1.DriftBaselineOption
-	4, // 3: nagipath.api.v1.DriftResponse.ignores:type_name -> nagipath.api.v1.IgnoreRule
-	1, // 4: nagipath.api.v1.DriftResponse.instances_with_drift:type_name -> nagipath.api.v1.DriftInstanceRow
-	2, // 5: nagipath.api.v1.DriftResponse.cluster_groups:type_name -> nagipath.api.v1.DriftClusterGroup
-	8, // 6: nagipath.api.v1.DriftResponse.runs:type_name -> nagipath.api.v1.DriftRun
-	9, // 7: nagipath.api.v1.DriftObjectGroup.findings:type_name -> nagipath.api.v1.DriftFinding
-	6, // 8: nagipath.api.v1.DriftReviewResponse.object_groups:type_name -> nagipath.api.v1.DriftObjectGroup
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	1,  // 0: nagipath.api.v1.DriftClusterGroup.instances:type_name -> nagipath.api.v1.DriftInstanceRow
+	3,  // 1: nagipath.api.v1.DriftResponse.clusters:type_name -> nagipath.api.v1.DriftClusterOption
+	0,  // 2: nagipath.api.v1.DriftResponse.baselines:type_name -> nagipath.api.v1.DriftBaselineOption
+	4,  // 3: nagipath.api.v1.DriftResponse.ignores:type_name -> nagipath.api.v1.IgnoreRule
+	1,  // 4: nagipath.api.v1.DriftResponse.instances_with_drift:type_name -> nagipath.api.v1.DriftInstanceRow
+	2,  // 5: nagipath.api.v1.DriftResponse.cluster_groups:type_name -> nagipath.api.v1.DriftClusterGroup
+	15, // 6: nagipath.api.v1.DriftResponse.runs:type_name -> nagipath.api.v1.DriftRun
+	16, // 7: nagipath.api.v1.DriftObjectGroup.findings:type_name -> nagipath.api.v1.DriftFinding
+	6,  // 8: nagipath.api.v1.DriftReviewResponse.object_groups:type_name -> nagipath.api.v1.DriftObjectGroup
+	8,  // 9: nagipath.api.v1.DriftService.GetDrift:input_type -> nagipath.api.v1.GetDriftRequest
+	9,  // 10: nagipath.api.v1.DriftService.GetDriftReview:input_type -> nagipath.api.v1.GetDriftReviewRequest
+	10, // 11: nagipath.api.v1.DriftService.RecomputeDrift:input_type -> nagipath.api.v1.RecomputeDriftRequest
+	12, // 12: nagipath.api.v1.DriftService.IgnoreDrift:input_type -> nagipath.api.v1.IgnoreDriftRequest
+	13, // 13: nagipath.api.v1.DriftService.UnignoreDrift:input_type -> nagipath.api.v1.UnignoreDriftRequest
+	14, // 14: nagipath.api.v1.DriftService.SetGoldenPeer:input_type -> nagipath.api.v1.SetGoldenPeerRequest
+	5,  // 15: nagipath.api.v1.DriftService.GetDrift:output_type -> nagipath.api.v1.DriftResponse
+	7,  // 16: nagipath.api.v1.DriftService.GetDriftReview:output_type -> nagipath.api.v1.DriftReviewResponse
+	11, // 17: nagipath.api.v1.DriftService.RecomputeDrift:output_type -> nagipath.api.v1.RecomputeDriftResponse
+	17, // 18: nagipath.api.v1.DriftService.IgnoreDrift:output_type -> nagipath.api.v1.Ok
+	17, // 19: nagipath.api.v1.DriftService.UnignoreDrift:output_type -> nagipath.api.v1.Ok
+	17, // 20: nagipath.api.v1.DriftService.SetGoldenPeer:output_type -> nagipath.api.v1.Ok
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_nagipath_api_v1_drift_proto_init() }
@@ -866,6 +1323,7 @@ func file_nagipath_api_v1_drift_proto_init() {
 	if File_nagipath_api_v1_drift_proto != nil {
 		return
 	}
+	file_nagipath_api_v1_common_proto_init()
 	file_nagipath_api_v1_nodes_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -873,9 +1331,9 @@ func file_nagipath_api_v1_drift_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_drift_proto_rawDesc), len(file_nagipath_api_v1_drift_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   15,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_nagipath_api_v1_drift_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_drift_proto_depIdxs,

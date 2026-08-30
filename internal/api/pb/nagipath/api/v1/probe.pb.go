@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -1127,11 +1128,147 @@ func (x *ProbeDetailResponse) GetStateChanges() int32 {
 	return 0
 }
 
+type GetProbeHistoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Q             string                 `protobuf:"bytes,2,opt,name=q,proto3" json:"q,omitempty"`
+	Range         string                 `protobuf:"bytes,3,opt,name=range,proto3" json:"range,omitempty"`
+	Actor         string                 `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
+	Outcome       string                 `protobuf:"bytes,5,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	Cursor        string                 `protobuf:"bytes,6,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Probe         int64                  `protobuf:"varint,7,opt,name=probe,proto3" json:"probe,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProbeHistoryRequest) Reset() {
+	*x = GetProbeHistoryRequest{}
+	mi := &file_nagipath_api_v1_probe_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProbeHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProbeHistoryRequest) ProtoMessage() {}
+
+func (x *GetProbeHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_probe_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProbeHistoryRequest.ProtoReflect.Descriptor instead.
+func (*GetProbeHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_probe_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetProbeHistoryRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *GetProbeHistoryRequest) GetQ() string {
+	if x != nil {
+		return x.Q
+	}
+	return ""
+}
+
+func (x *GetProbeHistoryRequest) GetRange() string {
+	if x != nil {
+		return x.Range
+	}
+	return ""
+}
+
+func (x *GetProbeHistoryRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *GetProbeHistoryRequest) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *GetProbeHistoryRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+func (x *GetProbeHistoryRequest) GetProbe() int64 {
+	if x != nil {
+		return x.Probe
+	}
+	return 0
+}
+
+type GetProbeDetailRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProbeDetailRequest) Reset() {
+	*x = GetProbeDetailRequest{}
+	mi := &file_nagipath_api_v1_probe_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProbeDetailRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProbeDetailRequest) ProtoMessage() {}
+
+func (x *GetProbeDetailRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_probe_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProbeDetailRequest.ProtoReflect.Descriptor instead.
+func (*GetProbeDetailRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_probe_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetProbeDetailRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
 var File_nagipath_api_v1_probe_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_probe_proto_rawDesc = "" +
 	"\n" +
-	"\x1bnagipath/api/v1/probe.proto\x12\x0fnagipath.api.v1\"\xff\x02\n" +
+	"\x1bnagipath/api/v1/probe.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\"\xff\x02\n" +
 	"\rProbeRecordPB\x12\x19\n" +
 	"\bprobe_id\x18\x01 \x01(\x03R\aprobeId\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x12\x16\n" +
@@ -1257,7 +1394,20 @@ const file_nagipath_api_v1_probe_proto_rawDesc = "" +
 	"\x04hops\x18\x02 \x03(\v2#.nagipath.api.v1.ProbeHopEvidencePBR\x04hops\x12<\n" +
 	"\tlog_lines\x18\x03 \x03(\v2\x1f.nagipath.api.v1.ProbeLogLinePBR\blogLines\x127\n" +
 	"\x04gaps\x18\x04 \x03(\v2#.nagipath.api.v1.ProbeHopEvidencePBR\x04gaps\x12#\n" +
-	"\rstate_changes\x18\x05 \x01(\x05R\fstateChangesB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	"\rstate_changes\x18\x05 \x01(\x05R\fstateChanges\"\xac\x01\n" +
+	"\x16GetProbeHistoryRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\f\n" +
+	"\x01q\x18\x02 \x01(\tR\x01q\x12\x14\n" +
+	"\x05range\x18\x03 \x01(\tR\x05range\x12\x14\n" +
+	"\x05actor\x18\x04 \x01(\tR\x05actor\x12\x18\n" +
+	"\aoutcome\x18\x05 \x01(\tR\aoutcome\x12\x16\n" +
+	"\x06cursor\x18\x06 \x01(\tR\x06cursor\x12\x14\n" +
+	"\x05probe\x18\a \x01(\x03R\x05probe\"'\n" +
+	"\x15GetProbeDetailRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id2\x84\x02\n" +
+	"\fProbeService\x12y\n" +
+	"\x0fGetProbeHistory\x12'.nagipath.api.v1.GetProbeHistoryRequest\x1a%.nagipath.api.v1.ProbeHistoryResponse\"\x16\x82\xd3\xe4\x93\x02\x10\x12\x0e/trace/history\x12y\n" +
+	"\x0eGetProbeDetail\x12&.nagipath.api.v1.GetProbeDetailRequest\x1a$.nagipath.api.v1.ProbeDetailResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/trace/probe/{id}B1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_probe_proto_rawDescOnce sync.Once
@@ -1271,32 +1421,38 @@ func file_nagipath_api_v1_probe_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_probe_proto_rawDescData
 }
 
-var file_nagipath_api_v1_probe_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_nagipath_api_v1_probe_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_nagipath_api_v1_probe_proto_goTypes = []any{
-	(*ProbeRecordPB)(nil),        // 0: nagipath.api.v1.ProbeRecordPB
-	(*ProbeEvidenceRowPB)(nil),   // 1: nagipath.api.v1.ProbeEvidenceRowPB
-	(*HopChangePB)(nil),          // 2: nagipath.api.v1.HopChangePB
-	(*ProbePastPB)(nil),          // 3: nagipath.api.v1.ProbePastPB
-	(*ProbeHistoryResponse)(nil), // 4: nagipath.api.v1.ProbeHistoryResponse
-	(*ProbeHopEvidencePB)(nil),   // 5: nagipath.api.v1.ProbeHopEvidencePB
-	(*ProbeLogLinePB)(nil),       // 6: nagipath.api.v1.ProbeLogLinePB
-	(*ProbeViewPB)(nil),          // 7: nagipath.api.v1.ProbeViewPB
-	(*ProbeDetailResponse)(nil),  // 8: nagipath.api.v1.ProbeDetailResponse
+	(*ProbeRecordPB)(nil),          // 0: nagipath.api.v1.ProbeRecordPB
+	(*ProbeEvidenceRowPB)(nil),     // 1: nagipath.api.v1.ProbeEvidenceRowPB
+	(*HopChangePB)(nil),            // 2: nagipath.api.v1.HopChangePB
+	(*ProbePastPB)(nil),            // 3: nagipath.api.v1.ProbePastPB
+	(*ProbeHistoryResponse)(nil),   // 4: nagipath.api.v1.ProbeHistoryResponse
+	(*ProbeHopEvidencePB)(nil),     // 5: nagipath.api.v1.ProbeHopEvidencePB
+	(*ProbeLogLinePB)(nil),         // 6: nagipath.api.v1.ProbeLogLinePB
+	(*ProbeViewPB)(nil),            // 7: nagipath.api.v1.ProbeViewPB
+	(*ProbeDetailResponse)(nil),    // 8: nagipath.api.v1.ProbeDetailResponse
+	(*GetProbeHistoryRequest)(nil), // 9: nagipath.api.v1.GetProbeHistoryRequest
+	(*GetProbeDetailRequest)(nil),  // 10: nagipath.api.v1.GetProbeDetailRequest
 }
 var file_nagipath_api_v1_probe_proto_depIdxs = []int32{
-	1, // 0: nagipath.api.v1.ProbePastPB.evidence:type_name -> nagipath.api.v1.ProbeEvidenceRowPB
-	2, // 1: nagipath.api.v1.ProbePastPB.changes:type_name -> nagipath.api.v1.HopChangePB
-	0, // 2: nagipath.api.v1.ProbeHistoryResponse.probes:type_name -> nagipath.api.v1.ProbeRecordPB
-	3, // 3: nagipath.api.v1.ProbeHistoryResponse.selected:type_name -> nagipath.api.v1.ProbePastPB
-	7, // 4: nagipath.api.v1.ProbeDetailResponse.probe:type_name -> nagipath.api.v1.ProbeViewPB
-	5, // 5: nagipath.api.v1.ProbeDetailResponse.hops:type_name -> nagipath.api.v1.ProbeHopEvidencePB
-	6, // 6: nagipath.api.v1.ProbeDetailResponse.log_lines:type_name -> nagipath.api.v1.ProbeLogLinePB
-	5, // 7: nagipath.api.v1.ProbeDetailResponse.gaps:type_name -> nagipath.api.v1.ProbeHopEvidencePB
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	1,  // 0: nagipath.api.v1.ProbePastPB.evidence:type_name -> nagipath.api.v1.ProbeEvidenceRowPB
+	2,  // 1: nagipath.api.v1.ProbePastPB.changes:type_name -> nagipath.api.v1.HopChangePB
+	0,  // 2: nagipath.api.v1.ProbeHistoryResponse.probes:type_name -> nagipath.api.v1.ProbeRecordPB
+	3,  // 3: nagipath.api.v1.ProbeHistoryResponse.selected:type_name -> nagipath.api.v1.ProbePastPB
+	7,  // 4: nagipath.api.v1.ProbeDetailResponse.probe:type_name -> nagipath.api.v1.ProbeViewPB
+	5,  // 5: nagipath.api.v1.ProbeDetailResponse.hops:type_name -> nagipath.api.v1.ProbeHopEvidencePB
+	6,  // 6: nagipath.api.v1.ProbeDetailResponse.log_lines:type_name -> nagipath.api.v1.ProbeLogLinePB
+	5,  // 7: nagipath.api.v1.ProbeDetailResponse.gaps:type_name -> nagipath.api.v1.ProbeHopEvidencePB
+	9,  // 8: nagipath.api.v1.ProbeService.GetProbeHistory:input_type -> nagipath.api.v1.GetProbeHistoryRequest
+	10, // 9: nagipath.api.v1.ProbeService.GetProbeDetail:input_type -> nagipath.api.v1.GetProbeDetailRequest
+	4,  // 10: nagipath.api.v1.ProbeService.GetProbeHistory:output_type -> nagipath.api.v1.ProbeHistoryResponse
+	8,  // 11: nagipath.api.v1.ProbeService.GetProbeDetail:output_type -> nagipath.api.v1.ProbeDetailResponse
+	10, // [10:12] is the sub-list for method output_type
+	8,  // [8:10] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_nagipath_api_v1_probe_proto_init() }
@@ -1310,9 +1466,9 @@ func file_nagipath_api_v1_probe_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_probe_proto_rawDesc), len(file_nagipath_api_v1_probe_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_nagipath_api_v1_probe_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_probe_proto_depIdxs,

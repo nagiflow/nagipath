@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -22,17 +23,22 @@ const (
 )
 
 type CertificateListItem struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Fingerprint   string                 `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
-	SubjectCn     string                 `protobuf:"bytes,3,opt,name=subject_cn,json=subjectCn,proto3" json:"subject_cn,omitempty"`
-	IssuerDn      string                 `protobuf:"bytes,4,opt,name=issuer_dn,json=issuerDn,proto3" json:"issuer_dn,omitempty"`
-	NotBefore     string                 `protobuf:"bytes,5,opt,name=not_before,json=notBefore,proto3" json:"not_before,omitempty"`
-	NotAfter      string                 `protobuf:"bytes,6,opt,name=not_after,json=notAfter,proto3" json:"not_after,omitempty"`
-	IsCa          bool                   `protobuf:"varint,7,opt,name=is_ca,json=isCa,proto3" json:"is_ca,omitempty"`
-	Bindings      int32                  `protobuf:"varint,8,opt,name=bindings,proto3" json:"bindings,omitempty"`
-	Hosts         string                 `protobuf:"bytes,9,opt,name=hosts,proto3" json:"hosts,omitempty"`
-	Serves        []string               `protobuf:"bytes,10,rep,name=serves,proto3" json:"serves,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Fingerprint string                 `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	SubjectCn   string                 `protobuf:"bytes,3,opt,name=subject_cn,json=subjectCn,proto3" json:"subject_cn,omitempty"`
+	IssuerDn    string                 `protobuf:"bytes,4,opt,name=issuer_dn,json=issuerDn,proto3" json:"issuer_dn,omitempty"`
+	NotBefore   string                 `protobuf:"bytes,5,opt,name=not_before,json=notBefore,proto3" json:"not_before,omitempty"`
+	NotAfter    string                 `protobuf:"bytes,6,opt,name=not_after,json=notAfter,proto3" json:"not_after,omitempty"`
+	IsCa        bool                   `protobuf:"varint,7,opt,name=is_ca,json=isCa,proto3" json:"is_ca,omitempty"`
+	Bindings    int32                  `protobuf:"varint,8,opt,name=bindings,proto3" json:"bindings,omitempty"`
+	Hosts       string                 `protobuf:"bytes,9,opt,name=hosts,proto3" json:"hosts,omitempty"`
+	Serves      []string               `protobuf:"bytes,10,rep,name=serves,proto3" json:"serves,omitempty"`
+	// store.Certificates() reads sans/key_algorithm/key_bits per row and they
+	// had nowhere to go — the list's SAN count and Key column need them.
+	Sans          []string `protobuf:"bytes,11,rep,name=sans,proto3" json:"sans,omitempty"`
+	KeyAlgorithm  string   `protobuf:"bytes,12,opt,name=key_algorithm,json=keyAlgorithm,proto3" json:"key_algorithm,omitempty"`
+	KeyBits       int32    `protobuf:"varint,13,opt,name=key_bits,json=keyBits,proto3" json:"key_bits,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -137,6 +143,27 @@ func (x *CertificateListItem) GetServes() []string {
 	return nil
 }
 
+func (x *CertificateListItem) GetSans() []string {
+	if x != nil {
+		return x.Sans
+	}
+	return nil
+}
+
+func (x *CertificateListItem) GetKeyAlgorithm() string {
+	if x != nil {
+		return x.KeyAlgorithm
+	}
+	return ""
+}
+
+func (x *CertificateListItem) GetKeyBits() int32 {
+	if x != nil {
+		return x.KeyBits
+	}
+	return 0
+}
+
 type CertificatesListResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	List          []*CertificateListItem `protobuf:"bytes,1,rep,name=list,proto3" json:"list,omitempty"`
@@ -238,21 +265,25 @@ func (x *CertificatesListResponse) GetSummary() string {
 }
 
 type Certificate struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Fingerprint   string                 `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
-	SubjectCn     string                 `protobuf:"bytes,3,opt,name=subject_cn,json=subjectCn,proto3" json:"subject_cn,omitempty"`
-	SubjectDn     string                 `protobuf:"bytes,4,opt,name=subject_dn,json=subjectDn,proto3" json:"subject_dn,omitempty"`
-	Sans          []string               `protobuf:"bytes,5,rep,name=sans,proto3" json:"sans,omitempty"`
-	IssuerDn      string                 `protobuf:"bytes,6,opt,name=issuer_dn,json=issuerDn,proto3" json:"issuer_dn,omitempty"`
-	Serial        string                 `protobuf:"bytes,7,opt,name=serial,proto3" json:"serial,omitempty"`
-	NotBefore     string                 `protobuf:"bytes,8,opt,name=not_before,json=notBefore,proto3" json:"not_before,omitempty"`
-	NotAfter      string                 `protobuf:"bytes,9,opt,name=not_after,json=notAfter,proto3" json:"not_after,omitempty"`
-	KeyAlgorithm  string                 `protobuf:"bytes,10,opt,name=key_algorithm,json=keyAlgorithm,proto3" json:"key_algorithm,omitempty"`
-	KeyBits       int32                  `protobuf:"varint,11,opt,name=key_bits,json=keyBits,proto3" json:"key_bits,omitempty"`
-	SigAlgorithm  string                 `protobuf:"bytes,12,opt,name=sig_algorithm,json=sigAlgorithm,proto3" json:"sig_algorithm,omitempty"`
-	SelfSigned    bool                   `protobuf:"varint,13,opt,name=self_signed,json=selfSigned,proto3" json:"self_signed,omitempty"`
-	IsCa          bool                   `protobuf:"varint,14,opt,name=is_ca,json=isCa,proto3" json:"is_ca,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Id           int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Fingerprint  string                 `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	SubjectCn    string                 `protobuf:"bytes,3,opt,name=subject_cn,json=subjectCn,proto3" json:"subject_cn,omitempty"`
+	SubjectDn    string                 `protobuf:"bytes,4,opt,name=subject_dn,json=subjectDn,proto3" json:"subject_dn,omitempty"`
+	Sans         []string               `protobuf:"bytes,5,rep,name=sans,proto3" json:"sans,omitempty"`
+	IssuerDn     string                 `protobuf:"bytes,6,opt,name=issuer_dn,json=issuerDn,proto3" json:"issuer_dn,omitempty"`
+	Serial       string                 `protobuf:"bytes,7,opt,name=serial,proto3" json:"serial,omitempty"`
+	NotBefore    string                 `protobuf:"bytes,8,opt,name=not_before,json=notBefore,proto3" json:"not_before,omitempty"`
+	NotAfter     string                 `protobuf:"bytes,9,opt,name=not_after,json=notAfter,proto3" json:"not_after,omitempty"`
+	KeyAlgorithm string                 `protobuf:"bytes,10,opt,name=key_algorithm,json=keyAlgorithm,proto3" json:"key_algorithm,omitempty"`
+	KeyBits      int32                  `protobuf:"varint,11,opt,name=key_bits,json=keyBits,proto3" json:"key_bits,omitempty"`
+	SigAlgorithm string                 `protobuf:"bytes,12,opt,name=sig_algorithm,json=sigAlgorithm,proto3" json:"sig_algorithm,omitempty"`
+	SelfSigned   bool                   `protobuf:"varint,13,opt,name=self_signed,json=selfSigned,proto3" json:"self_signed,omitempty"`
+	IsCa         bool                   `protobuf:"varint,14,opt,name=is_ca,json=isCa,proto3" json:"is_ca,omitempty"`
+	// Both are stored and read by CertificateByID; the detail screen's "first
+	// seen" needs them.
+	FirstSeen     string `protobuf:"bytes,15,opt,name=first_seen,json=firstSeen,proto3" json:"first_seen,omitempty"`
+	LastSeen      string `protobuf:"bytes,16,opt,name=last_seen,json=lastSeen,proto3" json:"last_seen,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -385,18 +416,35 @@ func (x *Certificate) GetIsCa() bool {
 	return false
 }
 
+func (x *Certificate) GetFirstSeen() string {
+	if x != nil {
+		return x.FirstSeen
+	}
+	return ""
+}
+
+func (x *Certificate) GetLastSeen() string {
+	if x != nil {
+		return x.LastSeen
+	}
+	return ""
+}
+
 type CertBinding struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	InstanceId    int64                  `protobuf:"varint,1,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
-	Instance      string                 `protobuf:"bytes,2,opt,name=instance,proto3" json:"instance,omitempty"`
-	Node          string                 `protobuf:"bytes,3,opt,name=node,proto3" json:"node,omitempty"`
-	ClusterName   string                 `protobuf:"bytes,4,opt,name=cluster_name,json=clusterName,proto3" json:"cluster_name,omitempty"`
-	SnapshotId    int64                  `protobuf:"varint,5,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
-	FileId        int64                  `protobuf:"varint,6,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
-	FilePath      string                 `protobuf:"bytes,7,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
-	SiteNames     string                 `protobuf:"bytes,8,opt,name=site_names,json=siteNames,proto3" json:"site_names,omitempty"`
-	Port          int32                  `protobuf:"varint,9,opt,name=port,proto3" json:"port,omitempty"`
-	CombinedPem   bool                   `protobuf:"varint,10,opt,name=combined_pem,json=combinedPem,proto3" json:"combined_pem,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	InstanceId int64                  `protobuf:"varint,1,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	// The bindings table links to the node page, which is keyed by node id, not
+	// instance id — the store query already joins node for the display name.
+	NodeId        int64  `protobuf:"varint,11,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Instance      string `protobuf:"bytes,2,opt,name=instance,proto3" json:"instance,omitempty"`
+	Node          string `protobuf:"bytes,3,opt,name=node,proto3" json:"node,omitempty"`
+	ClusterName   string `protobuf:"bytes,4,opt,name=cluster_name,json=clusterName,proto3" json:"cluster_name,omitempty"`
+	SnapshotId    int64  `protobuf:"varint,5,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	FileId        int64  `protobuf:"varint,6,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	FilePath      string `protobuf:"bytes,7,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
+	SiteNames     string `protobuf:"bytes,8,opt,name=site_names,json=siteNames,proto3" json:"site_names,omitempty"`
+	Port          int32  `protobuf:"varint,9,opt,name=port,proto3" json:"port,omitempty"`
+	CombinedPem   bool   `protobuf:"varint,10,opt,name=combined_pem,json=combinedPem,proto3" json:"combined_pem,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -434,6 +482,13 @@ func (*CertBinding) Descriptor() ([]byte, []int) {
 func (x *CertBinding) GetInstanceId() int64 {
 	if x != nil {
 		return x.InstanceId
+	}
+	return 0
+}
+
+func (x *CertBinding) GetNodeId() int64 {
+	if x != nil {
+		return x.NodeId
 	}
 	return 0
 }
@@ -645,11 +700,131 @@ func (x *CertificateDetailResponse) GetFileCount() int32 {
 	return 0
 }
 
+type ListCertificatesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Expires       string                 `protobuf:"bytes,1,opt,name=expires,proto3" json:"expires,omitempty"`
+	Issuer        string                 `protobuf:"bytes,2,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	Cluster       string                 `protobuf:"bytes,3,opt,name=cluster,proto3" json:"cluster,omitempty"`
+	IncludeCas    bool                   `protobuf:"varint,4,opt,name=include_cas,json=includeCas,proto3" json:"include_cas,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCertificatesRequest) Reset() {
+	*x = ListCertificatesRequest{}
+	mi := &file_nagipath_api_v1_certificates_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCertificatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCertificatesRequest) ProtoMessage() {}
+
+func (x *ListCertificatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_certificates_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCertificatesRequest.ProtoReflect.Descriptor instead.
+func (*ListCertificatesRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_certificates_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListCertificatesRequest) GetExpires() string {
+	if x != nil {
+		return x.Expires
+	}
+	return ""
+}
+
+func (x *ListCertificatesRequest) GetIssuer() string {
+	if x != nil {
+		return x.Issuer
+	}
+	return ""
+}
+
+func (x *ListCertificatesRequest) GetCluster() string {
+	if x != nil {
+		return x.Cluster
+	}
+	return ""
+}
+
+func (x *ListCertificatesRequest) GetIncludeCas() bool {
+	if x != nil {
+		return x.IncludeCas
+	}
+	return false
+}
+
+type GetCertificateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Tab           string                 `protobuf:"bytes,2,opt,name=tab,proto3" json:"tab,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCertificateRequest) Reset() {
+	*x = GetCertificateRequest{}
+	mi := &file_nagipath_api_v1_certificates_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCertificateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCertificateRequest) ProtoMessage() {}
+
+func (x *GetCertificateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_certificates_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCertificateRequest.ProtoReflect.Descriptor instead.
+func (*GetCertificateRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_certificates_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetCertificateRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *GetCertificateRequest) GetTab() string {
+	if x != nil {
+		return x.Tab
+	}
+	return ""
+}
+
 var File_nagipath_api_v1_certificates_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_certificates_proto_rawDesc = "" +
 	"\n" +
-	"\"nagipath/api/v1/certificates.proto\x12\x0fnagipath.api.v1\x1a\x1bnagipath/api/v1/drift.proto\"\x9e\x02\n" +
+	"\"nagipath/api/v1/certificates.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1bnagipath/api/v1/drift.proto\"\xf2\x02\n" +
 	"\x13CertificateListItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12 \n" +
 	"\vfingerprint\x18\x02 \x01(\tR\vfingerprint\x12\x1d\n" +
@@ -663,7 +838,10 @@ const file_nagipath_api_v1_certificates_proto_rawDesc = "" +
 	"\bbindings\x18\b \x01(\x05R\bbindings\x12\x14\n" +
 	"\x05hosts\x18\t \x01(\tR\x05hosts\x12\x16\n" +
 	"\x06serves\x18\n" +
-	" \x03(\tR\x06serves\"\xb6\x02\n" +
+	" \x03(\tR\x06serves\x12\x12\n" +
+	"\x04sans\x18\v \x03(\tR\x04sans\x12#\n" +
+	"\rkey_algorithm\x18\f \x01(\tR\fkeyAlgorithm\x12\x19\n" +
+	"\bkey_bits\x18\r \x01(\x05R\akeyBits\"\xb6\x02\n" +
 	"\x18CertificatesListResponse\x128\n" +
 	"\x04list\x18\x01 \x03(\v2$.nagipath.api.v1.CertificateListItemR\x04list\x12\x18\n" +
 	"\aexpires\x18\x02 \x01(\tR\aexpires\x12\x16\n" +
@@ -673,7 +851,7 @@ const file_nagipath_api_v1_certificates_proto_rawDesc = "" +
 	"includeCas\x12\x18\n" +
 	"\aissuers\x18\x06 \x03(\tR\aissuers\x12?\n" +
 	"\bclusters\x18\a \x03(\v2#.nagipath.api.v1.DriftClusterOptionR\bclusters\x12\x18\n" +
-	"\asummary\x18\b \x01(\tR\asummary\"\x9d\x03\n" +
+	"\asummary\x18\b \x01(\tR\asummary\"\xd9\x03\n" +
 	"\vCertificate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12 \n" +
 	"\vfingerprint\x18\x02 \x01(\tR\vfingerprint\x12\x1d\n" +
@@ -693,10 +871,14 @@ const file_nagipath_api_v1_certificates_proto_rawDesc = "" +
 	"\rsig_algorithm\x18\f \x01(\tR\fsigAlgorithm\x12\x1f\n" +
 	"\vself_signed\x18\r \x01(\bR\n" +
 	"selfSigned\x12\x13\n" +
-	"\x05is_ca\x18\x0e \x01(\bR\x04isCa\"\xae\x02\n" +
+	"\x05is_ca\x18\x0e \x01(\bR\x04isCa\x12\x1d\n" +
+	"\n" +
+	"first_seen\x18\x0f \x01(\tR\tfirstSeen\x12\x1b\n" +
+	"\tlast_seen\x18\x10 \x01(\tR\blastSeen\"\xc7\x02\n" +
 	"\vCertBinding\x12\x1f\n" +
 	"\vinstance_id\x18\x01 \x01(\x03R\n" +
-	"instanceId\x12\x1a\n" +
+	"instanceId\x12\x17\n" +
+	"\anode_id\x18\v \x01(\x03R\x06nodeId\x12\x1a\n" +
 	"\binstance\x18\x02 \x01(\tR\binstance\x12\x12\n" +
 	"\x04node\x18\x03 \x01(\tR\x04node\x12!\n" +
 	"\fcluster_name\x18\x04 \x01(\tR\vclusterName\x12\x1f\n" +
@@ -724,7 +906,19 @@ const file_nagipath_api_v1_certificates_proto_rawDesc = "" +
 	"active_tab\x18\x04 \x01(\tR\tactiveTab\x12#\n" +
 	"\rbinding_count\x18\x05 \x01(\x05R\fbindingCount\x12\x1d\n" +
 	"\n" +
-	"file_count\x18\x06 \x01(\x05R\tfileCountB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	"file_count\x18\x06 \x01(\x05R\tfileCount\"\x86\x01\n" +
+	"\x17ListCertificatesRequest\x12\x18\n" +
+	"\aexpires\x18\x01 \x01(\tR\aexpires\x12\x16\n" +
+	"\x06issuer\x18\x02 \x01(\tR\x06issuer\x12\x18\n" +
+	"\acluster\x18\x03 \x01(\tR\acluster\x12\x1f\n" +
+	"\vinclude_cas\x18\x04 \x01(\bR\n" +
+	"includeCas\"9\n" +
+	"\x15GetCertificateRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x10\n" +
+	"\x03tab\x18\x02 \x01(\tR\x03tab2\x97\x02\n" +
+	"\x12CertificateService\x12~\n" +
+	"\x10ListCertificates\x12(.nagipath.api.v1.ListCertificatesRequest\x1a).nagipath.api.v1.CertificatesListResponse\"\x15\x82\xd3\xe4\x93\x02\x0f\x12\r/certificates\x12\x80\x01\n" +
+	"\x0eGetCertificate\x12&.nagipath.api.v1.GetCertificateRequest\x1a*.nagipath.api.v1.CertificateDetailResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/certificates/{id}B1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_certificates_proto_rawDescOnce sync.Once
@@ -738,7 +932,7 @@ func file_nagipath_api_v1_certificates_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_certificates_proto_rawDescData
 }
 
-var file_nagipath_api_v1_certificates_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_nagipath_api_v1_certificates_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_nagipath_api_v1_certificates_proto_goTypes = []any{
 	(*CertificateListItem)(nil),       // 0: nagipath.api.v1.CertificateListItem
 	(*CertificatesListResponse)(nil),  // 1: nagipath.api.v1.CertificatesListResponse
@@ -746,16 +940,22 @@ var file_nagipath_api_v1_certificates_proto_goTypes = []any{
 	(*CertBinding)(nil),               // 3: nagipath.api.v1.CertBinding
 	(*CertFilePath)(nil),              // 4: nagipath.api.v1.CertFilePath
 	(*CertificateDetailResponse)(nil), // 5: nagipath.api.v1.CertificateDetailResponse
-	(*DriftClusterOption)(nil),        // 6: nagipath.api.v1.DriftClusterOption
+	(*ListCertificatesRequest)(nil),   // 6: nagipath.api.v1.ListCertificatesRequest
+	(*GetCertificateRequest)(nil),     // 7: nagipath.api.v1.GetCertificateRequest
+	(*DriftClusterOption)(nil),        // 8: nagipath.api.v1.DriftClusterOption
 }
 var file_nagipath_api_v1_certificates_proto_depIdxs = []int32{
 	0, // 0: nagipath.api.v1.CertificatesListResponse.list:type_name -> nagipath.api.v1.CertificateListItem
-	6, // 1: nagipath.api.v1.CertificatesListResponse.clusters:type_name -> nagipath.api.v1.DriftClusterOption
+	8, // 1: nagipath.api.v1.CertificatesListResponse.clusters:type_name -> nagipath.api.v1.DriftClusterOption
 	2, // 2: nagipath.api.v1.CertificateDetailResponse.cert:type_name -> nagipath.api.v1.Certificate
 	3, // 3: nagipath.api.v1.CertificateDetailResponse.bindings:type_name -> nagipath.api.v1.CertBinding
 	4, // 4: nagipath.api.v1.CertificateDetailResponse.file_paths:type_name -> nagipath.api.v1.CertFilePath
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
+	6, // 5: nagipath.api.v1.CertificateService.ListCertificates:input_type -> nagipath.api.v1.ListCertificatesRequest
+	7, // 6: nagipath.api.v1.CertificateService.GetCertificate:input_type -> nagipath.api.v1.GetCertificateRequest
+	1, // 7: nagipath.api.v1.CertificateService.ListCertificates:output_type -> nagipath.api.v1.CertificatesListResponse
+	5, // 8: nagipath.api.v1.CertificateService.GetCertificate:output_type -> nagipath.api.v1.CertificateDetailResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
 	5, // [5:5] is the sub-list for extension type_name
 	5, // [5:5] is the sub-list for extension extendee
 	0, // [0:5] is the sub-list for field type_name
@@ -773,9 +973,9 @@ func file_nagipath_api_v1_certificates_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_certificates_proto_rawDesc), len(file_nagipath_api_v1_certificates_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_nagipath_api_v1_certificates_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_certificates_proto_depIdxs,

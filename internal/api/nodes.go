@@ -3,67 +3,22 @@ package api
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
 	"github.com/nagiflow/nagipath/internal/store"
 	"github.com/nagiflow/nagipath/internal/trace"
 )
 
-// listCap bounds how many rows GET /nodes returns in one call, same as
+// Every nodes.go handler moved to nodeservice.go as NodeService's RPCs
+// (docs/adr/0018, proto/nagipath/api/v1/nodes.proto). Everything below
+// stays here: shared with nodeservice.go.
+
+// listCap bounds how many rows ListNodes returns in one call, same as
 // internal/web/nodes.go's listCap.
 const listCap = 500
-
-// getNodes ports internal/web/nodes.go's nodes(): same ?q= filter over
-// display name/address, same fleet-wide pending/quarantined/never-collected
-// counts. The htmx row-expand fragment isn't ported — GET /nodes/{id} is one
-// click away and covers the same ground.
-func (s *Server) getNodes(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	nodes, err := s.DB.NodesAggregated(ctx)
-	if err != nil {
-		apiError(w, http.StatusServiceUnavailable, "datastore_unavailable", err.Error())
-		return
-	}
-
-	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	if q != "" {
-		nodes = filterNodeRows(nodes, q)
-	}
-
-	total := len(nodes)
-	threshold := s.DB.SettingInt(ctx, "quarantine_after_failures")
-	resp := &pb.NodesListResponse{Query: q, Total: int32(total), Threshold: int32(threshold)}
-	for _, n := range nodes {
-		resp.Pending += int32(n.PendingHostKeys)
-		if store.Quarantined(n.ConsecutiveFailures, threshold) {
-			resp.Quarantined++
-		}
-		if !n.LastCollection.Valid {
-			resp.NeverCollected++
-		}
-	}
-	if total > listCap {
-		nodes = nodes[:listCap]
-	}
-	for _, n := range nodes {
-		resp.Nodes = append(resp.Nodes, &pb.NodeListRow{
-			Id: n.ID, Address: n.Address, SshPort: int32(n.SSHPort), DisplayName: n.DisplayName,
-			OsFamily: n.OSFamily, Enabled: n.Enabled, ConsecutiveFailures: int32(n.ConsecutiveFailures),
-			InstanceCount: int32(n.InstanceCount), PendingHostKeys: int32(n.PendingHostKeys),
-			LastCollection: n.LastCollection.String, LastStatus: n.LastStatus.String,
-			Vendor: n.Vendor.String, Version: n.Version.String, Cluster: n.Cluster.String,
-			ProcessCount: int32(n.ProcessCount), Listeners: n.Listeners.String, LastCaptured: n.LastCaptured.String,
-		})
-	}
-
-	writeProto(w, http.StatusOK, resp)
-}
 
 func filterNodeRows(nodes []store.NodeListRow, q string) []store.NodeListRow {
 	q = strings.ToLower(q)
@@ -77,56 +32,9 @@ func filterNodeRows(nodes []store.NodeListRow, q string) []store.NodeListRow {
 	return out
 }
 
-// postAddNode ports internal/web/nodes.go's addNode().
-func (s *Server) postAddNode(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Address      string `json:"address"`
-		Port         int    `json:"port"`
-		DisplayName  string `json:"display_name"`
-		Username     string `json:"username"`
-		CredentialID int64  `json:"credential_id"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		apiError(w, http.StatusBadRequest, "invalid_body", "Could not parse request body.")
-		return
-	}
-	address := strings.TrimSpace(body.Address)
-	if address == "" {
-		apiError(w, http.StatusUnprocessableEntity, "address_required", "An address is required.")
-		return
-	}
-	if strings.Contains(address, "/") || strings.Contains(address, "-") && strings.Count(address, ".") == 3 {
-		apiError(w, http.StatusUnprocessableEntity, "no_scanning", "nagipath does not scan networks; add one host at a time.")
-		return
-	}
-	port := 22
-	if body.Port > 0 {
-		port = body.Port
-	}
-	name := strings.TrimSpace(body.DisplayName)
-	if name == "" {
-		name = address
-	}
-	username := strings.TrimSpace(body.Username)
-	if username == "" {
-		username = "nagipath"
-	}
-	var credID *int64
-	if body.CredentialID > 0 {
-		credID = &body.CredentialID
-	}
-	u := userOf(r)
-	id, err := s.DB.AddNode(r.Context(), address, port, name, username, credID, nil, "manual", &u.ID)
-	if err != nil {
-		apiError(w, http.StatusUnprocessableEntity, "add_node_failed", err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"id": id})
-}
-
 // ---------------------------------------------------------------- node detail
 
-// nodeBuild is getNode's working accumulator — plain store/trace types,
+// nodeBuild is GetNode's working accumulator — plain store/trace types,
 // converted to proto/nagipath/api/v1/nodes.proto's NodeDetailResponse
 // (docs/adr/0018) once, at the end, by toProto(). Keeps the tab-loading
 // logic below identical to internal/web/nodes.go's.
@@ -372,130 +280,13 @@ func (nb *nodeBuild) toProto() *pb.NodeDetailResponse {
 	return resp
 }
 
-// getNode ports internal/web/nodes.go's nodeDetail() and its per-tab
-// loaders, unchanged in structure: which process is selected, which tab's
-// data is loaded, the collection-running flag React polls on.
-func (s *Server) getNode(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	nodeID, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	tab := r.PathValue("tab")
-
-	n, err := s.DB.Node(ctx, nodeID)
-	if err != nil {
-		apiError(w, http.StatusNotFound, "not_found", "No such node.")
-		return
-	}
-
-	nb := nodeBuild{Node: n, Tab: tab, Threshold: s.DB.SettingInt(ctx, "quarantine_after_failures")}
-	if userOf(r).IsAdmin() {
-		nb.Credentials, _ = s.DB.Credentials(ctx)
-	}
-	nb.HostKeys, _ = s.DB.HostKeys(ctx, nodeID)
-
-	allPending, _ := s.DB.PendingHostKeys(ctx)
-	for _, k := range allPending {
-		if k.NodeID == nodeID {
-			nb.PendingKeys = append(nb.PendingKeys, k)
-		}
-	}
-
-	nb.Instances, err = s.DB.NodeProcesses(ctx, nodeID)
-	if err != nil {
-		apiError(w, http.StatusServiceUnavailable, "datastore_unavailable", err.Error())
-		return
-	}
-
-	if n.CredentialID.Valid {
-		creds, _ := s.DB.Credentials(ctx)
-		for _, c := range creds {
-			if c.ID == n.CredentialID.Int64 {
-				nb.CredentialName = c.Name
-				break
-			}
-		}
-	}
-
-	processID, _ := strconv.ParseInt(r.URL.Query().Get("process"), 10, 64)
-	if processID == 0 && len(nb.Instances) > 0 {
-		processID = nb.Instances[0].ID
-	}
-	for i := range nb.Instances {
-		if nb.Instances[i].ID == processID {
-			nb.Selected = &nb.Instances[i]
-			break
-		}
-	}
-	if nb.Selected == nil && len(nb.Instances) > 0 {
-		nb.Selected = &nb.Instances[0]
-	}
-
-	if nb.Selected != nil {
-		snap, err := s.DB.CurrentSnapshot(ctx, nb.Selected.ID)
-		if err == nil {
-			nb.Snapshot = snap
-			nb.Stats, _ = s.DB.NodeStats(ctx, nb.Selected.ID)
-
-			if tab == "routes" || tab == "sites" || tab == "" {
-				inst, err := trace.LoadInstance(ctx, s.DB, nb.Selected.ID)
-				if err == nil && inst != nil {
-					nb.Inst = inst
-				}
-			}
-
-			var tabErr error
-			switch tab {
-			case "routes":
-				s.loadRoutesTab(&nb, r)
-			case "upstreams":
-				tabErr = s.loadUpstreamsTab(ctx, &nb, snap.ID, r)
-			case "certificates":
-				tabErr = s.loadCertificatesTab(ctx, &nb, snap.ID)
-			case "files":
-				tabErr = s.loadFilesTab(ctx, &nb, snap.ID, r)
-			case "drift":
-				tabErr = s.loadDriftTab(ctx, &nb)
-			}
-			if tabErr != nil {
-				apiError(w, http.StatusServiceUnavailable, "datastore_unavailable", tabErr.Error())
-				return
-			}
-		}
-	}
-
-	base := fmt.Sprintf("/nodes/%d", nodeID)
-	nb.Tabs = []nodeTab{{Label: "Overview", Href: base, On: tab == ""}}
-	if nb.Selected != nil {
-		process := fmt.Sprintf("?process=%d", nb.Selected.ID)
-		nb.Tabs = []nodeTab{
-			{Label: "Overview", Href: base + process, On: tab == ""},
-			{Label: "Sites", Href: base + "/sites" + process, Count: nb.Selected.SiteCount, On: tab == "sites"},
-			{Label: "Routes", Href: base + "/routes" + process, Count: nb.Selected.RouteCount, On: tab == "routes"},
-			{Label: "Upstreams", Href: base + "/upstreams" + process, On: tab == "upstreams"},
-			{Label: "Certificates", Href: base + "/certificates" + process, Count: nb.Selected.CertCount, On: tab == "certificates"},
-			{Label: "Config files", Href: base + "/files" + process, On: tab == "files"},
-			{Label: "Drift", Href: base + "/drift" + process, On: tab == "drift"},
-		}
-	}
-
-	cols, _ := s.DB.Collections(ctx, 10)
-	for _, c := range cols {
-		if c.NodeID == nodeID && c.Status == "running" {
-			nb.Running = true
-			break
-		}
-	}
-
-	writeProto(w, http.StatusOK, nb.toProto())
-}
-
-func (s *Server) loadUpstreamsTab(ctx context.Context, nb *nodeBuild, snapshotID int64, r *http.Request) error {
+func (s *Server) loadUpstreamsTab(ctx context.Context, nb *nodeBuild, snapshotID, poolID int64) error {
 	pools, err := s.DB.NodeUpstreams(ctx, snapshotID)
 	if err != nil {
 		return err
 	}
 	nb.Upstreams = pools
 
-	poolID, _ := strconv.ParseInt(r.URL.Query().Get("pool"), 10, 64)
 	if poolID == 0 && len(pools) > 0 {
 		poolID = pools[0].ID
 	}
@@ -554,15 +345,14 @@ func (s *Server) loadCertificatesTab(ctx context.Context, nb *nodeBuild, snapsho
 	return rows.Err()
 }
 
-func (s *Server) loadFilesTab(ctx context.Context, nb *nodeBuild, snapshotID int64, r *http.Request) error {
+func (s *Server) loadFilesTab(ctx context.Context, nb *nodeBuild, snapshotID, fileID int64, byteStartParam string) error {
 	files, err := s.DB.SnapshotFiles(ctx, snapshotID)
 	if err != nil {
 		return err
 	}
 	nb.Files = files
 
-	fileID, err := strconv.ParseInt(r.URL.Query().Get("file"), 10, 64)
-	if err != nil {
+	if fileID == 0 {
 		return nil
 	}
 	for i := range nb.Files {
@@ -582,7 +372,7 @@ func (s *Server) loadFilesTab(ctx context.Context, nb *nodeBuild, snapshotID int
 	content := string(body)
 	nb.FileBody = content
 
-	if byteStart, err := strconv.Atoi(r.URL.Query().Get("b")); err == nil {
+	if byteStart, err := strconv.Atoi(byteStartParam); err == nil {
 		nb.ByteStart = byteStart
 		nb.LineStart = 1
 		for i := 0; i < byteStart && i < len(content); i++ {
@@ -639,30 +429,29 @@ func (s *Server) loadDriftTab(ctx context.Context, nb *nodeBuild) error {
 	return nil
 }
 
-func (s *Server) loadRoutesTab(nb *nodeBuild, r *http.Request) {
+func loadRoutesTab(nb *nodeBuild, site, routePattern string) {
 	if nb.Inst == nil {
 		return
 	}
-	nb.SelectedSiteName = r.URL.Query().Get("site")
-	routePattern := r.URL.Query().Get("route")
+	nb.SelectedSiteName = site
 
 	if nb.SelectedSiteName == "" && len(nb.Inst.Sites) > 0 {
-		for _, site := range nb.Inst.Sites {
-			if len(site.Routes) > 0 {
-				nb.SelectedSiteName = site.PrimaryName
+		for _, s := range nb.Inst.Sites {
+			if len(s.Routes) > 0 {
+				nb.SelectedSiteName = s.PrimaryName
 				break
 			}
 		}
 	}
 
-	for _, site := range nb.Inst.Sites {
-		if site.PrimaryName != nb.SelectedSiteName {
+	for _, s := range nb.Inst.Sites {
+		if s.PrimaryName != nb.SelectedSiteName {
 			continue
 		}
-		if routePattern == "" && len(site.Routes) > 0 {
-			nb.SelectedRoute = site.Routes[0]
+		if routePattern == "" && len(s.Routes) > 0 {
+			nb.SelectedRoute = s.Routes[0]
 		} else {
-			for _, route := range site.Routes {
+			for _, route := range s.Routes {
 				if route.Pattern == routePattern {
 					nb.SelectedRoute = route
 					break
@@ -686,66 +475,4 @@ func (s *Server) loadRoutesTab(nb *nodeBuild, r *http.Request) {
 		}
 		break
 	}
-}
-
-// ---------------------------------------------------------------- mutations
-
-func (s *Server) postCollectNode(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	u := userOf(r)
-	s.DB.Audit(r.Context(), &u.ID, "collection.start", "node", &id, "")
-	actor := u.ID
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-		if err := s.Collector.Node(ctx, id, "manual", &actor); err != nil {
-			s.Log.Warn("collection failed", "node", id, "err", err)
-		}
-	}()
-	writeJSON(w, http.StatusAccepted, map[string]any{"ok": true})
-}
-
-func (s *Server) postDeleteNode(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	u := userOf(r)
-	if err := s.DB.DeleteNode(r.Context(), id, &u.ID); err != nil {
-		apiError(w, http.StatusUnprocessableEntity, "delete_failed", err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
-}
-
-func (s *Server) postChangeNodeCredential(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	var body struct {
-		CredentialID int64 `json:"credential_id"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.CredentialID <= 0 {
-		apiError(w, http.StatusUnprocessableEntity, "credential_required", "Select a credential.")
-		return
-	}
-	u := userOf(r)
-	if err := s.DB.SetNodeCredential(r.Context(), id, body.CredentialID, &u.ID); err != nil {
-		apiError(w, http.StatusUnprocessableEntity, "update_failed", err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
-}
-
-func (s *Server) postDecideHostKey(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	var body struct {
-		Decision string `json:"decision"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		apiError(w, http.StatusBadRequest, "invalid_body", "Could not parse request body.")
-		return
-	}
-	u := userOf(r)
-	approve := body.Decision == "approve"
-	if err := s.DB.DecideHostKey(r.Context(), id, approve, &u.ID); err != nil {
-		apiError(w, http.StatusUnprocessableEntity, "decide_failed", err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "approved": approve})
 }

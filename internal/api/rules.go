@@ -13,6 +13,10 @@ import (
 	"github.com/nagiflow/nagipath/internal/trace"
 )
 
+// getRules moved to ruleservice.go as RuleService's GetRules RPC
+// (docs/adr/0018, proto/nagipath/api/v1/rules.proto). Everything below stays
+// here: shared with ruleservice.go and getRulesCSV.
+
 // ruleTally is one pass over a lookup's results: the split into instances with
 // candidates and instances without, plus everything the header and the facet
 // panel count. Ported from internal/web/rules.go's tallyRules.
@@ -83,6 +87,7 @@ func toPBLookupResult(res trace.LookupResult) *pb.LookupResultPB {
 	if res.Inst != nil {
 		r.InstId, r.InstDisplayName, r.InstNodeName, r.InstVendor, r.InstDegraded =
 			res.Inst.ID, res.Inst.DisplayName, res.Inst.NodeName, res.Inst.Vendor, res.Inst.Degraded
+		r.NodeId, r.ClusterName = res.Inst.NodeID, res.Inst.ClusterName
 	}
 	if res.Listener != nil {
 		r.ListenerAddress, r.ListenerPort, r.ListenerTls = res.Listener.Address, int32(res.Listener.Port), res.Listener.TLS
@@ -164,13 +169,14 @@ func groupByNode(results []trace.LookupResult) []*pb.RuleGroup {
 	return groups
 }
 
-// getRules ports internal/web/rules.go's rules(): "which rules are in effect
-// for this context path" without following the request anywhere — the same
-// site and route selection the trace engine uses, stopped after one hop.
-func (s *Server) getRules(w http.ResponseWriter, r *http.Request) {
+// getRulesCSV: GET /rules?export=csv is a formatted download, not RPC-shaped
+// data (gateway.go's gatewayOrCSV, wired in api.go). Rebuilds the same
+// lookup GetRules does — CSV needs the unfiltered shown.answered rather than
+// a paginated *pb.RulesResponse, so it isn't worth routing through the RPC
+// just to throw most of the response away.
+func (s *Server) getRulesCSV(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	q := r.URL.Query()
-	resp := &pb.RulesResponse{Classes: trace.ActionClasses}
 
 	raw := strings.TrimSpace(q.Get("url"))
 	var tq trace.Query
@@ -193,99 +199,33 @@ func (s *Server) getRules(w http.ResponseWriter, r *http.Request) {
 	}
 	lq := trace.LookupQuery{Scheme: tq.Scheme, Hostname: tq.Hostname, Path: tq.Path, Port: tq.Port,
 		Classes: nonEmpty(q["class"]), Vendors: nonEmpty(q["vendor"])}.Normalise()
-	resp.Scheme, resp.Hostname, resp.Path, resp.Port = lq.Scheme, lq.Hostname, lq.Path, int32(lq.Port)
-	resp.ClassesSelected, resp.VendorsSelected = lq.Classes, lq.Vendors
-	switch {
-	case lq.Hostname != "":
-		resp.Url = targetURL(trace.Query{Scheme: lq.Scheme, Hostname: lq.Hostname, Path: lq.Path, Port: lq.Port})
-	case raw != "":
-		resp.Url = lq.Path
-	}
-
-	instances, err := s.DB.Instances(ctx)
-	if err != nil {
-		apiError(w, http.StatusServiceUnavailable, "datastore_unavailable", err.Error())
-		return
-	}
-	resp.Empty = len(instances) == 0
-	seen := map[string]bool{}
-	for _, in := range instances {
-		if !seen[in.Vendor] {
-			seen[in.Vendor] = true
-			resp.Vendors = append(resp.Vendors, in.Vendor)
-		}
-	}
-	sort.Strings(resp.Vendors)
 
 	asked := raw != "" || lq.Hostname != "" || legacyPath != ""
-	if !asked || resp.Empty {
-		writeProto(w, http.StatusOK, resp)
-		return
-	}
-	resp.Asked = true
-	top, err := trace.Load(ctx, s.DB)
-	if err != nil {
-		apiError(w, http.StatusServiceUnavailable, "datastore_unavailable", err.Error())
-		return
-	}
-	results := trace.Lookup(top, lq)
-
-	shown := tallyRules(results)
-	resp.Rules, resp.Nodes, resp.Files = int32(shown.rules), int32(len(shown.nodes)), int32(len(shown.files))
-
-	facets := shown
-	if len(lq.Classes) > 0 || len(lq.Vendors) > 0 {
-		wide := lq
-		wide.Classes, wide.Vendors = nil, nil
-		facets = tallyRules(trace.Lookup(top, wide))
-	}
-	resp.VendorFacets = sortedRuleFacets(facets.vendors)
-	resp.ClassFacets = sortedRuleFacets(facets.classes)
-	resp.RulesUnfiltered = int32(facets.rules)
-
-	for _, res := range shown.silent {
-		resp.Silent = append(resp.Silent, toPBLookupResult(res))
-	}
-
-	groups := groupByNode(shown.answered)
-
-	const pageSize = 20
-	page, _ := strconv.Atoi(q.Get("page"))
-	if page < 1 {
-		page = 1
-	}
-	pages := max((len(groups)+pageSize-1)/pageSize, 1)
-	if page > pages {
-		page = pages
-	}
-	start := (page - 1) * pageSize
-	end := min(start+pageSize, len(groups))
-	resp.Page, resp.Pages = int32(page), int32(pages)
-	if len(groups) > 0 {
-		resp.From, resp.To = int32(start+1), int32(end)
-		groups = groups[start:end]
-	}
-	resp.Groups = groups
-
-	if q.Get("export") == "csv" {
-		rows := [][]string{{"instance", "node", "vendor", "site", "route", "scope", "directive", "arguments", "class", "source", "byte_start"}}
-		for _, result := range shown.answered {
-			site, route := "", ""
-			if result.Site != nil {
-				site = result.Site.PrimaryName
-			}
-			if result.Route != nil {
-				route = result.Route.Pattern
-			}
-			for _, item := range result.Rules {
-				rows = append(rows, []string{result.Inst.DisplayName, result.Inst.NodeName,
-					result.Inst.Vendor, site, route, item.Scope, item.Rule.Directive,
-					item.Rule.Args, item.Rule.ActionClass, item.Rule.Path,
-					strconv.Itoa(item.Rule.ByteStart)})
-			}
+	var answered []trace.LookupResult
+	if asked {
+		top, err := trace.Load(ctx, s.DB)
+		if err != nil {
+			apiError(w, http.StatusServiceUnavailable, "datastore_unavailable", err.Error())
+			return
 		}
-		s.writeCSV(w, r, "rule-lookup", rows)
-		return
+		answered = tallyRules(trace.Lookup(top, lq)).answered
 	}
-	writeProto(w, http.StatusOK, resp)
+
+	rows := [][]string{{"instance", "node", "vendor", "site", "route", "scope", "directive", "arguments", "class", "source", "byte_start"}}
+	for _, result := range answered {
+		site, route := "", ""
+		if result.Site != nil {
+			site = result.Site.PrimaryName
+		}
+		if result.Route != nil {
+			route = result.Route.Pattern
+		}
+		for _, item := range result.Rules {
+			rows = append(rows, []string{result.Inst.DisplayName, result.Inst.NodeName,
+				result.Inst.Vendor, site, route, item.Scope, item.Rule.Directive,
+				item.Rule.Args, item.Rule.ActionClass, item.Rule.Path,
+				strconv.Itoa(item.Rule.ByteStart)})
+		}
+	}
+	s.writeCSV(w, r, "rule-lookup", rows)
 }

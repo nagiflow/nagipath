@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -401,11 +402,147 @@ func (x *SnapshotFileResponse) GetHasAnchor() bool {
 	return false
 }
 
+type ListSnapshotsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Q             string                 `protobuf:"bytes,1,opt,name=q,proto3" json:"q,omitempty"`
+	Range         string                 `protobuf:"bytes,2,opt,name=range,proto3" json:"range,omitempty"`
+	Changes       string                 `protobuf:"bytes,3,opt,name=changes,proto3" json:"changes,omitempty"`
+	Trigger       string                 `protobuf:"bytes,4,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	Cursor        string                 `protobuf:"bytes,5,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSnapshotsRequest) Reset() {
+	*x = ListSnapshotsRequest{}
+	mi := &file_nagipath_api_v1_snapshots_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSnapshotsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSnapshotsRequest) ProtoMessage() {}
+
+func (x *ListSnapshotsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_snapshots_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSnapshotsRequest.ProtoReflect.Descriptor instead.
+func (*ListSnapshotsRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_snapshots_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListSnapshotsRequest) GetQ() string {
+	if x != nil {
+		return x.Q
+	}
+	return ""
+}
+
+func (x *ListSnapshotsRequest) GetRange() string {
+	if x != nil {
+		return x.Range
+	}
+	return ""
+}
+
+func (x *ListSnapshotsRequest) GetChanges() string {
+	if x != nil {
+		return x.Changes
+	}
+	return ""
+}
+
+func (x *ListSnapshotsRequest) GetTrigger() string {
+	if x != nil {
+		return x.Trigger
+	}
+	return ""
+}
+
+func (x *ListSnapshotsRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+type GetSnapshotFileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	FileId        int64                  `protobuf:"varint,2,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	B             string                 `protobuf:"bytes,3,opt,name=b,proto3" json:"b,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSnapshotFileRequest) Reset() {
+	*x = GetSnapshotFileRequest{}
+	mi := &file_nagipath_api_v1_snapshots_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSnapshotFileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSnapshotFileRequest) ProtoMessage() {}
+
+func (x *GetSnapshotFileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_snapshots_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSnapshotFileRequest.ProtoReflect.Descriptor instead.
+func (*GetSnapshotFileRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_snapshots_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetSnapshotFileRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *GetSnapshotFileRequest) GetFileId() int64 {
+	if x != nil {
+		return x.FileId
+	}
+	return 0
+}
+
+func (x *GetSnapshotFileRequest) GetB() string {
+	if x != nil {
+		return x.B
+	}
+	return ""
+}
+
 var File_nagipath_api_v1_snapshots_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_snapshots_proto_rawDesc = "" +
 	"\n" +
-	"\x1fnagipath/api/v1/snapshots.proto\x12\x0fnagipath.api.v1\x1a\x1bnagipath/api/v1/nodes.proto\"\x90\x02\n" +
+	"\x1fnagipath/api/v1/snapshots.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1bnagipath/api/v1/nodes.proto\"\x90\x02\n" +
 	"\vSnapshotRow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vinstance_id\x18\x02 \x01(\x03R\n" +
@@ -451,7 +588,21 @@ const file_nagipath_api_v1_snapshots_proto_rawDesc = "" +
 	"line_start\x18\x06 \x01(\x05R\tlineStart\x12\x19\n" +
 	"\bline_end\x18\a \x01(\x05R\alineEnd\x12\x1d\n" +
 	"\n" +
-	"has_anchor\x18\b \x01(\bR\thasAnchorB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	"has_anchor\x18\b \x01(\bR\thasAnchor\"\x86\x01\n" +
+	"\x14ListSnapshotsRequest\x12\f\n" +
+	"\x01q\x18\x01 \x01(\tR\x01q\x12\x14\n" +
+	"\x05range\x18\x02 \x01(\tR\x05range\x12\x18\n" +
+	"\achanges\x18\x03 \x01(\tR\achanges\x12\x18\n" +
+	"\atrigger\x18\x04 \x01(\tR\atrigger\x12\x16\n" +
+	"\x06cursor\x18\x05 \x01(\tR\x06cursor\"O\n" +
+	"\x16GetSnapshotFileRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
+	"\afile_id\x18\x02 \x01(\x03R\x06fileId\x12\f\n" +
+	"\x01b\x18\x03 \x01(\tR\x01b2\x91\x02\n" +
+	"\x0fSnapshotService\x12r\n" +
+	"\rListSnapshots\x12%.nagipath.api.v1.ListSnapshotsRequest\x1a&.nagipath.api.v1.SnapshotsListResponse\"\x12\x82\xd3\xe4\x93\x02\f\x12\n" +
+	"/snapshots\x12\x89\x01\n" +
+	"\x0fGetSnapshotFile\x12'.nagipath.api.v1.GetSnapshotFileRequest\x1a%.nagipath.api.v1.SnapshotFileResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/snapshots/{id}/file/{file_id}B1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_snapshots_proto_rawDescOnce sync.Once
@@ -465,22 +616,28 @@ func file_nagipath_api_v1_snapshots_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_snapshots_proto_rawDescData
 }
 
-var file_nagipath_api_v1_snapshots_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_nagipath_api_v1_snapshots_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_nagipath_api_v1_snapshots_proto_goTypes = []any{
-	(*SnapshotRow)(nil),           // 0: nagipath.api.v1.SnapshotRow
-	(*SnapshotsListResponse)(nil), // 1: nagipath.api.v1.SnapshotsListResponse
-	(*SnapshotFileResponse)(nil),  // 2: nagipath.api.v1.SnapshotFileResponse
-	(*Snapshot)(nil),              // 3: nagipath.api.v1.Snapshot
-	(*Instance)(nil),              // 4: nagipath.api.v1.Instance
-	(*FileRef)(nil),               // 5: nagipath.api.v1.FileRef
+	(*SnapshotRow)(nil),            // 0: nagipath.api.v1.SnapshotRow
+	(*SnapshotsListResponse)(nil),  // 1: nagipath.api.v1.SnapshotsListResponse
+	(*SnapshotFileResponse)(nil),   // 2: nagipath.api.v1.SnapshotFileResponse
+	(*ListSnapshotsRequest)(nil),   // 3: nagipath.api.v1.ListSnapshotsRequest
+	(*GetSnapshotFileRequest)(nil), // 4: nagipath.api.v1.GetSnapshotFileRequest
+	(*Snapshot)(nil),               // 5: nagipath.api.v1.Snapshot
+	(*Instance)(nil),               // 6: nagipath.api.v1.Instance
+	(*FileRef)(nil),                // 7: nagipath.api.v1.FileRef
 }
 var file_nagipath_api_v1_snapshots_proto_depIdxs = []int32{
 	0, // 0: nagipath.api.v1.SnapshotsListResponse.list:type_name -> nagipath.api.v1.SnapshotRow
-	3, // 1: nagipath.api.v1.SnapshotFileResponse.snapshot:type_name -> nagipath.api.v1.Snapshot
-	4, // 2: nagipath.api.v1.SnapshotFileResponse.instance:type_name -> nagipath.api.v1.Instance
-	5, // 3: nagipath.api.v1.SnapshotFileResponse.file:type_name -> nagipath.api.v1.FileRef
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
+	5, // 1: nagipath.api.v1.SnapshotFileResponse.snapshot:type_name -> nagipath.api.v1.Snapshot
+	6, // 2: nagipath.api.v1.SnapshotFileResponse.instance:type_name -> nagipath.api.v1.Instance
+	7, // 3: nagipath.api.v1.SnapshotFileResponse.file:type_name -> nagipath.api.v1.FileRef
+	3, // 4: nagipath.api.v1.SnapshotService.ListSnapshots:input_type -> nagipath.api.v1.ListSnapshotsRequest
+	4, // 5: nagipath.api.v1.SnapshotService.GetSnapshotFile:input_type -> nagipath.api.v1.GetSnapshotFileRequest
+	1, // 6: nagipath.api.v1.SnapshotService.ListSnapshots:output_type -> nagipath.api.v1.SnapshotsListResponse
+	2, // 7: nagipath.api.v1.SnapshotService.GetSnapshotFile:output_type -> nagipath.api.v1.SnapshotFileResponse
+	6, // [6:8] is the sub-list for method output_type
+	4, // [4:6] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
 	4, // [4:4] is the sub-list for extension extendee
 	0, // [0:4] is the sub-list for field type_name
@@ -498,9 +655,9 @@ func file_nagipath_api_v1_snapshots_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_snapshots_proto_rawDesc), len(file_nagipath_api_v1_snapshots_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_nagipath_api_v1_snapshots_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_snapshots_proto_depIdxs,

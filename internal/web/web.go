@@ -1,25 +1,23 @@
-// Package web serves the operator UI: server-rendered HTML, no build step, no
-// JavaScript bundle. The whole point of a single binary is that `nagipath server`
-// is the only thing an operator installs, so the UI ships inside it.
+// Package web is the HTTP server: it serves the embedded React SPA (spa.go)
+// and mounts internal/api's JSON surface at /api/ — one entry point for both
+// the SPA's session cookie and external Bearer-token callers, same handlers
+// and same response shapes either way (internal/api's requireAuth accepts
+// both) — no HTML rendering of its own.
+// Every page is the SPA now (docs/adr/0017, Phase 9); the whole point of a
+// single binary is still that `nagipath server` is the only thing an
+// operator installs, so the UI ships inside it.
 package web
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
-	"embed"
 	"encoding/hex"
 	"errors"
-	"fmt"
-	"html/template"
 	"log/slog"
 	"net"
 	"net/http"
-	neturl "net/url"
 	"runtime/debug"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,9 +29,6 @@ import (
 	"github.com/nagiflow/nagipath/internal/sshx"
 	"github.com/nagiflow/nagipath/internal/store"
 )
-
-//go:embed templates/*.html templates/parts/*.html static/*
-var assets embed.FS
 
 const cookieName = "nagipath_session"
 
@@ -74,10 +69,9 @@ type Server struct {
 	// nil unless cmdServer wired one in — only `nagipath server` needs it.
 	Logs *RingBuffer
 
-	tpl       *template.Template
 	collector *collect.Collector
 	mux       *http.ServeMux
-	// api is the JSON surface the SPA calls, mounted at /api/ui/ (docs/adr/0017).
+	// api is the JSON surface the SPA calls, mounted at /api/ (docs/adr/0017).
 	// It shares s.DB and reads license state through s.LicenseStatus rather than
 	// holding its own copy — see internal/api.Server's doc comment.
 	api *api.Server
@@ -91,11 +85,6 @@ type Server struct {
 func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode bool, lic *license.License, metricsToken string, licensePath string) (*Server, error) {
 	s := &Server{DB: db, Master: master, Log: log, Secure: secure, DemoMode: demoMode, License: lic,
 		MetricsToken: metricsToken, LicensePath: licensePath}
-	tpl, err := template.New("").Funcs(funcs).ParseFS(assets, "templates/*.html", "templates/parts/*.html")
-	if err != nil {
-		return nil, err
-	}
-	s.tpl = tpl
 	s.collector = &collect.Collector{DB: db, Dialer: collect.SSH{
 		Dialer: &sshx.Dialer{DB: db, Master: master, Timeout: 20 * time.Second},
 	}}
@@ -105,6 +94,7 @@ func New(db *store.DB, master *keys.Master, log *slog.Logger, secure, demoMode b
 	s.api.Log = log
 	s.api.Master = master
 	s.api.LicensePath = licensePath
+	s.api.Secure = secure
 	s.api.CurrentLicense = s.currentLicense
 	s.api.InstallLicense = s.installLicenseBytes
 	// StartedAt/ListenAddr/TLSEnabled are set on s by cmdServer after New
@@ -145,16 +135,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(rw, r)
 }
 
-// securityHeaders is set on every response, not just rendered pages — /metrics,
-// /healthz and static assets get them too, since a security scanner checks the
-// response, not the route.
+// securityHeaders is set on every response, not just the SPA shell — /metrics,
+// /healthz and the SPA's static assets get them too, since a security scanner
+// checks the response, not the route.
 //
-// script-src is 'self', not 'none': the UI loads two vendored, embedded scripts
-// (htmx and app.js) and nothing else, ever. There is no inline script, no eval
-// and no external origin, so 'self' with no 'unsafe-inline' is the whole budget
-// — an inline <script> anywhere in templates/ would be blocked by this header,
-// which is the point. style-src keeps 'unsafe-inline' for the style="..."
-// attributes that carry one-off panel widths.
+// script-src is 'self', not 'none': the only script the UI ever loads is its
+// own embedded, same-origin React bundle (registerSPAAssets in spa.go) — no
+// inline script, no eval, no external origin, so 'self' with no
+// 'unsafe-inline' is the whole budget. style-src keeps 'unsafe-inline' since
+// Emotion (EUI's styling primitive) injects inline `style` attributes.
 func (s *Server) securityHeaders(w http.ResponseWriter) {
 	h := w.Header()
 	h.Set("X-Content-Type-Options", "nosniff")
@@ -226,18 +215,11 @@ func (s *Server) setLicense(lic *license.License) {
 	s.License = lic
 }
 
-// routes is split one file per navigation group, matching the sidebar in
-// nav.go. The split is not organisational tidiness: it is what lets the four
-// groups be worked on independently without every change landing in the same
-// hundred lines of this file.
 func (s *Server) routes() {
 	m := http.NewServeMux()
 	s.registerSPAAssets(m)
 	s.routesCore(m)
-	s.routesExplore(m)
-	s.routesInventory(m)
-	s.routesAnalysis(m)
-	s.routesOps(m)
+	s.routesSPA(m)
 	s.mux = m
 }
 
@@ -245,45 +227,35 @@ func (s *Server) routes() {
 // entry points, the two probes a load balancer reads, and the operator's own
 // account page.
 func (s *Server) routesCore(m *http.ServeMux) {
-	m.Handle("GET /static/", http.FileServerFS(assets))
-
-	// Open routes: setup runs only while there are no users, login always.
-	m.HandleFunc("GET /setup", s.getSetup)
-	m.HandleFunc("POST /setup", s.postSetup)
-	m.HandleFunc("GET /login", s.getLogin)
-	m.HandleFunc("POST /login", s.postLogin)
-	m.HandleFunc("POST /logout", s.postLogout)
+	// Login and setup are the SPA now (docs/adr/0017, Phase 8): the actual
+	// UserCount()==0/already-authenticated branching that used to happen here
+	// moved client-side into GET /api/session's authenticated/setup_required
+	// fields (internal/api/session.go) plus each page's own <Navigate> guard.
+	// Deliberately NOT s.auth-wrapped: auth()'s missing-cookie branch redirects
+	// to /login itself, which for these two paths would loop forever.
+	m.HandleFunc("GET /login", s.serveSPA)
+	m.HandleFunc("GET /setup", s.serveSPA)
 	m.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
 	m.HandleFunc("GET /readyz", s.readyz)
 	m.HandleFunc("GET /metrics", s.metrics)
-	m.HandleFunc("GET /api/v1/nodes", s.apiAuth(s.apiNodes))
-	m.HandleFunc("GET /api/v1/clusters", s.apiAuth(s.apiClusters))
-	m.HandleFunc("GET /api/v1/drift", s.apiAuth(s.apiDrift))
-	// The SPA's session-cookie JSON surface lives at /api/ui/, a distinct
-	// namespace from the external Bearer-token /api/v1/ contract above — same
-	// resource names (e.g. "clusters") mean different, incompatible response
-	// shapes (a dashboard-oriented projection vs. the external API's stable
-	// contract), so they cannot share a path even by accident.
-	m.Handle("/api/ui/", http.StripPrefix("/api/ui", s.api))
+	// internal/api's JSON surface, one entry point for both callers — the SPA's
+	// session cookie and external Bearer-token callers alike. requireAuth
+	// (internal/api/middleware.go) is what tells them apart, not the path.
+	m.Handle("/api/", http.StripPrefix("/api", s.api))
 
-	m.HandleFunc("GET /password", s.auth(s.getPassword))
-	m.HandleFunc("POST /password", s.auth(s.postPassword))
+	// Password is the SPA now too: business logic lives at POST /api/password
+	// (internal/api/auth.go). Plain s.auth(s.serveSPA), same as every other
+	// authenticated page — auth()'s existing must-change-password bypass for
+	// path=="/password" (below) keeps working unchanged since it matches on
+	// the path, not the handler.
+	m.HandleFunc("GET /password", s.auth(s.serveSPA))
 
 	// Catch-all, last because every other pattern is more specific than "/".
 	// Behind auth so a mistyped URL sends a stranger to the login page rather
 	// than telling them which paths this deployment does not serve.
 	m.HandleFunc("/", s.auth(s.notFound))
-}
-
-// moved answers a path this UI used to serve. The paths changed when the
-// navigation was rebuilt around the new design; a redirect costs one line and
-// keeps every link an operator pasted into a ticket working.
-func moved(to string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, to, http.StatusMovedPermanently)
-	}
 }
 
 // ---------------------------------------------------------------- middleware
@@ -357,13 +329,10 @@ func (s *Server) checkCSRF(r *http.Request, session string) bool {
 	return subtle.ConstantTimeCompare([]byte(got), []byte(csrfToken(session))) == 1
 }
 
-func (s *Server) setCookie(w http.ResponseWriter, token string) {
-	http.SetCookie(w, &http.Cookie{
-		Name: cookieName, Value: token, Path: "/", HttpOnly: true,
-		SameSite: http.SameSiteLaxMode, Secure: s.Secure, MaxAge: int(12 * time.Hour / time.Second),
-	})
-}
-
+// clearCookie is auth()'s only remaining caller: login/setup/logout/password
+// now issue and clear this cookie from internal/api/auth.go instead (its own
+// setCookie/clearCookie, same shape) — auth() still needs to clear it here
+// when a stale cookie's SessionUser lookup fails.
 func (s *Server) clearCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: "", Path: "/", HttpOnly: true,
@@ -371,133 +340,15 @@ func (s *Server) clearCookie(w http.ResponseWriter) {
 	})
 }
 
-// ---------------------------------------------------------------- rendering
-
-type page struct {
-	Title    string
-	Path     string
-	User     store.User
-	CSRF     string
-	Pending  int
-	Flash    string
-	Error    string
-	Data     any
-	NextPath string
-	// LicenseNotice is the human-readable warning for the banner near the
-	// top of the page. Empty when the license is valid, so layout.html can
-	// gate the banner on this alone.
-	LicenseNotice string
-
-	// The shell. Nav, Section, Item and ItemHref all come from nav.go's one
-	// table, so the sidebar highlight and the header breadcrumb cannot
-	// disagree: "Inventory / Instances / app-nginx-042" is the group, the nav
-	// item and Title, and no page has to spell any of it out.
-	Nav      []navGroup
-	Section  string
-	Item     string
-	ItemHref string
-	Initials string
-	// Demo puts the badge in the header. Probes are refused outright in this
-	// mode, so an operator needs to know before they click one.
-	Demo bool
-}
-
-func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title string, data any) {
-	s.renderStatus(w, r, http.StatusOK, name, title, data)
-}
-
-// renderFragment writes one named template with no shell around it, for an htmx
-// swap that replaces a row or a panel rather than the page. It takes the data
-// directly rather than a page, so a fragment cannot reach $.CSRF or $.User — a
-// fragment containing a form needs the token passed in with its data.
-//
-// Buffered for the same reason as renderStatus, and more sharply: a fragment
-// that fails halfway splices half a row into a table the operator is reading.
-func (s *Server) renderFragment(w http.ResponseWriter, r *http.Request, name string, data any) {
-	var buf bytes.Buffer
-	if err := s.tpl.ExecuteTemplate(&buf, name, data); err != nil {
-		s.serverError(w, r, fmt.Errorf("render fragment %s: %w", name, err))
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if _, err := buf.WriteTo(w); err != nil {
-		s.Log.Warn("render", "fragment", name, "err", err)
-	}
-}
-
 // notFound is the 404 every route uses: a wrong id or a mistyped URL keeps the
 // operator inside the product, with the sidebar they navigate by, instead of
-// dropping them onto Go's plain-text page with no way back.
+// dropping them onto a plain-text page with no way back. The SPA's wildcard
+// route renders the actual "not found" content; this just has to send a real
+// 404 status ahead of it — serveSPA never calls WriteHeader itself, so the
+// first call here wins.
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
-	s.renderStatus(w, r, http.StatusNotFound, "notfound.html", "Not found", nil)
-}
-
-func (s *Server) renderStatus(w http.ResponseWriter, r *http.Request, code int, name, title string, data any) {
-	ctx := r.Context()
-	p := page{Title: title, Path: r.URL.Path, User: userOf(r), Data: data, Demo: s.DemoMode}
-	if c, err := r.Cookie(cookieName); err == nil {
-		p.CSRF = csrfToken(c.Value)
-	}
-	p.Pending = s.DB.PendingHostKeyCount(ctx)
-	p.LicenseNotice, _ = ctx.Value(licenseKey).(string)
-	p.Flash = r.URL.Query().Get("ok")
-	p.Error = r.URL.Query().Get("err")
-	// The shell is only drawn for a signed-in user, so login and setup pay for
-	// none of this.
-	if p.User.ID != 0 {
-		p.Initials = initials(p.User.Username)
-		p.Nav = nav(p.Path, p.User, s.DB.NavCounts(ctx))
-		p.Section, p.Item = crumb(p.Nav)
-		for _, g := range p.Nav {
-			for _, it := range g.Items {
-				if it.On {
-					p.ItemHref = it.Href
-				}
-			}
-		}
-	}
-	// Rendered into a buffer first, because a template that fails halfway has
-	// already written a header, a nav and half a table to the client — and with
-	// the status line long gone there is no way to say so. The operator gets a
-	// page that looks like the answer and stops mid-sentence, which is the one
-	// failure mode this product cannot afford. Pages are tens of kilobytes.
-	var buf bytes.Buffer
-	if err := s.tpl.ExecuteTemplate(&buf, name, p); err != nil {
-		s.serverError(w, r, fmt.Errorf("render %s: %w", name, err))
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// After the buffer, not before: WriteHeader freezes the header map, and a
-	// template that failed still has to be able to send a 500.
-	w.WriteHeader(code)
-	if _, err := buf.WriteTo(w); err != nil {
-		s.Log.Warn("render", "template", name, "err", err)
-	}
-}
-
-// redirect carries a one-line result in the query string. It is the laziest flash
-// message that survives a redirect without a session store.
-func redirect(w http.ResponseWriter, r *http.Request, path, ok, errMsg string) {
-	var q string
-	switch {
-	case errMsg != "":
-		q = "err=" + neturl.QueryEscape(errMsg)
-	case ok != "":
-		q = "ok=" + neturl.QueryEscape(ok)
-	}
-	if q != "" {
-		// "&" when the path already carries filters. It was always "?", so
-		// /drift?cluster=all became /drift?cluster=all?ok=..., which parses as a
-		// cluster named "all?ok=..." — the scope was silently lost and the message
-		// never rendered. Every caller that redirects back to a filtered list
-		// (drift, collections, snapshots) went through that path.
-		sep := "?"
-		if strings.Contains(path, "?") {
-			sep = "&"
-		}
-		path += sep + q
-	}
-	http.Redirect(w, r, path, http.StatusSeeOther)
+	w.WriteHeader(http.StatusNotFound)
+	s.serveSPA(w, r)
 }
 
 // serverError logs the real error (with route context) and sends the client a
@@ -507,11 +358,6 @@ func redirect(w http.ResponseWriter, r *http.Request, path, ok, errMsg string) {
 func (s *Server) serverError(w http.ResponseWriter, r *http.Request, err error) {
 	s.Log.Error("internal error", "method", r.Method, "path", r.URL.Path, "err", err)
 	http.Error(w, "internal error", http.StatusInternalServerError)
-}
-
-func idOf(r *http.Request, name string) int64 {
-	n, _ := strconv.ParseInt(r.PathValue(name), 10, 64)
-	return n
 }
 
 // Listen starts the server. It refuses to run without a Master Key, which is

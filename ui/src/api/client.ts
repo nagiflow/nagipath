@@ -24,15 +24,21 @@ export class APIError extends Error {
   }
 }
 
-async function requestJSON(path: string, init?: RequestInit): Promise<JsonValue> {
+// redirectOn401 defaults to true for every existing authenticated call —
+// nothing worth preserving on an invalid session, and a hard reload
+// guarantees a clean remount. It's false only for the Login/Setup pages'
+// own requests (api.postPublic below): a 401 there means "wrong password" or
+// "not signed in yet", not "your session died", so redirecting to the page
+// already on screen would be nonsensical.
+async function requestJSON(path: string, init?: RequestInit, redirectOn401 = true): Promise<JsonValue> {
   const method = init?.method ?? 'GET'
   const headers = new Headers(init?.headers)
   headers.set('Accept', 'application/json')
   if (method !== 'GET' && method !== 'HEAD') {
     headers.set('X-CSRF-Token', csrfToken)
   }
-  const res = await fetch(`/api/ui${path}`, { ...init, method, headers, credentials: 'same-origin' })
-  if (res.status === 401) {
+  const res = await fetch(`/api${path}`, { ...init, method, headers, credentials: 'same-origin' })
+  if (res.status === 401 && redirectOn401) {
     window.location.assign('/login')
     throw new APIError(401, 'unauthenticated', 'Session expired')
   }
@@ -66,4 +72,13 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
     }) as Promise<{ ok: boolean; [k: string]: unknown }>,
+  // postPublic is for the Login and Setup pages' own submits: the one place
+  // a POST happens with no session (and often no CSRF token) yet, so it must
+  // not trigger the 401-redirects-to-/login behavior above.
+  postPublic: <Desc extends GenMessage<any>>(path: string, schema: Desc, body?: unknown): Promise<MessageShape<Desc>> =>
+    requestJSON(
+      path,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined },
+      false,
+    ).then((json) => fromJson(schema, json)),
 }

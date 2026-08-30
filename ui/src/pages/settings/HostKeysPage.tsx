@@ -1,100 +1,212 @@
-import {
-  EuiBadge,
-  EuiBasicTable,
-  EuiButton,
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiLoadingChart,
-  EuiPanel,
-  EuiSelect,
-  EuiSpacer,
-  EuiText,
-  EuiTitle,
-} from '@elastic/eui'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSession } from '../../api/queries/session'
 import { useDecideHostKey, useHostKeys } from '../../api/queries/settings'
 import type { PendingHostKey } from '../../api/pb/nagipath/api/v1/nodes_pb'
-import { SettingsSubNav } from './SettingsSubNav'
+import { PanelHeader } from '../../components/shared/PanelHeader'
+import {
+  Badge, Button, Loading, Panel, PanelFooter, Select, StatRow, Table,
+  type Column,
+} from '../../components/ui'
+import { SettingsLayout } from './SettingsLayout'
+
+// A pending key that replaces an already-approved one for the same algorithm is
+// a different situation from a first sighting: it is a rekey or an interception,
+// and store.AllHostKeys marks it by returning the approved fingerprint as
+// `previous`. The store keeps both in state 'pending', so the distinction is
+// drawn here.
+function isChanged(k: PendingHostKey): boolean {
+  return k.key?.state === 'pending' && k.previous !== ''
+}
+
+function stateBadge(k: PendingHostKey) {
+  if (isChanged(k)) return <Badge cls="r">CHANGED</Badge>
+  return <Badge state={k.key?.state ?? ''} />
+}
+
+function ts(s: string): string {
+  return s ? new Date(s).toLocaleString() : '—'
+}
+
+// A full SHA256 fingerprint is 50 characters and .t is not table-layout:fixed,
+// so an untruncated column pushes State off the panel. design/ elides the middle
+// the same way; the expanded row carries the whole value.
+function fp(s: string): string {
+  return s.length > 26 ? `${s.slice(0, 18)}…${s.slice(-4)}` : s
+}
 
 // Ported from internal/web/templates/hostkeys.html against
-// GET /api/ui/settings/hostkeys (internal/api/settings.go) — individual
-// decisions post to POST /api/ui/hostkeys/{id}/decide (shipped in Phase 2).
-// The bulk "approve all matching filter" action stays a legacy full-page
-// POST to /hostkeys/approve (internal/web/inventory_import.go): that handler
-// is outside this migration's scope, so the form below posts to it directly,
-// CSRF field and all, exactly like a pre-SPA page would.
+// GET /api/settings/hostkeys and POST /api/hostkeys/{id}/decide
+// (internal/api/settingsservice.go), laid out as design/'s screen 8b: the four
+// stat tiles, the State/Cluster-filtered table whose ticked rows expand into
+// what each key presented, and the trust policy.
+// Selection drives the footer's Approve/Reject the way design/ does; each
+// decision is one POST to the per-row endpoint, looped.
+// Omitted from that screen: "Import known_hosts" (nothing parses one — every key
+// nagipath trusts was presented by the host and approved by a human), the
+// "Policy: approve on first use — off" select and the Policy panel's editability
+// (the policy is fixed in code: internal/sshx has no trust-on-first-use path and
+// a changed key always refuses collection, so the panel states the policy rather
+// than offering to change it), the "of 428 nodes" figure under Approved
+// (HostKeyStats counts keys, not the nodes they cover), the "Collect after
+// approval" action (approval does not queue a collection), "approved <date> by
+// <user>" on the recorded key (the decision is audited, but AllHostKeys returns
+// only the sibling's fingerprint), and the pager (this endpoint returns every
+// key that matches the filter — the fleet has one key per algorithm per node).
 export function HostKeysPage() {
   const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'admin'
   const [params, setParams] = useSearchParams()
   const state = params.get('state') ?? ''
   const cluster = params.get('cluster') ?? ''
   const { data, isPending, isError, error } = useHostKeys(state, cluster)
   const decide = useDecideHostKey()
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [busy, setBusy] = useState(false)
+  const [bulkError, setBulkError] = useState('')
 
-  const columns = [
-    { field: 'key.algorithm', name: 'Algorithm' },
-    { field: 'nodeName', name: 'Node' },
-    { field: 'key.fingerprint', name: 'Fingerprint' },
-    { field: 'key.state', name: 'State', render: (v: string) => <EuiBadge color={v === 'approved' ? 'success' : v === 'pending' ? 'warning' : 'default'}>{v}</EuiBadge> },
-    { field: 'previous', name: 'Previous', render: (v: string) => v || '—' },
+  const keys = data?.keys ?? []
+  const selected = keys.filter((k) => picked.has(String(k.key?.id)))
+  const algorithms = Object.entries(data?.stats?.algorithms ?? {})
+
+  const toggle = (id: string) => setPicked((cur) => {
+    const next = new Set(cur)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  async function apply(approve: boolean) {
+    const ids = selected.filter((k) => k.key?.state === 'pending').map((k) => Number(k.key!.id))
+    setBusy(true)
+    setBulkError('')
+    const results = await Promise.allSettled(ids.map((id) => decide.mutateAsync({ id, approve })))
+    setBusy(false)
+    setPicked(new Set())
+    const failed = results.filter((r) => r.status === 'rejected').length
+    if (failed > 0) setBulkError(`${failed} of ${ids.length} host key(s) could not be decided.`)
+  }
+
+  const columns: Column<PendingHostKey>[] = [
     {
-      name: 'Decide',
-      render: (row: PendingHostKey) =>
-        row.key?.state === 'pending' && session?.user?.role === 'admin' ? (
-          <EuiFlexGroup gutterSize="xs">
-            <EuiFlexItem grow={false}>
-              <EuiButton size="s" onClick={() => decide.mutate({ id: Number(row.key!.id), approve: true })}>Approve</EuiButton>
-            </EuiFlexItem>
-            <EuiFlexItem grow={false}>
-              <EuiButton size="s" color="danger" onClick={() => decide.mutate({ id: Number(row.key!.id), approve: false })}>Reject</EuiButton>
-            </EuiFlexItem>
-          </EuiFlexGroup>
-        ) : null,
+      name: '',
+      width: 26,
+      render: (k) => <input type="checkbox" className="cb" checked={picked.has(String(k.key?.id))} readOnly tabIndex={-1} />,
     },
+    {
+      name: 'Node',
+      width: 210,
+      render: (k) => <span className="m" style={isChanged(k) ? { fontWeight: 500 } : undefined}>{k.nodeName}</span>,
+    },
+    { name: 'Algorithm', width: 110, render: (k) => <span className="m mu">{k.key?.algorithm}</span> },
+    {
+      name: 'Fingerprint',
+      render: (k) => <span className="m mu" title={k.key?.fingerprint}>{fp(k.key?.fingerprint ?? '')}</span>,
+    },
+    { name: 'First seen', width: 130, render: (k) => <span className="m mu">{ts(k.key?.firstSeenAt ?? '')}</span> },
+    { name: 'Cluster', width: 120, render: (k) => <span className="m mu">{k.cluster || '—'}</span> },
+    { name: 'State', width: 120, render: stateBadge },
   ]
 
   return (
-    <>
-      <SettingsSubNav />
-      <EuiTitle size="m"><h1>Host keys</h1></EuiTitle>
-      <EuiSpacer />
+    <SettingsLayout
+      title="Host keys"
+      actions={<span className="m mus">{data?.stats?.pending ?? 0} awaiting approval</span>}
+    >
+      <div className="col">
+        {isPending && <Loading label="Loading host keys…" />}
+        {isError && <div className="m" style={{ color: '#a1231c' }}>{error.message}</div>}
 
-      {data?.stats && (
-        <EuiText size="s" color="subdued">
-          {data.stats.pending} pending · {data.stats.changed} changed · {data.stats.approved} approved
-        </EuiText>
-      )}
-      <EuiSpacer size="s" />
-      <EuiSelect
-        options={[{ value: '', text: 'State: any' }, { value: 'pending', text: 'Pending' }, { value: 'approved', text: 'Approved' }, { value: 'changed', text: 'Changed' }]}
-        value={state}
-        onChange={(e) => setParams((p) => { p.set('state', e.target.value); return p })}
-      />
-      <EuiSpacer />
+        {data?.stats && (
+          <StatRow
+            stats={[
+              { label: 'Awaiting approval', value: data.stats.pending, sub: 'blocks collection', tone: 'warning' },
+              { label: 'Changed', value: data.stats.changed, sub: 'key differs from record', tone: 'danger' },
+              { label: 'Approved', value: data.stats.approved, sub: 'trusted for collection' },
+              {
+                label: 'Algorithms',
+                value: algorithms.length,
+                sub: algorithms.map(([a, n]) => `${a} ${n}`).join(' · ') || 'none recorded',
+              },
+            ]}
+          />
+        )}
 
-      {isPending && <EuiLoadingChart size="xl" />}
-      {isError && <EuiText color="danger">{error.message}</EuiText>}
-      {data && (
-        <EuiPanel>
-          <EuiBasicTable<PendingHostKey> items={data.keys} columns={columns} rowHeader="key.fingerprint"
-            noItemsMessage="No host keys recorded yet." />
-        </EuiPanel>
-      )}
+        {data && (
+          <Panel z>
+            <PanelHeader
+              title="Host keys"
+              meta="expand a key to compare presented vs. recorded"
+              actions={
+                <>
+                  <Select
+                    options={[
+                      { value: '', text: 'State: any' },
+                      { value: 'pending', text: 'State: pending' },
+                      { value: 'changed', text: 'State: changed' },
+                      { value: 'approved', text: 'State: approved' },
+                    ]}
+                    value={state}
+                    onChange={(v) => setParams((p) => { v ? p.set('state', v) : p.delete('state'); return p })}
+                  />
+                  <Select
+                    options={[{ value: '', text: 'Cluster: all' },
+                      ...(data.clusters ?? []).map((c) => ({ value: c, text: `Cluster: ${c}` }))]}
+                    value={cluster}
+                    onChange={(v) => setParams((p) => { v ? p.set('cluster', v) : p.delete('cluster'); return p })}
+                  />
+                </>
+              }
+            />
+            <Table
+              items={keys}
+              columns={columns}
+              rowKey={(k) => String(k.key?.id)}
+              rowClassName={(k) => (picked.has(String(k.key?.id)) ? 'hl' : '')}
+              onRowClick={(k) => toggle(String(k.key?.id))}
+              emptyMessage="No host keys match this filter."
+              renderExpanded={(k) => picked.has(String(k.key?.id)) && (
+                <div className="kv m" style={{ display: 'grid', gridTemplateColumns: '92px 1fr', gap: '4px 8px' }}>
+                  {k.previous && <><span className="mus">recorded</span><span>{k.previous} · approved</span></>}
+                  <span className="mus">presented</span>
+                  <span>{k.key?.fingerprint} · {k.key?.algorithm} · seen {ts(k.key?.firstSeenAt ?? '')}</span>
+                  <span className="mus">address</span><span>{k.nodeAddress || '—'}</span>
+                  <span className="mus">collection</span>
+                  <span>
+                    {k.key?.state === 'approved'
+                      ? 'allowed — this key is trusted'
+                      : `refused since ${ts(k.key?.firstSeenAt ?? '')}`}
+                  </span>
+                </div>
+              )}
+            />
+            <PanelFooter>
+              <span className="m mus">{selected.length} selected</span>
+              {isAdmin && selected.some((k) => k.key?.state === 'pending') && (
+                <>
+                  <Button primary small loading={busy} onClick={() => apply(true)}>Approve</Button>
+                  <Button small loading={busy} onClick={() => apply(false)}>Reject</Button>
+                </>
+              )}
+              {bulkError && <span className="m" style={{ color: '#a1231c' }}>{bulkError}</span>}
+              <div style={{ flex: 1 }} />
+              <span className="m mus">{keys.length} key{keys.length === 1 ? '' : 's'}</span>
+            </PanelFooter>
+          </Panel>
+        )}
 
-      {session?.user?.role === 'admin' && data && data.keys.some((k) => k.key?.state === 'pending') && (
-        <>
-          <EuiSpacer />
-          <form method="post" action="/hostkeys/approve">
-            <input type="hidden" name="csrf_token" value={session?.csrfToken ?? ''} />
-            <input type="hidden" name="back" value={`/settings/hostkeys${state ? `?state=${state}` : ''}`} />
-            {data.keys.filter((k) => k.key?.state === 'pending').map((k) => (
-              <input key={k.key!.id.toString()} type="hidden" name="key" value={k.key!.id.toString()} />
-            ))}
-            <EuiButton type="submit">Approve all matching the current filter</EuiButton>
-          </form>
-        </>
-      )}
-    </>
+        {data && (
+          <Panel>
+            <div className="lbl" style={{ marginBottom: 7 }}>Policy</div>
+            <div className="fct"><input type="radio" className="rd" checked readOnly disabled /><span className="m">Approve manually</span></div>
+            <div className="fct"><input type="radio" className="rd" readOnly disabled /><span className="m mus">Trust on first use</span></div>
+            <div className="fct"><input type="checkbox" className="cb" checked readOnly disabled /><span className="m">Refuse collection on key change</span></div>
+            <div className="m mus" style={{ marginTop: 7 }}>
+              Fixed. A host key is trusted only once a human approves the fingerprint it presented, and a key that
+              replaces an approved one stops collection until someone decides which it is.
+            </div>
+          </Panel>
+        )}
+      </div>
+    </SettingsLayout>
   )
 }

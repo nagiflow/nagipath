@@ -2,15 +2,18 @@
 // @generated from file nagipath/api/v1/nodes.proto (package nagipath.api.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_api_annotations } from "../../../google/api/annotations_pb";
+import type { IdResponseSchema, OkSchema } from "./common_pb";
+import { file_nagipath_api_v1_common } from "./common_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file nagipath/api/v1/nodes.proto.
  */
 export const file_nagipath_api_v1_nodes: GenFile = /*@__PURE__*/
-  fileDesc("ChtuYWdpcGF0aC9hcGkvdjEvbm9kZXMucHJvdG8SD25hZ2lwYXRoLmFwaS52MSLoAgoLTm9kZUxpc3RSb3cSCgoCaWQYASABKAMSDwoHYWRkcmVzcxgCIAEoCRIQCghzc2hfcG9ydBgDIAEoBRIUCgxkaXNwbGF5X25hbWUYBCABKAkSEQoJb3NfZmFtaWx5GAUgASgJEg8KB2VuYWJsZWQYBiABKAgSHAoUY29uc2VjdXRpdmVfZmFpbHVyZXMYByABKAUSFgoOaW5zdGFuY2VfY291bnQYCCABKAUSGQoRcGVuZGluZ19ob3N0X2tleXMYCSABKAUSFwoPbGFzdF9jb2xsZWN0aW9uGAogASgJEhMKC2xhc3Rfc3RhdHVzGAsgASgJEg4KBnZlbmRvchgMIAEoCRIPCgd2ZXJzaW9uGA0gASgJEg8KB2NsdXN0ZXIYDiABKAkSFQoNcHJvY2Vzc19jb3VudBgPIAEoBRIRCglsaXN0ZW5lcnMYECABKAkSFQoNbGFzdF9jYXB0dXJlZBgRIAEoCSKwAQoRTm9kZXNMaXN0UmVzcG9uc2USKwoFbm9kZXMYASADKAsyHC5uYWdpcGF0aC5hcGkudjEuTm9kZUxpc3RSb3cSDQoFcXVlcnkYAiABKAkSDQoFdG90YWwYAyABKAUSEQoJdGhyZXNob2xkGAQgASgFEg8KB3BlbmRpbmcYBSABKAUSEwoLcXVhcmFudGluZWQYBiABKAUSFwoPbmV2ZXJfY29sbGVjdGVkGAcgASgFIrYCCgROb2RlEgoKAmlkGAEgASgDEg8KB2FkZHJlc3MYAiABKAkSEAoIc3NoX3BvcnQYAyABKAUSFAoMZGlzcGxheV9uYW1lGAQgASgJEhQKDHNzaF91c2VybmFtZRgFIAEoCRIVCg1jcmVkZW50aWFsX2lkGAYgASgDEhEKCW9zX2ZhbWlseRgHIAEoCRIWCg5zdWRvX2F2YWlsYWJsZRgIIAEoCBIPCgdlbmFibGVkGAkgASgIEg4KBnNvdXJjZRgKIAEoCRINCgVub3RlcxgLIAEoCRIcChRjb25zZWN1dGl2ZV9mYWlsdXJlcxgMIAEoBRIVCg1maXJzdF9zZWVuX2F0GA0gASgJEhcKD2xhc3RfY29sbGVjdGlvbhgOIAEoCRITCgtsYXN0X3N0YXR1cxgPIAEo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ASgJEhAKCGRlZ3JhZGVkGAYgASgIEiQKBXNpdGVzGAcgAygLMhUubmFnaXBhdGguYXBpLnYxLlNpdGUSLAoJdXBzdHJlYW1zGAggAygLMhkubmFnaXBhdGguYXBpLnYxLlVwc3RyZWFtIkUKC05vZGVUYWJJdGVtEg0KBWxhYmVsGAEgASgJEgwKBGhyZWYYAiABKAkSDQoFY291bnQYAyABKAUSCgoCb24YBCABKAgihwEKC1JvdXRlRWZmZWN0EhUKDXVwc3RyZWFtX25hbWUYASABKAkSFAoMbWVtYmVyX2NvdW50GAIgASgFEhYKDmJhbGFuY2VfbWV0aG9kGAMgASgJEjMKB21lbWJlcnMYBCADKAsyIi5uYWdpcGF0aC5hcGkudjEuVXBzdHJlYW1NZW1iZXJSZWYiogoKEk5vZGVEZXRhaWxSZXNwb25zZRIjCgRub2RlGAEgASgLMhUubmFnaXBhdGguYXBpLnYxLk5vZGUSMAoLY3JlZGVudGlhbHMYAiADKAsyGy5uYWdpcGF0aC5hcGkudjEuQ3JlZGVudGlhbBIsCglpbnN0YW5jZXMYAyADKAsyGS5uYWdpcGF0aC5hcGkudjEuSW5zdGFuY2USKwoIc2VsZWN0ZWQYBCABKAsyGS5uYWdpcGF0aC5hcGkudjEuSW5zdGFuY2USKwoJaG9zdF9rZXlzGAUgAygLMhgubmFnaXBhdGguYXBpLnYxLkhvc3RLZXkSNQoMcGVuZGluZ19rZXlzGAYgAygLMh8ubmFnaXBhdGguYXBpLnYxLlBlbmRpbmdIb3N0S2V5EikKBXN0YXRzGAcgASgLMhoubmFnaXBhdGguYXBpLnYxLk5vZGVTdGF0cxIPCgdydW5uaW5nGAggASgIEhEKCXRocmVzaG9sZBgJIAEoBRIqCgR0YWJzGAogAygLMhwubmFnaXBhdGguYXBpLnYxLk5vZGVUYWJJdGVtEgsKA3RhYhgLIAEoCRIXCg9jcmVkZW50aWFsX25hbWUYDCABKAkSIwoEaW5zdBgNIAEoCzIVLm5hZ2lwYXRoLmFwaS52MS5JbnN0EjAKCXVwc3RyZWFtcxgOIAMoCzIdLm5hZ2lwYXRoLmFwaS52MS5VcHN0cmVhbVBvb2wSNAoNc2VsZWN0ZWRfcG9vbBgPIAEoCzIdLm5hZ2lwYXRoLmFwaS52MS5VcHN0cmVhbVBvb2wSNQoMcG9vbF9tZW1iZXJzGBAgAygLMh8ubmFnaXBhdGguYXBpLnYxLlVwc3RyZWFtTWVtYmVyEjYKDGNlcnRpZmljYXRlcxgRIAMoCzIgLm5hZ2lwYXRoLmFwaS52MS5Ob2RlQ2VydEJpbmRpbmcSJwoFZmlsZXMYEiADKAsyGC5uYWdpcGF0aC5hcGkudjEuRmlsZVJlZhIrCghzbmFwc2hvdBgTIAEoCzIZLm5hZ2lwYXRoLmFwaS52MS5TbmFwc2hvdBIvCg1zZWxlY3RlZF9maWxlGBQgASgLMhgubmFnaXBhdGguYXBpLnYxLkZpbGVSZWYSEQoJZmlsZV9ib2R5GBUgASgJEhIKCmJ5dGVfc3RhcnQYFiABKAUSEgoKbGluZV9zdGFydBgXIAEoBRItCgpkcmlmdF9ydW5zGBggAygLMhkubmFnaXBhdGguYXBpLnYxLkRyaWZ0UnVuEjUKDmRyaWZ0X2ZpbmRpbmdzGBkgAygLMh0ubmFnaXBhdGguYXBpLnYxLkRyaWZ0RmluZGluZxJPCg9kcmlmdF9ieV9vYmplY3QYGiADKAsyNi5uYWdpcGF0aC5hcGkudjEuTm9kZURldGFpbFJlc3BvbnNlLkRyaWZ0QnlPYmplY3RFbnRyeRIRCgloYXNfZHJpZnQYGyABKAgSFwoPbm9fZHJpZnRfcmVhc29uGBwgASgJEhoKEnNlbGVjdGVkX3NpdGVfbmFtZRgdIAEoCRIuCg5zZWxlY3RlZF9yb3V0ZRgeIAEoCzIWLm5hZ2lwYXRoLmFwaS52MS5Sb3V0ZRIyCgxyb3V0ZV9lZmZlY3QYHyABKAsyHC5uYWdpcGF0aC5hcGkudjEuUm91dGVFZmZlY3QaNAoSRHJpZnRCeU9iamVjdEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAFCMVovZ2l0aHViLmNvbS9uYWdpZmxvdy9uYWdpcGF0aC9pbnRlcm5hbC9hcGkvcGI7cGJiBnByb3RvMw");
+  fileDesc("ChtuYWdpcGF0aC9hcGkvdjEvbm9kZXMucHJvdG8SD25hZ2lwYXRoLmFwaS52MSLoAgoLTm9kZUxpc3RSb3cSCgoCaWQYASABKAMSDwoHYWRkcmVzcxgCIAEoCRIQCghzc2hfcG9ydBgDIAEoBRIUCgxkaXNwbGF5X25hbWUYBCABKAkSEQoJb3NfZmFtaWx5GAUgASgJEg8KB2VuYWJsZWQYBiABKAgSHAoUY29uc2VjdXRpdmVfZmFpbHVyZXMYByABKAUSFgoOaW5zdGFuY2VfY291bnQYCCABKAUSGQoRcGVuZGluZ19ob3N0X2tleXMYCSABKAUSFwoPbGFzdF9jb2xsZWN0aW9uGAogASgJEhMKC2xhc3Rfc3RhdHVzGAsgASgJEg4KBnZlbmRvchgMIAEoCRIPCgd2ZXJzaW9uGA0gASgJEg8KB2NsdXN0ZXIYDiABKAkSFQoNcHJvY2Vzc19jb3VudBgPIAEoBRIRCglsaXN0ZW5lcnMYECABKAkSFQoNbGFzdF9jYXB0dXJlZBgRIAEoCSKwAQoRTm9kZXNMaXN0UmVzcG9uc2USKwoFbm9kZXMYASADKAsyHC5uYWdpcGF0aC5hcGkudjEuTm9kZUxpc3RSb3cSDQoFcXVlcnkYAiABKAkSDQoFdG90YWwYAyABKAUSEQoJdGhyZXNob2xkGAQgASgFEg8KB3BlbmRpbmcYBSABKAUSEwoLcXVhcmFudGluZWQYBiABKAUSFwoPbmV2ZXJfY29sbGVjdGVkGAcgASgFIrYCCgROb2RlEgoKAmlkGAEgASgDEg8KB2FkZHJlc3MYAiABKAkSEAoIc3NoX3BvcnQYAyABKAUSFAoMZGlzcGxheV9uYW1lGAQgASgJEhQKDHNzaF91c2VybmFtZRgFIAEoCRIVCg1jcmVkZW50aWFsX2lkGAYgASgDEhEKCW9zX2ZhbWlseRgHIAEoCRIWCg5zdWRvX2F2YWlsYWJsZRgIIAEoCBIPCgdlbmFibGVkGAkgASgIEg4KBnNvdXJjZRgKIAEoCRINCgVub3RlcxgLIAEoCRIcChRjb25zZWN1dGl2ZV9mYWlsdXJlcxgMIAEoBRIVCg1maXJzdF9zZWVuX2F0GA0gASgJEhcKD2xhc3RfY29sbGVjdGlvbhgOIAEoCRITCgtsYXN0X3N0YXR1cxgPIAEoCSKeAQoKQ3JlZGVudGlhbBIKCgJpZBgBIAEoAxIMCgRuYW1lGAIgASgJEhAKCHVzZXJuYW1lGAMgASgJEhEKCWF1dGhfa2luZBgEIAEoCRISCgpwdWJsaWNfa2V5GAUgASgJEhMKC2ZpbmdlcnByaW50GAYgASgJEhQKDGV4dGVybmFsX3JlZhgHIAEoCRISCgpjcmVhdGVkX2F0GAggASgJIscCCghJbnN0YW5jZRIKCgJpZBgBIAEoAxIPCgdub2RlX2lkGAIgASgDEhIKCmNsdXN0ZXJfaWQYAyABKAMSDgoGdmVuZG9yGAQgASgJEhQKDGRpc3BsYXlfbmFtZRgFIAEoCRIPCgd2ZXJzaW9uGAYgASgJEhgKEG1haW5fY29uZmlnX3BhdGgYByABKAkSGQoRbm9kZV9kaXNwbGF5X25hbWUYCCABKAkSEgoKc2l0ZV9jb3VudBgJIAEoBRITCgtyb3V0ZV9jb3VudBgKIAEoBRISCgpjZXJ0X2NvdW50GAsgASgFEhUKDWxhc3RfY2FwdHVyZWQYDCABKAkSFAoMY2x1c3Rlcl9uYW1lGA0gASgJEhAKCGRlZ3JhZGVkGA4gASgIEhMKC3BhcnNlX3N0YXRlGA8gASgJEg0KBXN0YXRlGBAgASgJIogBCgdIb3N0S2V5EgoKAmlkGAEgASgDEg8KB25vZGVfaWQYAiABKAMSEQoJYWxnb3JpdGhtGAMgASgJEhMKC2ZpbmdlcnByaW50GAQgASgJEg0KBXN0YXRlGAUgASgJEhUKDWZpcnN0X3NlZW5fYXQYBiABKAkSEgoKZGVjaWRlZF9hdBgHIAEoCSKDAQoOUGVuZGluZ0hvc3RLZXkSJQoDa2V5GAEgASgLMhgubmFnaXBhdGguYXBpLnYxLkhvc3RLZXkSEQoJbm9kZV9uYW1lGAIgASgJEhQKDG5vZGVfYWRkcmVzcxgDIAEoCRIQCghwcmV2aW91cxgEIAEoCRIPCgdjbHVzdGVyGAUgASgJImYKCU5vZGVTdGF0cxINCgVzaXRlcxgBIAEoBRIOCgZyb3V0ZXMYAiABKAUSEQoJdXBzdHJlYW1zGAMgASgFEhIKCmNlcnRfY291bnQYBCABKAUSEwoLZHJpZnRfY291bnQYBSABKAUimAEKDFVwc3RyZWFtUG9vbBIKCgJpZBgBIAEoAxIMCgRuYW1lGAIgASgJEgwKBGtpbmQYAyABKAkSFgoOYmFsYW5jZV9tZXRob2QYBCABKAkSFAoMbWVtYmVyX2NvdW50GAUgASgFEg8KB3VzZWRfYnkYBiABKAkSEgoKcmVzb2x1dGlvbhgHIAEoCRINCgVzdGF0ZRgIIAEoCSJsCg5VcHN0cmVhbU1lbWJlchIMCgRob3N0GAEgASgJEgwKBHBvcnQYAiABKAUSDgoGd2VpZ2h0GAMgASgFEg0KBWZsYWdzGAQgASgJEgwKBHJvbGUYBSABKAkSEQoJbm9kZV9uYW1lGAYgASgJIpYBCg9Ob2RlQ2VydEJpbmRpbmcSEgoKc3ViamVjdF9jbhgBIAEoCRIRCglzaXRlX25hbWUYAiABKAkSDAoEcG9ydBgDIAEoBRIRCglub3RfYWZ0ZXIYBCABKAkSEwoLZmluZ2VycHJpbnQYBSABKAkSEAoIa2V5X3R5cGUYBiABKAkSFAoMY2hhaW5fbGVuZ3RoGAcgASgFIlcKB0ZpbGVSZWYSCgoCaWQYASABKAMSDAoEa2luZBgCIAEoCRIMCgRwYXRoGAMgASgJEhEKCWJ5dGVzX3JhdxgEIAEoAxIRCgl0cnVuY2F0ZWQYBSABKAgikgEKCFNuYXBzaG90EgoKAmlkGAEgASgDEhMKC2NhcHR1cmVkX2F0GAIgASgJEhAKCGRlZ3JhZGVkGAMgASgIEhcKD2RlZ3JhZGVkX3JlYXNvbhgEIAEoCRISCgpmaWxlX2NvdW50GAUgASgFEhEKCWJ5dGVzX3JhdxgGIAEoAxITCgtwYXJzZV9zdGF0ZRgHIAEoCSKHAgoIRHJpZnRSdW4SCgoCaWQYASABKAMSEwoLaW5zdGFuY2VfaWQYAiABKAMSFQoNYmFzZWxpbmVfa2luZBgDIAEoCRIWCg5iYXNlbGluZV9sYWJlbBgEIAEoCRITCgtjb21wdXRlZF9hdBgFIAEoCRIVCg1maW5kaW5nX2NvdW50GAYgASgFEhUKDWluc3RhbmNlX25hbWUYByABKAkSEQoJbm9kZV9uYW1lGAggASgJEg4KBnZlbmRvchgJIAEoCRIWCg5wYXJzZXJfdmVyc2lvbhgKIAEoBRIVCg1pZ25vcmVkX2NvdW50GAsgASgFEhYKDmlzX2dvbGRlbl9wZWVyGAwgASgIImIKClByb3ZlbmFuY2USDAoEcGF0aBgBIAEoCRITCgtzbmFwc2hvdF9pZBgCIAEoAxIPCgdmaWxlX2lkGAMgASgDEhIKCmJ5dGVfc3RhcnQYBCABKAMSDAoEbGluaxgFIAEoCSLXAQoMRHJpZnRGaW5kaW5nEgoKAmlkGAEgASgDEhMKC29iamVjdF9raW5kGAIgASgJEhMKC25hdHVyYWxfa2V5GAMgASgJEg4KBmNoYW5nZRgEIAEoCRINCgVmaWVsZBgFIAEoCRIVCg1iYXNlbGluZV90ZXh0GAYgASgJEhQKDHN1YmplY3RfdGV4dBgHIAEoCRIUCgxhY3Rpb25fY2xhc3MYCCABKAkSLwoKcHJvdmVuYW5jZRgJIAEoCzIbLm5hZ2lwYXRoLmFwaS52MS5Qcm92ZW5hbmNlIrEBCgVSb3V0ZRIKCgJpZBgBIAEoAxISCgptYXRjaF90eXBlGAIgASgJEg8KB3BhdHRlcm4YAyABKAkSDwoHb3JkaW5hbBgEIAEoBRITCgtpc190ZXJtaW5hbBgFIAEoCBITCgt1cHN0cmVhbV9pZBgGIAEoAxISCgp0YXJnZXRfcmF3GAcgASgJEigKCGNoaWxkcmVuGAggAygLMhYubmFnaXBhdGguYXBpLnYxLlJvdXRlIm0KBFNpdGUSCgoCaWQYASABKAMSFAoMcHJpbWFyeV9uYW1lGAIgASgJEgwKBGtpbmQYAyABKAkSDQoFbmFtZXMYBCADKAkSJgoGcm91dGVzGAUgAygLMhYubmFnaXBhdGguYXBpLnYxLlJvdXRlIloKEVVwc3RyZWFtTWVtYmVyUmVmEgoKAmlkGAEgASgDEgwKBGhvc3QYAiABKAkSDAoEcG9ydBgDIAEoBRIOCgZzY2hlbWUYBCABKAkSDQoFZmxhZ3MYBSABKAkifwoIVXBzdHJlYW0SCgoCaWQYASABKAMSDAoEbmFtZRgCIAEoCRIMCgRraW5kGAMgASgJEhYKDmJhbGFuY2VfbWV0aG9kGAQgASgJEjMKB21lbWJlcnMYBSADKAsyIi5uYWdpcGF0aC5hcGkudjEuVXBzdHJlYW1NZW1iZXJSZWYixwEKBEluc3QSCgoCaWQYASABKAMSEQoJbm9kZV9uYW1lGAIgASgJEg4KBnZlbmRvchgDIAEoCRIUCgxkaXNwbGF5X25hbWUYBCABKAkSFAoMY2x1c3Rlcl9uYW1lGAUgASgJEhAKCGRlZ3JhZGVkGAYgASgIEiQKBXNpdGVzGAcgAygLMhUubmFnaXBhdGguYXBpLnYxLlNpdGUSLAoJdXBzdHJlYW1zGAggAygLMhkubmFnaXBhdGguYXBpLnYxLlVwc3RyZWFtIkUKC05vZGVUYWJJdGVtEg0KBWxhYmVsGAEgASgJEgwKBGhyZWYYAiABKAkSDQoFY291bnQYAyABKAUSCgoCb24YBCABKAgihwEKC1JvdXRlRWZmZWN0EhUKDXVwc3RyZWFtX25hbWUYASABKAkSFAoMbWVtYmVyX2NvdW50GAIgASgFEhYKDmJhbGFuY2VfbWV0aG9kGAMgASgJEjMKB21lbWJlcnMYBCADKAsyIi5uYWdpcGF0aC5hcGkudjEuVXBzdHJlYW1NZW1iZXJSZWYiogoKEk5vZGVEZXRhaWxSZXNwb25zZRIjCgRub2RlGAEgASgLMhUubmFnaXBhdGguYXBpLnYxLk5vZGUSMAoLY3JlZGVudGlhbHMYAiADKAsyGy5uYWdpcGF0aC5hcGkudjEuQ3JlZGVudGlhbBIsCglpbnN0YW5jZXMYAyADKAsyGS5uYWdpcGF0aC5hcGkudjEuSW5zdGFuY2USKwoIc2VsZWN0ZWQYBCABKAsyGS5uYWdpcGF0aC5hcGkudjEuSW5zdGFuY2USKwoJaG9zdF9rZXlzGAUgAygLMhgubmFnaXBhdGguYXBpLnYxLkhvc3RLZXkSNQoMcGVuZGluZ19rZXlzGAYgAygLMh8ubmFnaXBhdGguYXBpLnYxLlBlbmRpbmdIb3N0S2V5EikKBXN0YXRzGAcgASgLMhoubmFnaXBhdGguYXBpLnYxLk5vZGVTdGF0cxIPCgdydW5uaW5nGAggASgIEhEKCXRocmVzaG9sZBgJIAEoBRIqCgR0YWJzGAogAygLMhwubmFnaXBhdGguYXBpLnYxLk5vZGVUYWJJdGVtEgsKA3RhYhgLIAEoCRIXCg9jcmVkZW50aWFsX25hbWUYDCABKAkSIwoEaW5zdBgNIAEoCzIVLm5hZ2lwYXRoLmFwaS52MS5JbnN0EjAKCXVwc3RyZWFtcxgOIAMoCzIdLm5hZ2lwYXRoLmFwaS52MS5VcHN0cmVhbVBvb2wSNAoNc2VsZWN0ZWRfcG9vbBgPIAEoCzIdLm5hZ2lwYXRoLmFwaS52MS5VcHN0cmVhbVBvb2wSNQoMcG9vbF9tZW1iZXJzGBAgAygLMh8ubmFnaXBhdGguYXBpLnYxLlVwc3RyZWFtTWVtYmVyEjYKDGNlcnRpZmljYXRlcxgRIAMoCzIgLm5hZ2lwYXRoLmFwaS52MS5Ob2RlQ2VydEJpbmRpbmcSJwoFZmlsZXMYEiADKAsyGC5uYWdpcGF0aC5hcGkudjEuRmlsZVJlZhIrCghzbmFwc2hvdBgTIAEoCzIZLm5hZ2lwYXRoLmFwaS52MS5TbmFwc2hvdBIvCg1zZWxlY3RlZF9maWxlGBQgASgLMhgubmFnaXBhdGguYXBpLnYxLkZpbGVSZWYSEQoJZmlsZV9ib2R5GBUgASgJEhIKCmJ5dGVfc3RhcnQYFiABKAUSEgoKbGluZV9zdGFydBgXIAEoBRItCgpkcmlmdF9ydW5zGBggAygLMhkubmFnaXBhdGguYXBpLnYxLkRyaWZ0UnVuEjUKDmRyaWZ0X2ZpbmRpbmdzGBkgAygLMh0ubmFnaXBhdGguYXBpLnYxLkRyaWZ0RmluZGluZxJPCg9kcmlmdF9ieV9vYmplY3QYGiADKAsyNi5uYWdpcGF0aC5hcGkudjEuTm9kZURldGFpbFJlc3BvbnNlLkRyaWZ0QnlPYmplY3RFbnRyeRIRCgloYXNfZHJpZnQYGyABKAgSFwoPbm9fZHJpZnRfcmVhc29uGBwgASgJEhoKEnNlbGVjdGVkX3NpdGVfbmFtZRgdIAEoCRIuCg5zZWxlY3RlZF9yb3V0ZRgeIAEoCzIWLm5hZ2lwYXRoLmFwaS52MS5Sb3V0ZRIyCgxyb3V0ZV9lZmZlY3QYHyABKAsyHC5uYWdpcGF0aC5hcGkudjEuUm91dGVFZmZlY3QaNAoSRHJpZnRCeU9iamVjdEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEiUwoMSW1wb3J0ZWROb2RlEgoKAmlkGAEgASgDEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRIPCgdhZGRyZXNzGAMgASgJEhAKCHNzaF9wb3J0GAQgASgFIlQKE0ltcG9ydE5vZGVzUmVzcG9uc2USLAoFYWRkZWQYASADKAsyHS5uYWdpcGF0aC5hcGkudjEuSW1wb3J0ZWROb2RlEg8KB3JlZnVzZWQYAiADKAkiHQoQTGlzdE5vZGVzUmVxdWVzdBIJCgFxGAEgASgJIm4KDkFkZE5vZGVSZXF1ZXN0Eg8KB2FkZHJlc3MYASABKAkSDAoEcG9ydBgCIAEoBRIUCgxkaXNwbGF5X25hbWUYAyABKAkSEAoIdXNlcm5hbWUYBCABKAkSFQoNY3JlZGVudGlhbF9pZBgFIAEoAyI+ChJJbXBvcnROb2Rlc1JlcXVlc3QSEQoJaW52ZW50b3J5GAEgASgJEhUKDWNyZWRlbnRpYWxfaWQYAiABKAMifgoOR2V0Tm9kZVJlcXVlc3QSCgoCaWQYASABKAMSCwoDdGFiGAIgASgJEg8KB3Byb2Nlc3MYAyABKAMSDAoEcG9vbBgEIAEoAxIMCgRzaXRlGAUgASgJEg0KBXJvdXRlGAYgASgJEgwKBGZpbGUYByABKAMSCQoBYhgIIAEoCSIbCg1Ob2RlSWRSZXF1ZXN0EgoKAmlkGAEgASgDIkAKG0NoYW5nZU5vZGVDcmVkZW50aWFsUmVxdWVzdBIKCgJpZBgBIAEoAxIVCg1jcmVkZW50aWFsX2lkGAIgASgDIjQKFERlY2lkZUhvc3RLZXlSZXF1ZXN0EgoKAmlkGAEgASgDEhAKCGRlY2lzaW9uGAIgASgJIjUKFURlY2lkZUhvc3RLZXlSZXNwb25zZRIKCgJvaxgBIAEoCBIQCghhcHByb3ZlZBgCIAEoCCKrAQoWVGVzdENvbm5lY3Rpb25SZXNwb25zZRIOCgZzdGF0dXMYASABKAkSEgoKbGF0ZW5jeV9tcxgCIAEoBRINCgVlcnJvchgDIAEoCRIRCglvc19mYW1pbHkYBCABKAkSLQoLcGVuZGluZ19rZXkYBSABKAsyGC5uYWdpcGF0aC5hcGkudjEuSG9zdEtleRIcChRwcmV2aW91c19maW5nZXJwcmludBgGIAEoCTL2BwoLTm9kZVNlcnZpY2USYgoJTGlzdE5vZGVzEiEubmFnaXBhdGguYXBpLnYxLkxpc3ROb2Rlc1JlcXVlc3QaIi5uYWdpcGF0aC5hcGkudjEuTm9kZXNMaXN0UmVzcG9uc2UiDoLT5JMCCBIGL25vZGVzEloKB0FkZE5vZGUSHy5uYWdpcGF0aC5hcGkudjEuQWRkTm9kZVJlcXVlc3QaGy5uYWdpcGF0aC5hcGkudjEuSWRSZXNwb25zZSIRgtPkkwILOgEqIgYvbm9kZXMScgoLSW1wb3J0Tm9kZXMSIy5uYWdpcGF0aC5hcGkudjEuSW1wb3J0Tm9kZXNSZXF1ZXN0GiQubmFnaXBhdGguYXBpLnYxLkltcG9ydE5vZGVzUmVzcG9uc2UiGILT5JMCEjoBKiINL25vZGVzL2ltcG9ydBJ5CgdHZXROb2RlEh8ubmFnaXBhdGguYXBpLnYxLkdldE5vZGVSZXF1ZXN0GiMubmFnaXBhdGguYXBpLnYxLk5vZGVEZXRhaWxSZXNwb25zZSIogtPkkwIiWg0SCy9ub2Rlcy97aWR9EhEvbm9kZXMve2lkfS97dGFifRJfCgtDb2xsZWN0Tm9kZRIeLm5hZ2lwYXRoLmFwaS52MS5Ob2RlSWRSZXF1ZXN0GhMubmFnaXBhdGguYXBpLnYxLk9rIhuC0+STAhUiEy9ub2Rlcy97aWR9L2NvbGxlY3QSXQoKRGVsZXRlTm9kZRIeLm5hZ2lwYXRoLmFwaS52MS5Ob2RlSWRSZXF1ZXN0GhMubmFnaXBhdGguYXBpLnYxLk9rIhqC0+STAhQiEi9ub2Rlcy97aWR9L2RlbGV0ZRJ8ChRDaGFuZ2VOb2RlQ3JlZGVudGlhbBIsLm5hZ2lwYXRoLmFwaS52MS5DaGFuZ2VOb2RlQ3JlZGVudGlhbFJlcXVlc3QaEy5uYWdpcGF0aC5hcGkudjEuT2siIYLT5JMCGzoBKiIWL25vZGVzL3tpZH0vY3JlZGVudGlhbBKAAQoNRGVjaWRlSG9zdEtleRIlLm5hZ2lwYXRoLmFwaS52MS5EZWNpZGVIb3N0S2V5UmVxdWVzdBomLm5hZ2lwYXRoLmFwaS52MS5EZWNpZGVIb3N0S2V5UmVzcG9uc2UiIILT5JMCGjoBKiIVL2hvc3RrZXlzL3tpZH0vZGVjaWRlEncKElRlc3ROb2RlQ29ubmVjdGlvbhIeLm5hZ2lwYXRoLmFwaS52MS5Ob2RlSWRSZXF1ZXN0GicubmFnaXBhdGguYXBpLnYxLlRlc3RDb25uZWN0aW9uUmVzcG9uc2UiGILT5JMCEiIQL25vZGVzL3tpZH0vdGVzdEIxWi9naXRodWIuY29tL25hZ2lmbG93L25hZ2lwYXRoL2ludGVybmFsL2FwaS9wYjtwYmIGcHJvdG8z", [file_google_api_annotations, file_nagipath_api_v1_common]);
 
 /**
  * @generated from message nagipath.api.v1.NodeListRow
@@ -457,6 +460,14 @@ export type PendingHostKey = Message<"nagipath.api.v1.PendingHostKey"> & {
    * @generated from field: string previous = 4;
    */
   previous: string;
+
+  /**
+   * Every cluster this node's processes sit in, comma-separated. A node has no
+   * cluster of its own, so this is a list, not a single name.
+   *
+   * @generated from field: string cluster = 5;
+   */
+  cluster: string;
 };
 
 /**
@@ -1358,4 +1369,428 @@ export type NodeDetailResponse = Message<"nagipath.api.v1.NodeDetailResponse"> &
  */
 export const NodeDetailResponseSchema: GenMessage<NodeDetailResponse> = /*@__PURE__*/
   messageDesc(file_nagipath_api_v1_nodes, 23);
+
+/**
+ * ImportedNode is one row of what Import inventory actually added — enough
+ * to link to the new node and offer a "Collect now" button without a
+ * second round trip.
+ *
+ * @generated from message nagipath.api.v1.ImportedNode
+ */
+export type ImportedNode = Message<"nagipath.api.v1.ImportedNode"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string display_name = 2;
+   */
+  displayName: string;
+
+  /**
+   * @generated from field: string address = 3;
+   */
+  address: string;
+
+  /**
+   * @generated from field: int32 ssh_port = 4;
+   */
+  sshPort: number;
+};
+
+/**
+ * Describes the message nagipath.api.v1.ImportedNode.
+ * Use `create(ImportedNodeSchema)` to create a new message.
+ */
+export const ImportedNodeSchema: GenMessage<ImportedNode> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_nodes, 24);
+
+/**
+ * @generated from message nagipath.api.v1.ImportNodesResponse
+ */
+export type ImportNodesResponse = Message<"nagipath.api.v1.ImportNodesResponse"> & {
+  /**
+   * @generated from field: repeated nagipath.api.v1.ImportedNode added = 1;
+   */
+  added: ImportedNode[];
+
+  /**
+   * refused is one line per host the parser or AddNode rejected, human
+   * readable ("10.90.4.0/24: nagipath does not scan networks; add one host
+   * at a time") — the same messages the pre-SPA flash banner showed.
+   *
+   * @generated from field: repeated string refused = 2;
+   */
+  refused: string[];
+};
+
+/**
+ * Describes the message nagipath.api.v1.ImportNodesResponse.
+ * Use `create(ImportNodesResponseSchema)` to create a new message.
+ */
+export const ImportNodesResponseSchema: GenMessage<ImportNodesResponse> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_nodes, 25);
+
+/**
+ * @generated from message nagipath.api.v1.ListNodesRequest
+ */
+export type ListNodesRequest = Message<"nagipath.api.v1.ListNodesRequest"> & {
+  /**
+   * @generated from field: string q = 1;
+   */
+  q: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.ListNodesRequest.
+ * Use `create(ListNodesRequestSchema)` to create a new message.
+ */
+export const ListNodesRequestSchema: GenMessage<ListNodesRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_nodes, 26);
+
+/**
+ * @generated from message nagipath.api.v1.AddNodeRequest
+ */
+export type AddNodeRequest = Message<"nagipath.api.v1.AddNodeRequest"> & {
+  /**
+   * @generated from field: string address = 1;
+   */
+  address: string;
+
+  /**
+   * @generated from field: int32 port = 2;
+   */
+  port: number;
+
+  /**
+   * @generated from field: string display_name = 3;
+   */
+  displayName: string;
+
+  /**
+   * @generated from field: string username = 4;
+   */
+  username: string;
+
+  /**
+   * @generated from field: int64 credential_id = 5;
+   */
+  credentialId: bigint;
+};
+
+/**
+ * Describes the message nagipath.api.v1.AddNodeRequest.
+ * Use `create(AddNodeRequestSchema)` to create a new message.
+ */
+export const AddNodeRequestSchema: GenMessage<AddNodeRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_nodes, 27);
+
+/**
+ * @generated from message nagipath.api.v1.ImportNodesRequest
+ */
+export type ImportNodesRequest = Message<"nagipath.api.v1.ImportNodesRequest"> & {
+  /**
+   * @generated from field: string inventory = 1;
+   */
+  inventory: string;
+
+  /**
+   * @generated from field: int64 credential_id = 2;
+   */
+  credentialId: bigint;
+};
+
+/**
+ * Describes the message nagipath.api.v1.ImportNodesRequest.
+ * Use `create(ImportNodesRequestSchema)` to create a new message.
+ */
+export const ImportNodesRequestSchema: GenMessage<ImportNodesRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_nodes, 28);
+
+/**
+ * GetNodeRequest covers every tab's query params in one flat message — the
+ * same way the pre-gateway handler read all of them off one *http.Request
+ * regardless of which tab ended up using them (nodes.go's getNode).
+ *
+ * @generated from message nagipath.api.v1.GetNodeRequest
+ */
+export type GetNodeRequest = Message<"nagipath.api.v1.GetNodeRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string tab = 2;
+   */
+  tab: string;
+
+  /**
+   * @generated from field: int64 process = 3;
+   */
+  process: bigint;
+
+  /**
+   * @generated from field: int64 pool = 4;
+   */
+  pool: bigint;
+
+  /**
+   * @generated from field: string site = 5;
+   */
+  site: string;
+
+  /**
+   * @generated from field: string route = 6;
+   */
+  route: string;
+
+  /**
+   * @generated from field: int64 file = 7;
+   */
+  file: bigint;
+
+  /**
+   * @generated from field: string b = 8;
+   */
+  b: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.GetNodeRequest.
+ * Use `create(GetNodeRequestSchema)` to create a new message.
+ */
+export const GetNodeRequestSchema: GenMessage<GetNodeRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_nodes, 29);
+
+/**
+ * @generated from message nagipath.api.v1.NodeIdRequest
+ */
+export type NodeIdRequest = Message<"nagipath.api.v1.NodeIdRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message nagipath.api.v1.NodeIdRequest.
+ * Use `create(NodeIdRequestSchema)` to create a new message.
+ */
+export const NodeIdRequestSchema: GenMessage<NodeIdRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_nodes, 30);
+
+/**
+ * @generated from message nagipath.api.v1.ChangeNodeCredentialRequest
+ */
+export type ChangeNodeCredentialRequest = Message<"nagipath.api.v1.ChangeNodeCredentialRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: int64 credential_id = 2;
+   */
+  credentialId: bigint;
+};
+
+/**
+ * Describes the message nagipath.api.v1.ChangeNodeCredentialRequest.
+ * Use `create(ChangeNodeCredentialRequestSchema)` to create a new message.
+ */
+export const ChangeNodeCredentialRequestSchema: GenMessage<ChangeNodeCredentialRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_nodes, 31);
+
+/**
+ * @generated from message nagipath.api.v1.DecideHostKeyRequest
+ */
+export type DecideHostKeyRequest = Message<"nagipath.api.v1.DecideHostKeyRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string decision = 2;
+   */
+  decision: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.DecideHostKeyRequest.
+ * Use `create(DecideHostKeyRequestSchema)` to create a new message.
+ */
+export const DecideHostKeyRequestSchema: GenMessage<DecideHostKeyRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_nodes, 32);
+
+/**
+ * @generated from message nagipath.api.v1.DecideHostKeyResponse
+ */
+export type DecideHostKeyResponse = Message<"nagipath.api.v1.DecideHostKeyResponse"> & {
+  /**
+   * @generated from field: bool ok = 1;
+   */
+  ok: boolean;
+
+  /**
+   * @generated from field: bool approved = 2;
+   */
+  approved: boolean;
+};
+
+/**
+ * Describes the message nagipath.api.v1.DecideHostKeyResponse.
+ * Use `create(DecideHostKeyResponseSchema)` to create a new message.
+ */
+export const DecideHostKeyResponseSchema: GenMessage<DecideHostKeyResponse> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_nodes, 33);
+
+/**
+ * TestConnectionResponse is one attempt to reach an already-added node over
+ * SSH — the same dial and Check() the collector opens with, without running a
+ * collection. Used by Import inventory's step 2 (test connections and host
+ * keys) and by a "Retry" on any node stuck FAILED, so both share one result
+ * shape. A brand-new node has no approved key on file yet, so its first test
+ * always comes back host_key_pending — approving it (DecideHostKey) is what
+ * lets a retest reach connected.
+ *
+ * @generated from message nagipath.api.v1.TestConnectionResponse
+ */
+export type TestConnectionResponse = Message<"nagipath.api.v1.TestConnectionResponse"> & {
+  /**
+   * "connected" | "host_key_pending" | "failed"
+   *
+   * @generated from field: string status = 1;
+   */
+  status: string;
+
+  /**
+   * @generated from field: int32 latency_ms = 2;
+   */
+  latencyMs: number;
+
+  /**
+   * Set when status == "failed".
+   *
+   * @generated from field: string error = 3;
+   */
+  error: string;
+
+  /**
+   * Set when status == "connected".
+   *
+   * @generated from field: string os_family = 4;
+   */
+  osFamily: string;
+
+  /**
+   * Set when status == "host_key_pending": the key blocking this attempt,
+   * already recorded pending by the same CheckHostKey path Settings / Host
+   * keys reads — approving it there (or retesting) needs no separate call.
+   *
+   * @generated from field: nagipath.api.v1.HostKey pending_key = 5;
+   */
+  pendingKey?: HostKey | undefined;
+
+  /**
+   * The previously-approved fingerprint for pending_key's algorithm, if any —
+   * empty for a node seeing its first key ever, set when this is a rekey.
+   *
+   * @generated from field: string previous_fingerprint = 6;
+   */
+  previousFingerprint: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.TestConnectionResponse.
+ * Use `create(TestConnectionResponseSchema)` to create a new message.
+ */
+export const TestConnectionResponseSchema: GenMessage<TestConnectionResponse> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_nodes, 34);
+
+/**
+ * NodeService: every /nodes and /hostkeys route (internal/api/nodes.go).
+ * requireAuth wraps the whole gateway; every RPC but ListNodes and GetNode
+ * calls requireAdminRPC as its own first line — same reasoning as
+ * DriftService's mutations (drift.proto).
+ *
+ * @generated from service nagipath.api.v1.NodeService
+ */
+export const NodeService: GenService<{
+  /**
+   * @generated from rpc nagipath.api.v1.NodeService.ListNodes
+   */
+  listNodes: {
+    methodKind: "unary";
+    input: typeof ListNodesRequestSchema;
+    output: typeof NodesListResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.NodeService.AddNode
+   */
+  addNode: {
+    methodKind: "unary";
+    input: typeof AddNodeRequestSchema;
+    output: typeof IdResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.NodeService.ImportNodes
+   */
+  importNodes: {
+    methodKind: "unary";
+    input: typeof ImportNodesRequestSchema;
+    output: typeof ImportNodesResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.NodeService.GetNode
+   */
+  getNode: {
+    methodKind: "unary";
+    input: typeof GetNodeRequestSchema;
+    output: typeof NodeDetailResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.NodeService.CollectNode
+   */
+  collectNode: {
+    methodKind: "unary";
+    input: typeof NodeIdRequestSchema;
+    output: typeof OkSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.NodeService.DeleteNode
+   */
+  deleteNode: {
+    methodKind: "unary";
+    input: typeof NodeIdRequestSchema;
+    output: typeof OkSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.NodeService.ChangeNodeCredential
+   */
+  changeNodeCredential: {
+    methodKind: "unary";
+    input: typeof ChangeNodeCredentialRequestSchema;
+    output: typeof OkSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.NodeService.DecideHostKey
+   */
+  decideHostKey: {
+    methodKind: "unary";
+    input: typeof DecideHostKeyRequestSchema;
+    output: typeof DecideHostKeyResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.NodeService.TestNodeConnection
+   */
+  testNodeConnection: {
+    methodKind: "unary";
+    input: typeof NodeIdRequestSchema;
+    output: typeof TestConnectionResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_nagipath_api_v1_nodes, 0);
 

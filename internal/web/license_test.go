@@ -2,7 +2,6 @@ package web
 
 import (
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -11,7 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// GET /api/ui/settings/license behaves like every other JSON route behind
+// GET /api/settings/license behaves like every other JSON route behind
 // requireAuth: signed out, it 401s rather than returning anything.
 func TestLicensePageRequiresAuth(t *testing.T) {
 	s, db := newTestServer(t)
@@ -19,9 +18,9 @@ func TestLicensePageRequiresAuth(t *testing.T) {
 	// this test is about the latter.
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	w := c.get("/api/ui/settings/license")
+	w := c.get("/api/settings/license")
 	if w.Code != http.StatusUnauthorized {
-		t.Errorf("GET /api/ui/settings/license while signed out = %d, want 401", w.Code)
+		t.Errorf("GET /api/settings/license while signed out = %d, want 401", w.Code)
 	}
 }
 
@@ -31,18 +30,18 @@ func TestViewerCanViewLicenseButNotInstall(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "viewer", "a good long password", "viewer", "Viewer", false)
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"viewer"}, "password": {"a good long password"}})
+	c.login("viewer", "a good long password")
 	if c.cookie == "" {
 		t.Fatal("viewer could not sign in")
 	}
 
-	w := c.get("/api/ui/settings/license")
+	w := c.get("/api/settings/license")
 	if w.Code != http.StatusOK {
-		t.Fatalf("GET /api/ui/settings/license as a viewer = %d, want 200: %s", w.Code, w.Body.String())
+		t.Fatalf("GET /api/settings/license as a viewer = %d, want 200: %s", w.Code, w.Body.String())
 	}
 
-	if got := c.postJSON("/api/ui/settings/license", map[string]any{"licenseText": "whatever"}).Code; got != http.StatusForbidden {
-		t.Errorf("POST /api/ui/settings/license as a viewer = %d, want 403", got)
+	if got := c.postJSON("/api/settings/license", map[string]any{"licenseText": "whatever"}).Code; got != http.StatusForbidden {
+		t.Errorf("POST /api/settings/license as a viewer = %d, want 403", got)
 	}
 }
 
@@ -53,9 +52,9 @@ func TestInstallingAGarbledLicenseChangesNothing(t *testing.T) {
 	s, db := newTestServer(t)
 	db.CreateUser(t.Context(), "admin", "a good long password", "admin", "Admin", false)
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 
-	w := c.postJSON("/api/ui/settings/license", map[string]any{"licenseText": "this is not a license file"})
+	w := c.postJSON("/api/settings/license", map[string]any{"licenseText": "this is not a license file"})
 	if w.Code != http.StatusUnprocessableEntity {
 		t.Errorf("installing garbage license text was not rejected: %d %s", w.Code, w.Body.String())
 	}
@@ -91,9 +90,9 @@ func TestLicensePageRendersSeededLicenseState(t *testing.T) {
 	}
 
 	c := &client{t: t, s: s}
-	c.post("/login", url.Values{"username": {"admin"}, "password": {"a good long password"}})
+	c.login("admin", "a good long password")
 	var resp pb.LicenseResponse
-	if err := protojson.Unmarshal(c.get("/api/ui/settings/license").Body.Bytes(), &resp); err != nil {
+	if err := protojson.Unmarshal(c.get("/api/settings/license").Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
 	}
 	if resp.State == nil {
@@ -101,6 +100,6 @@ func TestLicensePageRendersSeededLicenseState(t *testing.T) {
 	}
 	if resp.State.Customer != "Acme Corp" || resp.State.Edition != "enterprise" ||
 		resp.State.InstalledByUsername != "admin" || !strings.HasPrefix(resp.State.ExpiresAt, "2030-06-30") {
-		t.Errorf("GET /api/ui/settings/license state = %+v", resp.State)
+		t.Errorf("GET /api/settings/license state = %+v", resp.State)
 	}
 }

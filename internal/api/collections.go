@@ -6,8 +6,13 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
+	"github.com/nagiflow/nagipath/internal/store"
 )
+
+// getCollections moved to collectionservice.go as CollectionService's
+// ListCollections RPC (docs/adr/0018, proto/nagipath/api/v1/settings.proto).
+// Everything below stays here: shared with collectionservice.go and
+// getCollectionsCSV.
 
 const collectionsPageSize = 50
 
@@ -39,10 +44,30 @@ func collectionOutcome(errStr string, instancesSeen int) string {
 	return strconv.Itoa(instancesSeen) + " changes"
 }
 
-// getCollections ports internal/web/collections.go's collections(): job
-// history, scoped in SQL to the selected window, then filtered and
-// paginated in memory (docs/adr/0018).
-func (s *Server) getCollections(w http.ResponseWriter, r *http.Request) {
+type collectionRow struct {
+	id, nodeID                   int64
+	nodeName, trigger, startedAt string
+	status, errStr               string
+	instancesSeen                int
+	durationMS                   int64
+}
+
+func collectionRowsFrom(all []store.Collection) []collectionRow {
+	var rows []collectionRow
+	for _, c := range all {
+		dur := int64(0)
+		if c.DurationMS.Valid {
+			dur = c.DurationMS.Int64
+		}
+		rows = append(rows, collectionRow{id: c.ID, nodeID: c.NodeID, nodeName: c.NodeName, trigger: c.Trigger,
+			startedAt: c.StartedAt, status: c.Status, errStr: c.Error, instancesSeen: c.InstancesSeen, durationMS: dur})
+	}
+	return rows
+}
+
+// getCollectionsCSV: GET /collections?export=csv is a formatted download,
+// not RPC-shaped data (gateway.go's gatewayOrCSV, wired in api.go).
+func (s *Server) getCollectionsCSV(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	q := r.URL.Query()
 	node := strings.TrimSpace(q.Get("node"))
@@ -55,44 +80,16 @@ func (s *Server) getCollections(w http.ResponseWriter, r *http.Request) {
 		rng = "24h"
 	}
 
-	since := collectionSince(rng)
-	all, err := s.DB.CollectionsSince(ctx, since)
+	all, err := s.DB.CollectionsSince(ctx, collectionSince(rng))
 	if err != nil {
 		apiError(w, http.StatusServiceUnavailable, "datastore_unavailable", err.Error())
 		return
 	}
-
-	nodes, err := s.DB.Nodes(ctx)
-	if err != nil {
-		apiError(w, http.StatusServiceUnavailable, "datastore_unavailable", err.Error())
-		return
-	}
-	resp := &pb.CollectionsResponse{Empty: len(nodes) == 0}
-	if resp.Empty {
-		writeProto(w, http.StatusOK, resp)
-		return
-	}
-
-	type row struct {
-		id, nodeID                   int64
-		nodeName, trigger, startedAt string
-		status, errStr               string
-		instancesSeen                int
-		durationMS                   int64
-	}
-	var rows []row
-	for _, c := range all {
-		dur := int64(0)
-		if c.DurationMS.Valid {
-			dur = c.DurationMS.Int64
-		}
-		rows = append(rows, row{id: c.ID, nodeID: c.NodeID, nodeName: c.NodeName, trigger: c.Trigger,
-			startedAt: c.StartedAt, status: c.Status, errStr: c.Error, instancesSeen: c.InstancesSeen, durationMS: dur})
-	}
+	rows := collectionRowsFrom(all)
 
 	if node != "" {
 		nodelow := strings.ToLower(node)
-		var kept []row
+		var kept []collectionRow
 		for _, rr := range rows {
 			if strings.Contains(strings.ToLower(rr.nodeName), nodelow) {
 				kept = append(kept, rr)
@@ -101,7 +98,7 @@ func (s *Server) getCollections(w http.ResponseWriter, r *http.Request) {
 		rows = kept
 	}
 	if status != "" {
-		var kept []row
+		var kept []collectionRow
 		for _, rr := range rows {
 			if rr.status == status {
 				kept = append(kept, rr)
@@ -110,7 +107,7 @@ func (s *Server) getCollections(w http.ResponseWriter, r *http.Request) {
 		rows = kept
 	}
 	if trigger != "" {
-		var kept []row
+		var kept []collectionRow
 		for _, rr := range rows {
 			if rr.trigger == trigger {
 				kept = append(kept, rr)
@@ -119,47 +116,10 @@ func (s *Server) getCollections(w http.ResponseWriter, r *http.Request) {
 		rows = kept
 	}
 
-	stats, err := s.DB.CollectionStatsFor(ctx, since, node, status, trigger)
-	if err != nil {
-		apiError(w, http.StatusServiceUnavailable, "datastore_unavailable", err.Error())
-		return
+	out := [][]string{{"started_at", "node", "trigger", "duration_ms", "outcome", "status"}}
+	for _, rr := range rows {
+		out = append(out, []string{rr.startedAt, rr.nodeName, rr.trigger,
+			strconv.FormatInt(rr.durationMS, 10), collectionOutcome(rr.errStr, rr.instancesSeen), rr.status})
 	}
-	resp.Total, resp.Succeeded, resp.Degraded = int32(stats.Runs), int32(stats.Succeeded), int32(stats.Degraded)
-	resp.Failed, resp.Running = int32(stats.Failed), int32(stats.Running)
-	resp.MedianMs, resp.P95Ms = stats.MedianMS, stats.P95MS
-
-	if q.Get("export") == "csv" {
-		out := [][]string{{"started_at", "node", "trigger", "duration_ms", "outcome", "status"}}
-		for _, rr := range rows {
-			out = append(out, []string{rr.startedAt, rr.nodeName, rr.trigger,
-				strconv.FormatInt(rr.durationMS, 10), collectionOutcome(rr.errStr, rr.instancesSeen), rr.status})
-		}
-		s.writeCSV(w, r, "collections", out)
-		return
-	}
-
-	cursor, _ := strconv.Atoi(q.Get("cursor"))
-	if cursor < 0 || cursor > len(rows) {
-		cursor = 0
-	}
-	end := cursor + collectionsPageSize
-	if end > len(rows) {
-		end = len(rows)
-	} else {
-		resp.HasMore = true
-		resp.NextCursor = strconv.Itoa(end)
-	}
-	page := rows[cursor:end]
-	if len(page) > 0 {
-		resp.From, resp.To = int32(cursor+1), int32(end)
-	}
-	for _, rr := range page {
-		resp.Rows = append(resp.Rows, &pb.CollectionRow{
-			Id: rr.id, NodeId: rr.nodeID, NodeName: rr.nodeName, Trigger: rr.trigger,
-			StartedAt: rr.startedAt, Status: rr.status, Error: rr.errStr,
-			InstancesSeen: int32(rr.instancesSeen), DurationMs: rr.durationMS,
-			Outcome: collectionOutcome(rr.errStr, rr.instancesSeen),
-		})
-	}
-	writeProto(w, http.StatusOK, resp)
+	s.writeCSV(w, r, "collections", out)
 }

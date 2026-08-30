@@ -128,9 +128,7 @@ func (db *DB) AllHostKeys(ctx context.Context, stateFilter, clusterFilter string
 			&clusterName, &p.Previous); err != nil {
 			return nil, err
 		}
-		if clusterName.Valid {
-			p.NodeName = p.NodeName + " (" + clusterName.String + ")"
-		}
+		p.Cluster = clusterName.String
 		out = append(out, p)
 	}
 	return out, rows.Err()
@@ -243,12 +241,10 @@ func (db *DB) APITokensFiltered(ctx context.Context, stateFilter string) ([]APIT
 	var out []APIToken
 	for rows.Next() {
 		var t APIToken
-		var prefix string
 		if err := rows.Scan(&t.ID, &t.Name, &t.UserID, &t.Username, &t.CreatedAt,
-			&t.LastUsedAt, &t.ExpiresAt, &t.RevokedAt, &prefix); err != nil {
+			&t.LastUsedAt, &t.ExpiresAt, &t.RevokedAt, &t.Prefix); err != nil {
 			return nil, err
 		}
-		// Store prefix in a field we'll add to APIToken
 		out = append(out, t)
 	}
 	return out, rows.Err()

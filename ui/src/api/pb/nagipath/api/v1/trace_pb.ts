@@ -2,15 +2,16 @@
 // @generated from file nagipath/api/v1/trace.proto (package nagipath.api.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_api_annotations } from "../../../google/api/annotations_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file nagipath/api/v1/trace.proto.
  */
 export const file_nagipath_api_v1_trace: GenFile = /*@__PURE__*/
-  fileDesc("ChtuYWdpcGF0aC9hcGkvdjEvdHJhY2UucHJvdG8SD25hZ2lwYXRoLmFwaS52MSJVCgtSdWxlRmlyZWRQQhIPCgdydWxlX2lkGAEgASgDEhEKCWRpcmVjdGl2ZRgCIAEoCRIMCgRhcmdzGAMgASgJEhQKDGFjdGlvbl9jbGFzcxgEIAEoCSLkAwoKVHJhY2VIb3BQQhIPCgdvcmRpbmFsGAEgASgFEg0KBWxhYmVsGAIgASgJEhMKC2lzX2V4dGVybmFsGAMgASgIEhcKD2V4dGVybmFsX3RhcmdldBgEIAEoCRIXCg9leHRlcm5hbF9yZWFzb24YBSABKAkSDwoHaW5zdF9pZBgGIAEoAxIWCg5pbnN0X25vZGVfbmFtZRgHIAEoCRIZChFpbnN0X2Rpc3BsYXlfbmFtZRgIIAEoCRITCgtpbnN0X3ZlbmRvchgJIAEoCRIVCg1saXN0ZW5lcl9wb3J0GAogASgFEhEKCXNpdGVfa2luZBgLIAEoCRIRCglzaXRlX25hbWUYDCABKAkSEgoKcm91dGVfa2luZBgNIAEoCRIVCg1yb3V0ZV9wYXR0ZXJuGA4gASgJEhIKCmNvbmZpZGVuY2UYDyABKAkSFAoMaW5ib3VuZF9wYXRoGBAgASgJEhYKDmVmZmVjdGl2ZV9wYXRoGBEgASgJEhQKDGNsdXN0ZXJfbmFtZRgSIAEoCRIxCgtmaXJlZF9ydWxlcxgTIAMoCzIcLm5hZ2lwYXRoLmFwaS52MS5SdWxlRmlyZWRQQhIUCgxhcnJpdmVkX2Zyb20YFCABKAUSDQoFbGV2ZWwYFSABKAUikAEKDlRyYWNlQ2FuZGlkYXRlEg8KB2luc3RfaWQYASABKAMSGQoRaW5zdF9kaXNwbGF5X25hbWUYAiABKAkSGQoRaW5zdF9ub2RlX2FkZHJlc3MYAyABKAkSFQoNbGlzdGVuZXJfcG9ydBgEIAEoBRIQCghzZWxlY3RlZBgFIAEoCBIOCgZyZWFzb24YBiABKAkiXgoLUHJvYmVkSG9wUEISDwoHb3JkaW5hbBgBIAEoBRINCgVsYWJlbBgCIAEoCRIQCghldmlkZW5jZRgDIAEoCRIOCgZiZWZvcmUYBCABKAkSDQoFYWZ0ZXIYBSABKAkigQEKC0xhc3RQcm9iZVBCEg8KB291dGNvbWUYASABKAkSDgoGbWV0aG9kGAIgASgJEhQKDHJlcXVlc3RlZF9hdBgDIAEoCRINCgVlcnJvchgEIAEoCRIsCgZwcm9iZWQYBSADKAsyHC5uYWdpcGF0aC5hcGkudjEuUHJvYmVkSG9wUEIiTQoLUHJvYmVTdGVwUEISDAoEdGV4dBgBIAEoCRIPCgdvcmRpbmFsGAIgASgFEhAKCGluc3RhbmNlGAMgASgJEg0KBXN0YXRlGAQgASgJIuQBCgpQcm9iZVJ1blBCEgoKAmlkGAEgASgDEgsKA3VybBgCIAEoCRIOCgZtZXRob2QYAyABKAkSKwoFc3RlcHMYBCADKAsyHC5uYWdpcGF0aC5hcGkudjEuUHJvYmVTdGVwUEISNQoFc3RhdGUYBSADKAsyJi5uYWdpcGF0aC5hcGkudjEuUHJvYmVSdW5QQi5TdGF0ZUVudHJ5EgwKBGRvbmUYBiABKAgSDQoFZXJyb3IYByABKAkaLAoKU3RhdGVFbnRyeRILCgNrZXkYASABKAUSDQoFdmFsdWUYAiABKAk6AjgBIqwBCgtUcmFjZVJlY2VudBIKCgJpZBgBIAEoAxIOCgZzY2hlbWUYAiABKAkSEAoIaG9zdG5hbWUYAyABKAkSDAoEcGF0aBgEIAEoCRIMCgRwb3J0GAUgASgFEhMKC2NvbXB1dGVkX2F0GAYgASgJEhEKCWhvcF9jb3VudBgHIAEoBRISCgpjb25maWRlbmNlGAggASgJEhcKD3Rlcm1pbmFsX3JlYXNvbhgJIAEoCSI1Cg5Qcm92ZW5hbmNlTGluZRIJCgFuGAEgASgFEgwKBHRleHQYAiABKAkSCgoCb24YAyABKAgi9gEKDFByb3ZlbmFuY2VQQhIPCgdydWxlX2lkGAEgASgDEhAKCGluc3RhbmNlGAIgASgJEg4KBm9iamVjdBgDIAEoCRIMCgRydWxlGAQgASgJEgwKBHBhdGgYBSABKAkSDgoGZGlnZXN0GAYgASgJEhMKC3NuYXBzaG90X2lkGAcgASgDEg8KB2ZpbGVfaWQYCCABKAMSEgoKYnl0ZV9zdGFydBgJIAEoBRIMCgRsaW5lGAogASgFEi4KBWxpbmVzGAsgAygLMh8ubmFnaXBhdGguYXBpLnYxLlByb3ZlbmFuY2VMaW5lEg8KB21pc3NpbmcYDCABKAkingUKDVRyYWNlUmVzcG9uc2USDgoGc2NoZW1lGAEgASgJEhAKCGhvc3RuYW1lGAIgASgJEgwKBHBhdGgYAyABKAkSDAoEcG9ydBgEIAEoBRIOCgZtZXRob2QYBSABKAkSCwoDdXJsGAYgASgJEg0KBWVtcHR5GAcgASgIEg0KBWFza2VkGAggASgIEiwKBnJlY2VudBgJIAMoCzIcLm5hZ2lwYXRoLmFwaS52MS5UcmFjZVJlY2VudBIQCgh0cmFjZV9pZBgKIAEoAxIpCgRob3BzGAsgAygLMhsubmFnaXBhdGguYXBpLnYxLlRyYWNlSG9wUEISEwoLZmlyZWRfY291bnQYDCABKAUSEwoLc2NvcGVfY291bnQYDSABKAUSFwoPY29sbGFwc2VkX2NvdW50GA4gASgFEhYKDnZlcmlmaWVkX2NvdW50GA8gASgFEhYKDmluZmVycmVkX2NvdW50GBAgASgFEhYKDmRlZ3JhZGVkX2NvdW50GBEgASgFEhYKDmV4dGVybmFsX2NvdW50GBIgASgFEhcKD3Rlcm1pbmFsX3JlYXNvbhgTIAEoCRI5ChBlbnRyeV9jYW5kaWRhdGVzGBQgAygLMh8ubmFnaXBhdGguYXBpLnYxLlRyYWNlQ2FuZGlkYXRlEhQKDHByb2Jlc19jb3VudBgVIAEoBRIwCgpsYXN0X3Byb2JlGBYgASgLMhwubmFnaXBhdGguYXBpLnYxLkxhc3RQcm9iZVBCEigKA3J1bhgXIAEoCzIbLm5hZ2lwYXRoLmFwaS52MS5Qcm9iZVJ1blBCEisKBHByb3YYGCABKAsyHS5uYWdpcGF0aC5hcGkudjEuUHJvdmVuYW5jZVBCEhMKC3Byb3ZfcGlja2VkGBkgASgIQjFaL2dpdGh1Yi5jb20vbmFnaWZsb3cvbmFnaXBhdGgvaW50ZXJuYWwvYXBpL3BiO3BiYgZwcm90bzM");
+  fileDesc("ChtuYWdpcGF0aC9hcGkvdjEvdHJhY2UucHJvdG8SD25hZ2lwYXRoLmFwaS52MSJVCgtSdWxlRmlyZWRQQhIPCgdydWxlX2lkGAEgASgDEhEKCWRpcmVjdGl2ZRgCIAEoCRIMCgRhcmdzGAMgASgJEhQKDGFjdGlvbl9jbGFzcxgEIAEoCSLkAwoKVHJhY2VIb3BQQhIPCgdvcmRpbmFsGAEgASgFEg0KBWxhYmVsGAIgASgJEhMKC2lzX2V4dGVybmFsGAMgASgIEhcKD2V4dGVybmFsX3RhcmdldBgEIAEoCRIXCg9leHRlcm5hbF9yZWFzb24YBSABKAkSDwoHaW5zdF9pZBgGIAEoAxIWCg5pbnN0X25vZGVfbmFtZRgHIAEoCRIZChFpbnN0X2Rpc3BsYXlfbmFtZRgIIAEoCRITCgtpbnN0X3ZlbmRvchgJIAEoCRIVCg1saXN0ZW5lcl9wb3J0GAogASgFEhEKCXNpdGVfa2luZBgLIAEoCRIRCglzaXRlX25hbWUYDCABKAkSEgoKcm91dGVfa2luZBgNIAEoCRIVCg1yb3V0ZV9wYXR0ZXJuGA4gASgJEhIKCmNvbmZpZGVuY2UYDyABKAkSFAoMaW5ib3VuZF9wYXRoGBAgASgJEhYKDmVmZmVjdGl2ZV9wYXRoGBEgASgJEhQKDGNsdXN0ZXJfbmFtZRgSIAEoCRIxCgtmaXJlZF9ydWxlcxgTIAMoCzIcLm5hZ2lwYXRoLmFwaS52MS5SdWxlRmlyZWRQQhIUCgxhcnJpdmVkX2Zyb20YFCABKAUSDQoFbGV2ZWwYFSABKAUioQEKDlRyYWNlQ2FuZGlkYXRlEg8KB2luc3RfaWQYASABKAMSDwoHbm9kZV9pZBgHIAEoAxIZChFpbnN0X2Rpc3BsYXlfbmFtZRgCIAEoCRIZChFpbnN0X25vZGVfYWRkcmVzcxgDIAEoCRIVCg1saXN0ZW5lcl9wb3J0GAQgASgFEhAKCHNlbGVjdGVkGAUgASgIEg4KBnJlYXNvbhgGIAEoCSJeCgtQcm9iZWRIb3BQQhIPCgdvcmRpbmFsGAEgASgFEg0KBWxhYmVsGAIgASgJEhAKCGV2aWRlbmNlGAMgASgJEg4KBmJlZm9yZRgEIAEoCRINCgVhZnRlchgFIAEoCSKBAQoLTGFzdFByb2JlUEISDwoHb3V0Y29tZRgBIAEoCRIOCgZtZXRob2QYAiABKAkSFAoMcmVxdWVzdGVkX2F0GAMgASgJEg0KBWVycm9yGAQgASgJEiwKBnByb2JlZBgFIAMoCzIcLm5hZ2lwYXRoLmFwaS52MS5Qcm9iZWRIb3BQQiJNCgtQcm9iZVN0ZXBQQhIMCgR0ZXh0GAEgASgJEg8KB29yZGluYWwYAiABKAUSEAoIaW5zdGFuY2UYAyABKAkSDQoFc3RhdGUYBCABKAki5AEKClByb2JlUnVuUEISCgoCaWQYASABKAMSCwoDdXJsGAIgASgJEg4KBm1ldGhvZBgDIAEoCRIrCgVzdGVwcxgEIAMoCzIcLm5hZ2lwYXRoLmFwaS52MS5Qcm9iZVN0ZXBQQhI1CgVzdGF0ZRgFIAMoCzImLm5hZ2lwYXRoLmFwaS52MS5Qcm9iZVJ1blBCLlN0YXRlRW50cnkSDAoEZG9uZRgGIAEoCBINCgVlcnJvchgHIAEoCRosCgpTdGF0ZUVudHJ5EgsKA2tleRgBIAEoBRINCgV2YWx1ZRgCIAEoCToCOAEirAEKC1RyYWNlUmVjZW50EgoKAmlkGAEgASgDEg4KBnNjaGVtZRgCIAEoCRIQCghob3N0bmFtZRgDIAEoCRIMCgRwYXRoGAQgASgJEgwKBHBvcnQYBSABKAUSEwoLY29tcHV0ZWRfYXQYBiABKAkSEQoJaG9wX2NvdW50GAcgASgFEhIKCmNvbmZpZGVuY2UYCCABKAkSFwoPdGVybWluYWxfcmVhc29uGAkgASgJIjUKDlByb3ZlbmFuY2VMaW5lEgkKAW4YASABKAUSDAoEdGV4dBgCIAEoCRIKCgJvbhgDIAEoCCL2AQoMUHJvdmVuYW5jZVBCEg8KB3J1bGVfaWQYASABKAMSEAoIaW5zdGFuY2UYAiABKAkSDgoGb2JqZWN0GAMgASgJEgwKBHJ1bGUYBCABKAkSDAoEcGF0aBgFIAEoCRIOCgZkaWdlc3QYBiABKAkSEwoLc25hcHNob3RfaWQYByABKAMSDwoHZmlsZV9pZBgIIAEoAxISCgpieXRlX3N0YXJ0GAkgASgFEgwKBGxpbmUYCiABKAUSLgoFbGluZXMYCyADKAsyHy5uYWdpcGF0aC5hcGkudjEuUHJvdmVuYW5jZUxpbmUSDwoHbWlzc2luZxgMIAEoCSKeBQoNVHJhY2VSZXNwb25zZRIOCgZzY2hlbWUYASABKAkSEAoIaG9zdG5hbWUYAiABKAkSDAoEcGF0aBgDIAEoCRIMCgRwb3J0GAQgASgFEg4KBm1ldGhvZBgFIAEoCRILCgN1cmwYBiABKAkSDQoFZW1wdHkYByABKAgSDQoFYXNrZWQYCCABKAgSLAoGcmVjZW50GAkgAygLMhwubmFnaXBhdGguYXBpLnYxLlRyYWNlUmVjZW50EhAKCHRyYWNlX2lkGAogASgDEikKBGhvcHMYCyADKAsyGy5uYWdpcGF0aC5hcGkudjEuVHJhY2VIb3BQQhITCgtmaXJlZF9jb3VudBgMIAEoBRITCgtzY29wZV9jb3VudBgNIAEoBRIXCg9jb2xsYXBzZWRfY291bnQYDiABKAUSFgoOdmVyaWZpZWRfY291bnQYDyABKAUSFgoOaW5mZXJyZWRfY291bnQYECABKAUSFgoOZGVncmFkZWRfY291bnQYESABKAUSFgoOZXh0ZXJuYWxfY291bnQYEiABKAUSFwoPdGVybWluYWxfcmVhc29uGBMgASgJEjkKEGVudHJ5X2NhbmRpZGF0ZXMYFCADKAsyHy5uYWdpcGF0aC5hcGkudjEuVHJhY2VDYW5kaWRhdGUSFAoMcHJvYmVzX2NvdW50GBUgASgFEjAKCmxhc3RfcHJvYmUYFiABKAsyHC5uYWdpcGF0aC5hcGkudjEuTGFzdFByb2JlUEISKAoDcnVuGBcgASgLMhsubmFnaXBhdGguYXBpLnYxLlByb2JlUnVuUEISKwoEcHJvdhgYIAEoCzIdLm5hZ2lwYXRoLmFwaS52MS5Qcm92ZW5hbmNlUEISEwoLcHJvdl9waWNrZWQYGSABKAgihwEKD0dldFRyYWNlUmVxdWVzdBILCgN1cmwYASABKAkSDgoGc2NoZW1lGAIgASgJEhAKCGhvc3RuYW1lGAMgASgJEgwKBHBhdGgYBCABKAkSDAoEcG9ydBgFIAEoBRIOCgZtZXRob2QYBiABKAkSCwoDcnVuGAcgASgDEgwKBHByb3YYCCABKAMibQoQUG9zdFRyYWNlUmVxdWVzdBILCgN1cmwYASABKAkSDgoGc2NoZW1lGAIgASgJEhAKCGhvc3RuYW1lGAMgASgJEgwKBHBhdGgYBCABKAkSDAoEcG9ydBgFIAEoBRIOCgZtZXRob2QYBiABKAkiPwoRU3RhcnRQcm9iZVJlcXVlc3QSCwoDdXJsGAEgASgJEg4KBm1ldGhvZBgCIAEoCRINCgV0cmFjZRgDIAEoAyJPChJTdGFydFByb2JlUmVzcG9uc2USCgoCb2sYASABKAgSDgoGcnVuX2lkGAIgASgDEhAKCHRyYWNlX2lkGAMgASgDEgsKA3VybBgEIAEoCSIgChJHZXRQcm9iZVJ1blJlcXVlc3QSCgoCaWQYASABKAMyqQMKDFRyYWNlU2VydmljZRJcCghHZXRUcmFjZRIgLm5hZ2lwYXRoLmFwaS52MS5HZXRUcmFjZVJlcXVlc3QaHi5uYWdpcGF0aC5hcGkudjEuVHJhY2VSZXNwb25zZSIOgtPkkwIIEgYvdHJhY2USYQoJUG9zdFRyYWNlEiEubmFnaXBhdGguYXBpLnYxLlBvc3RUcmFjZVJlcXVlc3QaHi5uYWdpcGF0aC5hcGkudjEuVHJhY2VSZXNwb25zZSIRgtPkkwILOgEqIgYvdHJhY2USbgoKU3RhcnRQcm9iZRIiLm5hZ2lwYXRoLmFwaS52MS5TdGFydFByb2JlUmVxdWVzdBojLm5hZ2lwYXRoLmFwaS52MS5TdGFydFByb2JlUmVzcG9uc2UiF4LT5JMCEToBKiIML3RyYWNlL3Byb2JlEmgKC0dldFByb2JlUnVuEiMubmFnaXBhdGguYXBpLnYxLkdldFByb2JlUnVuUmVxdWVzdBobLm5hZ2lwYXRoLmFwaS52MS5Qcm9iZVJ1blBCIheC0+STAhESDy90cmFjZS9ydW4ve2lkfUIxWi9naXRodWIuY29tL25hZ2lmbG93L25hZ2lwYXRoL2ludGVybmFsL2FwaS9wYjtwYmIGcHJvdG8z", [file_google_api_annotations]);
 
 /**
  * @generated from message nagipath.api.v1.RuleFiredPB
@@ -183,6 +184,14 @@ export type TraceCandidate = Message<"nagipath.api.v1.TraceCandidate"> & {
    * @generated from field: int64 inst_id = 1;
    */
   instId: bigint;
+
+  /**
+   * The candidate list links to the node page, which is keyed by node id;
+   * store.Instance already carries it.
+   *
+   * @generated from field: int64 node_id = 7;
+   */
+  nodeId: bigint;
 
   /**
    * @generated from field: string inst_display_name = 2;
@@ -677,4 +686,218 @@ export type TraceResponse = Message<"nagipath.api.v1.TraceResponse"> & {
  */
 export const TraceResponseSchema: GenMessage<TraceResponse> = /*@__PURE__*/
   messageDesc(file_nagipath_api_v1_trace, 10);
+
+/**
+ * @generated from message nagipath.api.v1.GetTraceRequest
+ */
+export type GetTraceRequest = Message<"nagipath.api.v1.GetTraceRequest"> & {
+  /**
+   * @generated from field: string url = 1;
+   */
+  url: string;
+
+  /**
+   * @generated from field: string scheme = 2;
+   */
+  scheme: string;
+
+  /**
+   * @generated from field: string hostname = 3;
+   */
+  hostname: string;
+
+  /**
+   * @generated from field: string path = 4;
+   */
+  path: string;
+
+  /**
+   * @generated from field: int32 port = 5;
+   */
+  port: number;
+
+  /**
+   * @generated from field: string method = 6;
+   */
+  method: string;
+
+  /**
+   * @generated from field: int64 run = 7;
+   */
+  run: bigint;
+
+  /**
+   * @generated from field: int64 prov = 8;
+   */
+  prov: bigint;
+};
+
+/**
+ * Describes the message nagipath.api.v1.GetTraceRequest.
+ * Use `create(GetTraceRequestSchema)` to create a new message.
+ */
+export const GetTraceRequestSchema: GenMessage<GetTraceRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_trace, 11);
+
+/**
+ * @generated from message nagipath.api.v1.PostTraceRequest
+ */
+export type PostTraceRequest = Message<"nagipath.api.v1.PostTraceRequest"> & {
+  /**
+   * @generated from field: string url = 1;
+   */
+  url: string;
+
+  /**
+   * @generated from field: string scheme = 2;
+   */
+  scheme: string;
+
+  /**
+   * @generated from field: string hostname = 3;
+   */
+  hostname: string;
+
+  /**
+   * @generated from field: string path = 4;
+   */
+  path: string;
+
+  /**
+   * @generated from field: int32 port = 5;
+   */
+  port: number;
+
+  /**
+   * @generated from field: string method = 6;
+   */
+  method: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.PostTraceRequest.
+ * Use `create(PostTraceRequestSchema)` to create a new message.
+ */
+export const PostTraceRequestSchema: GenMessage<PostTraceRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_trace, 12);
+
+/**
+ * @generated from message nagipath.api.v1.StartProbeRequest
+ */
+export type StartProbeRequest = Message<"nagipath.api.v1.StartProbeRequest"> & {
+  /**
+   * @generated from field: string url = 1;
+   */
+  url: string;
+
+  /**
+   * @generated from field: string method = 2;
+   */
+  method: string;
+
+  /**
+   * @generated from field: int64 trace = 3;
+   */
+  trace: bigint;
+};
+
+/**
+ * Describes the message nagipath.api.v1.StartProbeRequest.
+ * Use `create(StartProbeRequestSchema)` to create a new message.
+ */
+export const StartProbeRequestSchema: GenMessage<StartProbeRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_trace, 13);
+
+/**
+ * @generated from message nagipath.api.v1.StartProbeResponse
+ */
+export type StartProbeResponse = Message<"nagipath.api.v1.StartProbeResponse"> & {
+  /**
+   * @generated from field: bool ok = 1;
+   */
+  ok: boolean;
+
+  /**
+   * @generated from field: int64 run_id = 2;
+   */
+  runId: bigint;
+
+  /**
+   * @generated from field: int64 trace_id = 3;
+   */
+  traceId: bigint;
+
+  /**
+   * @generated from field: string url = 4;
+   */
+  url: string;
+};
+
+/**
+ * Describes the message nagipath.api.v1.StartProbeResponse.
+ * Use `create(StartProbeResponseSchema)` to create a new message.
+ */
+export const StartProbeResponseSchema: GenMessage<StartProbeResponse> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_trace, 14);
+
+/**
+ * @generated from message nagipath.api.v1.GetProbeRunRequest
+ */
+export type GetProbeRunRequest = Message<"nagipath.api.v1.GetProbeRunRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message nagipath.api.v1.GetProbeRunRequest.
+ * Use `create(GetProbeRunRequestSchema)` to create a new message.
+ */
+export const GetProbeRunRequestSchema: GenMessage<GetProbeRunRequest> = /*@__PURE__*/
+  messageDesc(file_nagipath_api_v1_trace, 15);
+
+/**
+ * TraceService: GET/POST /trace, POST /trace/probe and GET /trace/run/{id}
+ * (internal/api/traceservice.go). requireAuth wraps the whole gateway;
+ * StartProbe calls requireAdminRPC as its own first line — same reasoning
+ * as DriftService's mutations (drift.proto).
+ *
+ * @generated from service nagipath.api.v1.TraceService
+ */
+export const TraceService: GenService<{
+  /**
+   * @generated from rpc nagipath.api.v1.TraceService.GetTrace
+   */
+  getTrace: {
+    methodKind: "unary";
+    input: typeof GetTraceRequestSchema;
+    output: typeof TraceResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.TraceService.PostTrace
+   */
+  postTrace: {
+    methodKind: "unary";
+    input: typeof PostTraceRequestSchema;
+    output: typeof TraceResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.TraceService.StartProbe
+   */
+  startProbe: {
+    methodKind: "unary";
+    input: typeof StartProbeRequestSchema;
+    output: typeof StartProbeResponseSchema;
+  },
+  /**
+   * @generated from rpc nagipath.api.v1.TraceService.GetProbeRun
+   */
+  getProbeRun: {
+    methodKind: "unary";
+    input: typeof GetProbeRunRequestSchema;
+    output: typeof ProbeRunPBSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_nagipath_api_v1_trace, 0);
 

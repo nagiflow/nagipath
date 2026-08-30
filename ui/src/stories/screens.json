@@ -1,0 +1,354 @@
+[
+  {
+    "id": "2j",
+    "title": "Dashboard",
+    "impl": [
+      "Every tile is a saved query against existing indexes — no separate metrics store.",
+      "Needs-attention rows are derived facts, not alerts: no thresholds, no notifications.",
+      "Collection chart reads job history, bucketed hourly server-side.",
+      "Cluster risk order is fixed: failing collection, then drift, then cert expiry.",
+      "Coverage strip is the freshness histogram of the snapshot table, not a separate metric."
+    ]
+  },
+  {
+    "id": "2a",
+    "title": "Trace",
+    "impl": [
+      "Graph is a static DAG (≤40 nodes) — plain SVG/flex layout, no physics engine.",
+      "Rules fired groups by hop; a hop band folds its rules away so a long path stays readable. Fold state is client-side only.",
+      "Rules table = server-paged; row select drives provenance panel via hop+rule id.",
+      "Provenance renders stored snapshot bytes verbatim; highlight = byte range.",
+      "State per row comes from the trace engine only — never recomputed client-side."
+    ]
+  },
+  {
+    "id": "2h",
+    "title": "Trace › Probe",
+    "impl": [
+      "One request per click, never scheduled; every probe row is audit-logged.",
+      "Log correlation = bounded tail + grep for the probe id on each hop node.",
+      "Hops without the needed log field stay INFERRED — no heuristic upgrade.",
+      "State changes write to the trace record, not to the node's snapshot."
+    ]
+  },
+  {
+    "id": "2w",
+    "title": "Trace › Probe history",
+    "impl": [
+      "Probe history is a sub-route of Trace, not a top-level section.",
+      "Every probe row is the audit record itself — immutable, retention-bound.",
+      "State changes are stored on the trace record they belong to, and read out inside the expanded row — no right-hand preview card."
+    ]
+  },
+  {
+    "id": "2b",
+    "title": "Rule lookup",
+    "impl": [
+      "Two-field form is the default entry; the parsed query grammar sits behind “Advanced”.",
+      "Facet counts from indexed aggregations, capped at top 10.",
+      "Server-side keyset pagination; group headers are collapsed by default beyond page 1.",
+      "Plain-language text is templated per directive type — a fixed table, not NLP.",
+      "SHADOWED = vendor precedence says an earlier rule wins; computed at index time.",
+      "Nodes with byte-identical rule sets collapse into one row with a count."
+    ]
+  },
+  {
+    "id": "2g",
+    "title": "Config search",
+    "impl": [
+      "Index covers the current snapshot per node only — older snapshots are file-browsable.",
+      "Substring / regex both supported; regex queries are timeboxed server-side.",
+      "Line context comes from the stored file blob, offset-addressed.",
+      "Results paginate by file, not by match, to keep response size bounded."
+    ]
+  },
+  {
+    "id": "3a",
+    "title": "Sites",
+    "impl": [
+      "Site = distinct server_name/vhost/frontend hostname, aggregated fleet-wide at index time.",
+      "Variant = hash of the normalised route+upstream set for that hostname on each node.",
+      "Aliases fold into the primary row; the row’s expansion lists them.",
+      "Variant comparison expands under the hostname it belongs to — no separate preview panel to re-anchor on.",
+      "Same records as before — this is a different primary key, not a new collector."
+    ]
+  },
+  {
+    "id": "7a",
+    "title": "Site detail",
+    "impl": [
+      "One hostname across the fleet; every count on this page is fleet-wide, not per node.",
+      "Variant selector rewrites the routes table only — node list always shows all variants.",
+      "Routes are the plain-English projection; raw directives stay in Node › Config files.",
+      "Rows link down to the node that serves them, never to a per-process page."
+    ]
+  },
+  {
+    "id": "2c",
+    "title": "Nodes",
+    "impl": [
+      "One tree, three levels: cluster band → node row → process row. Clusters are reconciled from collected configuration (never created), so the band is a grouping of what was found, not an object anyone edits — beyond renaming it.",
+      "A node lands under the one cluster its processes share; a node whose processes sit in different clusters, or in none, groups under “— no cluster”.",
+      "Expand-in-place fetches that node's processes only (lazy, one request per open node).",
+      "Cluster-band actions are the whole of cluster administration: rename, clear baseline, open the drift report.",
+      "“Listeners” is a denormalised summary column written at collection time."
+    ]
+  },
+  {
+    "id": "3c",
+    "title": "Node detail",
+    "impl": [
+      "Node is the addressable unit; the process picker appears only when a node runs >1.",
+      "With one process the picker renders as static text — no extra click, no extra page.",
+      "Every site row carries its fleet count, so the node view links back up to Sites.",
+      "Replaces the separate per-process list and its scoped tabs."
+    ]
+  },
+  {
+    "id": "5a",
+    "title": "Node › Routes",
+    "impl": [
+      "No directive names in this view — every line is generated from the parsed object.",
+      "Plain wording is a fixed template per action type (rewrite, proxy, header, auth, cache, limit).",
+      "“Test a path” resolves against the indexed route set for this site — no request is sent.",
+      "A “Wording: exact directives” toggle exists for users who want the vendor terms back.",
+      "Shadowed routes are listed as “never reached” with the reason, not as an error."
+    ]
+  },
+  {
+    "id": "2o",
+    "title": "Node › Upstreams",
+    "impl": [
+      "Member → Node mapping is an inventory join on IP:port, done at index time.",
+      "DNS-named members are stored as names; nagipath does not resolve them itself.",
+      "PARTIAL means at least one member could not be mapped — never guessed.",
+      "Members and the resolution summary expand under their pool; only the open pool’s members are fetched."
+    ]
+  },
+  {
+    "id": "2p",
+    "title": "Node › Certificates",
+    "impl": [
+      "This view is the fleet certificate index filtered to one node.",
+      "File paths and modes come from stat on the node; contents are not read.",
+      "Chain length is counted from the served PEM, leaf excluded.",
+      "SANs, issuer and the fleet-wide binding list expand under the binding row — no right-hand preview."
+    ]
+  },
+  {
+    "id": "5b",
+    "title": "Node › Config files",
+    "impl": [
+      "This view is the only place raw directives appear; it never interprets them.",
+      "Tree is the include graph, not the filesystem — inactive files are marked, not hidden.",
+      "Follow-include arrows navigate to the target file at the right line.",
+      "Per-file history replaces the global Snapshots page; diffs are line-level here, object-level in Routes.",
+      "“What does this do?” jumps the highlighted block into the Routes view."
+    ]
+  },
+  {
+    "id": "6b",
+    "title": "Drift",
+    "impl": [
+      "Entry point is a work queue: nodes with unreviewed divergences first.",
+      "Clusters without a declared baseline are excluded and say so, not silently empty.",
+      "Counts come from the last diff job, not recomputed on page load."
+    ]
+  },
+  {
+    "id": "6a",
+    "title": "Drift review",
+    "impl": [
+      "Diff is over raw file text from the two snapshots — no parsing, no object model.",
+      "File list, +/− counts, per-file Viewed and hunk collapse follow the pull-request convention.",
+      "Whitespace and comment-only changes are filtered by a diff option, not by interpretation.",
+      "Ignore rules are stored as file + hunk hash, scoped to cluster or fleet, and survive re-diffs.",
+      "“Next node” walks the drift queue keeping scroll and view options."
+    ]
+  },
+  {
+    "id": "2f",
+    "title": "Certificates",
+    "impl": [
+      "Metadata only — cert and key files are never fetched or stored.",
+      "Deduped by SHA-256; bindings are (node, site, listener) tuples.",
+      "SANs and the binding list expand under the fingerprint they describe — one row open at a time, fetched on expand.",
+      "HAProxy combined PEM: parse leaf only, ignore trailing key block.",
+      "Expiry buckets computed server-side so counts match the filter exactly."
+    ]
+  },
+  {
+    "id": "7b",
+    "title": "Certificate detail",
+    "impl": [
+      "One row per fingerprint; this page is every place that fingerprint is served.",
+      "Chain completeness comes from the files present on each node, not from a live handshake.",
+      "File rows are stat output — nagipath never reads private keys or cert bodies.",
+      "“Find replacements” searches the index for a newer cert covering the same SAN set."
+    ]
+  },
+  {
+    "id": "2v",
+    "title": "Settings",
+    "impl": [
+      "Settings sub-nav is a plain routed list — one panel per section.",
+      "Role scope is a cluster glob checked server-side on every request.",
+      "Retention writes a background prune job; no destructive immediate delete."
+    ]
+  },
+  {
+    "id": "8a",
+    "title": "Settings › Credentials",
+    "impl": [
+      "Secrets are write-only: enter once, never rendered back to any role.",
+      "Assignment is by cluster glob; per-node overrides live on the node record.",
+      "Test runs a connect + sudo -n check only — it collects nothing.",
+      "The detail and the last test result expand under the credential row; there is no separate preview card."
+    ]
+  },
+  {
+    "id": "8b",
+    "title": "Settings › Host keys",
+    "impl": [
+      "Pending keys block collection rather than silently trusting the host.",
+      "A changed key is never auto-approved — it is a distinct state with the old value kept.",
+      "Approvals are audited with the approving user and the fingerprint at that moment.",
+      "A ticked key expands in place: recorded vs presented fingerprint under the row it belongs to, not in a preview card. Policy stays a panel — it is a fixed statement about the install, not a row detail."
+    ]
+  },
+  {
+    "id": "8c",
+    "title": "Settings › Collection defaults",
+    "impl": [
+      "Schedules resolve top-down; a node collected by an earlier rule is skipped by later ones.",
+      "Per-schedule overrides shadow these defaults for that target only.",
+      "Coverage check reports nodes matched by no schedule before you save."
+    ]
+  },
+  {
+    "id": "8d",
+    "title": "Settings › Collection jobs",
+    "impl": [
+      "Was the top-level “Collections” section — it is operational history, so it lives in Settings.",
+      "Queued jobs with a global concurrency cap; no agent runs on the nodes.",
+      "Degraded is a first-class outcome: snapshot stored, source of truth downgraded.",
+      "The job log expands under its own run — a right-hand log pane makes you re-check which row you were reading."
+    ]
+  },
+  {
+    "id": "8e",
+    "title": "Settings › Master key",
+    "impl": [
+      "Secrets are wrapped, not stored: losing the KMS key makes credentials unrecoverable by design.",
+      "Sealed state blocks collection and probes but leaves the index readable.",
+      "Rotation is online — old key versions are kept until every record is re-wrapped."
+    ]
+  },
+  {
+    "id": "8f",
+    "title": "Settings › Retention",
+    "impl": [
+      "Prune is a background job — nothing is deleted at the moment you save.",
+      "Audit retention cannot be set below 365 days by any role.",
+      "Exceptions are evaluated per record, so counts here always reconcile with the class totals."
+    ]
+  },
+  {
+    "id": "8g",
+    "title": "Settings › API keys",
+    "impl": [
+      "Secret is displayed once; only the prefix is stored for identification.",
+      "Scope is a route allow-list intersected with the owner’s cluster scope.",
+      "Denied calls are kept in the audit log with the reason, not silently dropped.",
+      "Scope and recent calls expand under the key they belong to; the “New key” form is the only separate panel, and it is a form, not a preview."
+    ]
+  },
+  {
+    "id": "8h",
+    "title": "Settings › Audit log",
+    "impl": [
+      "Append-only store; no role can edit or delete an event.",
+      "Every settings mutation writes before/after values, not just the action name.",
+      "The full record expands under its own event row — nothing is pre-selected, so arriving on the page shows the log, not one arbitrary event.",
+      "Denied API calls and failed logins are events too — absence of an event is meaningful."
+    ]
+  },
+  {
+    "id": "2q",
+    "title": "Nodes › Import inventory",
+    "impl": [
+      "Step 1 (Paste): the paste form is unchanged — one host per line or an Ansible INI/YAML inventory, credential picked from stored credentials, no network or CIDR scanning ever. Its button reads “Parse and continue”, not “Import” — it only parses; nothing is written yet. A refused line is reported with its line number and reason and does not block the rest.",
+      "Step 2 (Test): each parsed node gets one real SSH connection attempt with the chosen credential — the only network traffic nagipath ever originates toward a pasted host, run once here rather than deferred to the first scheduled collection. Rows test in parallel, capped the same as a collection run.",
+      "An unknown or changed host key blocks that row’s connection and expands it in place — same layout and actions as Settings / Host keys — so approval happens without leaving the import. Approving retests only that row; rejecting excludes the node from step 3 without discarding the rest of the import.",
+      "“Continue to confirm” stays disabled while any row is still testing. A node stuck FAILED or BLOCKED isn’t forced — step 3 lets it through as “not collected yet” or drops it, the operator’s call.",
+      "Step 3 (Confirm): one summary of ready vs. excluded nodes, a “Start collection now” toggle (default on) alongside Import, and a plain Import writes the node rows only. A retry from Step 2 never re-asks for the pasted text — parsed rows stay in memory across all three steps."
+    ]
+  },
+  {
+    "id": "2r",
+    "title": "Snapshots",
+    "impl": [
+      "Every provenance link in the product lands in this store; the list is the way back out of it.",
+      "Paging is a cursor, not an offset — the window keeps filling while you read it.",
+      "CHANGED means the captured bytes differ from the previous snapshot of the same instance.",
+      "No sidebar row: Snapshots is reached from a node or a provenance link, so the crumb names Inventory and no nav item is active."
+    ]
+  },
+  {
+    "id": "2s",
+    "title": "Snapshot › File",
+    "impl": [
+      "The far end of every provenance link: ?b=&lt;block id&gt; highlights the block and scrolls it into view.",
+      "Bytes are served from the snapshot, never re-read from the node — the file may have changed since.",
+      "No syntax service: highlighting is the anchored range only, so it cannot disagree with what was collected."
+    ]
+  },
+  {
+    "id": "8i",
+    "title": "Settings › License",
+    "impl": [
+      "Status is evaluated on read, not cached — an expired license reports itself the moment it expires.",
+      "Over the node ceiling degrades to a warning; nagipath never stops collecting or locks the UI.",
+      "A viewer can read status; only an admin sees the install form.",
+      "Installing replaces the stored license outright; the previous one is recorded in the audit log."
+    ]
+  },
+  {
+    "id": "8j",
+    "title": "Settings › System",
+    "impl": [
+      "Every value is read live from the process and the database file — nothing is cached or configured here.",
+      "Migrations applied vs. expected is the one field that can say the binary and the database disagree.",
+      "The bundle is a text/plain attachment, deliberately not JSON, so it can be pasted into a ticket.",
+      "The redaction list is enforced when the bundle is built, not filtered afterwards."
+    ]
+  },
+  {
+    "id": "8k",
+    "title": "Change password",
+    "impl": [
+      "Inside the normal chrome: there is a session, so the sidebar and header are drawn as usual.",
+      "While a temporary password is set, every other page redirects here and the current-password field is replaced by a warning callout.",
+      "No sidebar row and no Settings rail — this is reached from the avatar menu, so the crumb is the page itself."
+    ]
+  },
+  {
+    "id": "9a",
+    "title": "Sign in",
+    "impl": [
+      "No header, no sidebar: there is no session yet to draw either from.",
+      "?next= is followed only when it is a local path, so a login link cannot bounce you off-host.",
+      "One error string for a bad username and a bad password — the form never says which was wrong.",
+      "If the database has no users at all, this redirects to first-run setup instead."
+    ]
+  },
+  {
+    "id": "9b",
+    "title": "First-run setup",
+    "impl": [
+      "Reachable only while the database has no users; once one exists this redirects to Sign in.",
+      "The create call refuses a second administrator on its own — the redirect is convenience, not the guard.",
+      "The master key is generated on first start, not here; this screen only creates the operator account."
+    ]
+  }
+]

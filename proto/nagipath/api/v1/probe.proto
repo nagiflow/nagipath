@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package nagipath.api.v1;
 
+import "google/api/annotations.proto";
+
 option go_package = "github.com/nagiflow/nagipath/internal/api/pb;pb";
 
 message ProbeRecordPB {
@@ -132,4 +134,33 @@ message ProbeDetailResponse {
   repeated ProbeLogLinePB log_lines = 3;
   repeated ProbeHopEvidencePB gaps = 4;
   int32 state_changes = 5;
+}
+
+message GetProbeHistoryRequest {
+  string url = 1;
+  string q = 2;
+  string range = 3;
+  string actor = 4;
+  string outcome = 5;
+  string cursor = 6;
+  int64 probe = 7;
+}
+
+message GetProbeDetailRequest {
+  int64 id = 1;
+}
+
+// ProbeService: GET /trace/history and GET /trace/probe/{id}
+// (internal/api/probe.go). requireAuth wraps the whole gateway;
+// GetProbeDetail calls requireAdminRPC as its own first line — same
+// reasoning as DriftService's mutations (drift.proto). GET /trace/history
+// ?export=csv stays outside this service (api.go) — see SiteService's doc
+// comment in sites.proto.
+service ProbeService {
+  rpc GetProbeHistory(GetProbeHistoryRequest) returns (ProbeHistoryResponse) {
+    option (google.api.http) = { get: "/trace/history" };
+  }
+  rpc GetProbeDetail(GetProbeDetailRequest) returns (ProbeDetailResponse) {
+    option (google.api.http) = { get: "/trace/probe/{id}" };
+  }
 }

@@ -1,14 +1,12 @@
 package api
 
 import (
-	"net/http/httptest"
 	"path/filepath"
 	"testing"
 	"time"
 
 	pb "github.com/nagiflow/nagipath/internal/api/pb/nagipath/api/v1"
 	"github.com/nagiflow/nagipath/internal/store"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func testDB(t *testing.T) *store.DB {
@@ -39,16 +37,9 @@ func TestGetDashboardMarksQuarantinedNodes(t *testing.T) {
 	}
 
 	s := New(db, nil, false)
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest("GET", "/dashboard", nil)
-	s.getDashboard(w, r)
-
-	if w.Code != 200 {
-		t.Fatalf("getDashboard status = %d, body %q", w.Code, w.Body.String())
-	}
-	var resp pb.DashboardResponse
-	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode dashboard response: %v", err)
+	resp, err := (&dashboardService{s: s}).GetDashboard(ctx, &pb.GetDashboardRequest{})
+	if err != nil {
+		t.Fatal(err)
 	}
 	found := false
 	for _, a := range resp.Attention {

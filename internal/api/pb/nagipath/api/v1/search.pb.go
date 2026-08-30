@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -665,11 +666,111 @@ func (x *SearchResponse) GetGroups() []*SearchGroup {
 	return nil
 }
 
+type GetSearchRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Q             string                 `protobuf:"bytes,1,opt,name=q,proto3" json:"q,omitempty"`
+	Match         string                 `protobuf:"bytes,2,opt,name=match,proto3" json:"match,omitempty"`
+	Scope         string                 `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
+	Vendor        []string               `protobuf:"bytes,4,rep,name=vendor,proto3" json:"vendor,omitempty"`
+	File          []string               `protobuf:"bytes,5,rep,name=file,proto3" json:"file,omitempty"`
+	Cluster       []string               `protobuf:"bytes,6,rep,name=cluster,proto3" json:"cluster,omitempty"`
+	Age           []string               `protobuf:"bytes,7,rep,name=age,proto3" json:"age,omitempty"`
+	Page          int32                  `protobuf:"varint,8,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSearchRequest) Reset() {
+	*x = GetSearchRequest{}
+	mi := &file_nagipath_api_v1_search_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSearchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSearchRequest) ProtoMessage() {}
+
+func (x *GetSearchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_search_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSearchRequest.ProtoReflect.Descriptor instead.
+func (*GetSearchRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_search_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetSearchRequest) GetQ() string {
+	if x != nil {
+		return x.Q
+	}
+	return ""
+}
+
+func (x *GetSearchRequest) GetMatch() string {
+	if x != nil {
+		return x.Match
+	}
+	return ""
+}
+
+func (x *GetSearchRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *GetSearchRequest) GetVendor() []string {
+	if x != nil {
+		return x.Vendor
+	}
+	return nil
+}
+
+func (x *GetSearchRequest) GetFile() []string {
+	if x != nil {
+		return x.File
+	}
+	return nil
+}
+
+func (x *GetSearchRequest) GetCluster() []string {
+	if x != nil {
+		return x.Cluster
+	}
+	return nil
+}
+
+func (x *GetSearchRequest) GetAge() []string {
+	if x != nil {
+		return x.Age
+	}
+	return nil
+}
+
+func (x *GetSearchRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
 var File_nagipath_api_v1_search_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_search_proto_rawDesc = "" +
 	"\n" +
-	"\x1cnagipath/api/v1/search.proto\x12\x0fnagipath.api.v1\"\x97\x03\n" +
+	"\x1cnagipath/api/v1/search.proto\x12\x0fnagipath.api.v1\x1a\x1cgoogle/api/annotations.proto\"\x97\x03\n" +
 	"\tRuleHitPB\x12\x17\n" +
 	"\arule_id\x18\x01 \x01(\x03R\x06ruleId\x12\x1f\n" +
 	"\vinstance_id\x18\x02 \x01(\x03R\n" +
@@ -745,7 +846,18 @@ const file_nagipath_api_v1_search_proto_rawDesc = "" +
 	"\x05error\x18\x15 \x01(\tR\x05error\x12\x1f\n" +
 	"\vregex_error\x18\x16 \x01(\tR\n" +
 	"regexError\x124\n" +
-	"\x06groups\x18\x17 \x03(\v2\x1c.nagipath.api.v1.SearchGroupR\x06groupsB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
+	"\x06groups\x18\x17 \x03(\v2\x1c.nagipath.api.v1.SearchGroupR\x06groups\"\xb8\x01\n" +
+	"\x10GetSearchRequest\x12\f\n" +
+	"\x01q\x18\x01 \x01(\tR\x01q\x12\x14\n" +
+	"\x05match\x18\x02 \x01(\tR\x05match\x12\x14\n" +
+	"\x05scope\x18\x03 \x01(\tR\x05scope\x12\x16\n" +
+	"\x06vendor\x18\x04 \x03(\tR\x06vendor\x12\x12\n" +
+	"\x04file\x18\x05 \x03(\tR\x04file\x12\x18\n" +
+	"\acluster\x18\x06 \x03(\tR\acluster\x12\x10\n" +
+	"\x03age\x18\a \x03(\tR\x03age\x12\x12\n" +
+	"\x04page\x18\b \x01(\x05R\x04page2q\n" +
+	"\rSearchService\x12`\n" +
+	"\tGetSearch\x12!.nagipath.api.v1.GetSearchRequest\x1a\x1f.nagipath.api.v1.SearchResponse\"\x0f\x82\xd3\xe4\x93\x02\t\x12\a/searchB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
 var (
 	file_nagipath_api_v1_search_proto_rawDescOnce sync.Once
@@ -759,13 +871,14 @@ func file_nagipath_api_v1_search_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_search_proto_rawDescData
 }
 
-var file_nagipath_api_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_nagipath_api_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_nagipath_api_v1_search_proto_goTypes = []any{
-	(*RuleHitPB)(nil),      // 0: nagipath.api.v1.RuleHitPB
-	(*TextHitPB)(nil),      // 1: nagipath.api.v1.TextHitPB
-	(*SearchGroup)(nil),    // 2: nagipath.api.v1.SearchGroup
-	(*SearchFacet)(nil),    // 3: nagipath.api.v1.SearchFacet
-	(*SearchResponse)(nil), // 4: nagipath.api.v1.SearchResponse
+	(*RuleHitPB)(nil),        // 0: nagipath.api.v1.RuleHitPB
+	(*TextHitPB)(nil),        // 1: nagipath.api.v1.TextHitPB
+	(*SearchGroup)(nil),      // 2: nagipath.api.v1.SearchGroup
+	(*SearchFacet)(nil),      // 3: nagipath.api.v1.SearchFacet
+	(*SearchResponse)(nil),   // 4: nagipath.api.v1.SearchResponse
+	(*GetSearchRequest)(nil), // 5: nagipath.api.v1.GetSearchRequest
 }
 var file_nagipath_api_v1_search_proto_depIdxs = []int32{
 	0, // 0: nagipath.api.v1.SearchGroup.rules:type_name -> nagipath.api.v1.RuleHitPB
@@ -775,8 +888,10 @@ var file_nagipath_api_v1_search_proto_depIdxs = []int32{
 	3, // 4: nagipath.api.v1.SearchResponse.clusters:type_name -> nagipath.api.v1.SearchFacet
 	3, // 5: nagipath.api.v1.SearchResponse.snapshot_age:type_name -> nagipath.api.v1.SearchFacet
 	2, // 6: nagipath.api.v1.SearchResponse.groups:type_name -> nagipath.api.v1.SearchGroup
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
+	5, // 7: nagipath.api.v1.SearchService.GetSearch:input_type -> nagipath.api.v1.GetSearchRequest
+	4, // 8: nagipath.api.v1.SearchService.GetSearch:output_type -> nagipath.api.v1.SearchResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
 	7, // [7:7] is the sub-list for extension type_name
 	7, // [7:7] is the sub-list for extension extendee
 	0, // [0:7] is the sub-list for field type_name
@@ -793,9 +908,9 @@ func file_nagipath_api_v1_search_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_search_proto_rawDesc), len(file_nagipath_api_v1_search_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_nagipath_api_v1_search_proto_goTypes,
 		DependencyIndexes: file_nagipath_api_v1_search_proto_depIdxs,
