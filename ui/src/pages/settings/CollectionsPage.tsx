@@ -5,7 +5,7 @@ import type { CollectionRow } from '../../api/pb/nagipath/api/v1/settings_pb'
 import { PanelHeader } from '../../components/shared/PanelHeader'
 import { StateBadge } from '../../components/shared/StateBadge'
 import {
-  Button, Disclosure, Loading, Panel, PanelFooter, Select, StatRow,
+  Button, Disclosure, Loading, Panel, Select, StatRow,
   Table, type Column,
 } from '../../components/ui'
 import { SettingsLayout } from './SettingsLayout'
@@ -128,48 +128,45 @@ export function CollectionsPage() {
                   </>
                 }
               />
-              <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-                <Table
-                  items={rows}
-                  columns={columns}
-                  rowKey={(r) => r.id.toString()}
-                  rowClassName={(r) => (sel && r.id === sel.id ? 'hl' : '')}
-                  onRowClick={(r) => setPicked(r.id === picked ? null : r.id)}
-                  emptyMessage="No collections match these filters."
-                  renderExpanded={(r) => r.id === picked && (
-                    <div className="row" style={{ alignItems: 'flex-start' }}>
-                      <div className="col" style={{ flex: '0 0 340px', gap: 7 }}>
-                        <div className="kv m" style={{ display: 'grid', gridTemplateColumns: '96px 1fr', gap: '4px 8px' }}>
-                          <span className="mus">state</span><span><StateBadge state={r.status} /></span>
-                          <span className="mus">started</span><span>{new Date(r.startedAt).toLocaleString()}</span>
-                          <span className="mus">duration</span><span>{secs(Number(r.durationMs))}</span>
-                          <span className="mus">trigger</span><span>{r.trigger}</span>
-                          <span className="mus">processes</span><span>{r.instancesSeen} found</span>
-                          <span className="mus">outcome</span><span>{r.outcome || '—'}</span>
-                        </div>
-                        <div><Button small subtle href={`/nodes/${r.nodeId}`}>Open node</Button></div>
+              <Table
+                items={rows}
+                columns={columns}
+                rowKey={(r) => r.id.toString()}
+                rowClassName={(r) => (sel && r.id === sel.id ? 'hl' : '')}
+                onRowClick={(r) => setPicked(r.id === picked ? null : r.id)}
+                emptyMessage="No collections match these filters."
+                renderExpanded={(r) => r.id === picked && (
+                  <div className="row" style={{ alignItems: 'flex-start' }}>
+                    <div className="col" style={{ flex: '0 0 340px', gap: 7 }}>
+                      <div className="kv m" style={{ display: 'grid', gridTemplateColumns: '96px 1fr', gap: '4px 8px' }}>
+                        <span className="mus">state</span><span><StateBadge state={r.status} /></span>
+                        <span className="mus">started</span><span>{new Date(r.startedAt).toLocaleString()}</span>
+                        <span className="mus">duration</span><span>{secs(Number(r.durationMs))}</span>
+                        <span className="mus">trigger</span><span>{r.trigger}</span>
+                        <span className="mus">processes</span><span>{r.instancesSeen} found</span>
+                        <span className="mus">outcome</span><span>{r.outcome || '—'}</span>
                       </div>
-                      {r.error && (
-                        <div className="code" style={{ flex: 1, minWidth: 0 }}>
-                          <div className="cl on" style={{ whiteSpace: 'pre-wrap' }}>
-                            <span className="no">!</span>
-                            <span style={{ flex: 1, minWidth: 0 }}>{r.error}</span>
-                          </div>
-                        </div>
-                      )}
+                      <div><Button small subtle href={`/nodes/${r.nodeId}`}>Open node</Button></div>
                     </div>
-                  )}
-                />
-              </div>
-              <PanelFooter>
-                <span className="m mus">{data.from}–{data.to} of {data.total}</span>
-                <div style={{ flex: 1 }} />
-                {data.hasMore && (
-                  <Button small subtle onClick={() => setParams((p) => { p.set('cursor', data.nextCursor); return p })}>
-                    Load more
-                  </Button>
+                    {r.error && (
+                      <div className="code" style={{ flex: 1, minWidth: 0 }}>
+                        <div className="cl on" style={{ whiteSpace: 'pre-wrap' }}>
+                          <span className="no">!</span>
+                          <span style={{ flex: 1, minWidth: 0 }}>{r.error}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
-              </PanelFooter>
+                pagination={{
+                  kind: 'cursor',
+                  from: data.from,
+                  to: data.to,
+                  total: data.total,
+                  hasMore: data.hasMore,
+                  onLoadMore: () => setParams((p) => { p.set('cursor', data.nextCursor); return p }),
+                }}
+              />
             </Panel>
           </>
         )}

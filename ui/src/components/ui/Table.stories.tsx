@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { Badge, Disclosure, Kv, Panel, PanelFooter, PanelHeader, Table, type Column } from '.'
+import { Badge, Disclosure, Kv, Panel, PanelHeader, Table, type Column } from '.'
 
 interface Row { id: number; node: string; cluster: string; listeners: string; state: string }
 
@@ -41,20 +41,74 @@ export const Empty: Story = {
 }
 
 // The full list-screen shape every inventory page uses: panel header, table,
-// footer with the row count and bulk actions.
+// footer with the row count. No `pagination` prop here — a page whose
+// endpoint returns everything at once (like Nodes) has nothing to paginate.
 export const InPanel: Story = {
   render: () => (
     <div style={{ height: 320, display: 'flex' }}>
       <Panel z style={{ flex: 1 }}>
         <PanelHeader title="Nodes" meta="428 total" />
         <Table columns={columns} items={rows} rowKey={(r) => String(r.id)} />
-        <PanelFooter>
-          <span className="m mus">1–4 of 428</span>
-        </PanelFooter>
       </Panel>
     </div>
   ),
 }
+
+// Cursor pagination (`pagination.kind: 'cursor'`) — every list whose endpoint
+// pages by cursor (docs/frontend/not_built.md: "no page 3 to jump to").
+// "Load more" only shows while `hasMore` is true; click it to see it fetch
+// the last page and disappear, same as a real "cursor: null" response.
+function CursorPaginated() {
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <Panel z style={{ height: 320 }}>
+      <PanelHeader title="Probes" meta="one request each" />
+      <Table
+        columns={columns}
+        items={rows}
+        rowKey={(r) => String(r.id)}
+        pagination={{
+          kind: 'cursor',
+          from: 1,
+          to: loaded ? 46 : 4,
+          total: 46,
+          hasMore: !loaded,
+          onLoadMore: () => setLoaded(true),
+        }}
+      />
+    </Panel>
+  )
+}
+
+export const CursorPagination: Story = { render: () => <CursorPaginated /> }
+
+// Numbered pagination (`pagination.kind: 'pages'`) — only where the endpoint
+// itself counts pages (the audit log). The strip collapses to
+// first/last/current±1 with an ellipsis once there are enough pages.
+function PagesPaginated() {
+  const [page, setPage] = useState(4)
+  return (
+    <Panel z style={{ height: 320 }}>
+      <PanelHeader title="Audit events" meta="12,406 in filter" />
+      <Table
+        columns={columns}
+        items={rows}
+        rowKey={(r) => String(r.id)}
+        pagination={{
+          kind: 'pages',
+          page,
+          totalPages: 9,
+          onGoto: setPage,
+          from: (page - 1) * 50 + 1,
+          to: page * 50,
+          total: 421,
+        }}
+      />
+    </Panel>
+  )
+}
+
+export const PagesPagination: Story = { render: () => <PagesPaginated /> }
 
 function ExpandableTable() {
   const [open, setOpen] = useState<number | null>(41)

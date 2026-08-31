@@ -3,9 +3,9 @@
    component it belongs to (components/ui/Button.tsx + Button.css, etc.);
    this file is what's left over — the global reset, the app shell chrome
    (header, sidebar) which isn't a components/ui primitive, and a handful of
-   classes (.bd/.row/.col, .node/.edge, .pg/.pgb) that don't have one owning
-   component either. Keep this file internally consistent: reuse the
-   colours, radii and type sizes already here, don't invent new ones. */
+   classes (.bd/.row/.col, .node/.edge) that don't have one owning component
+   either. Keep this file internally consistent: reuse the colours, radii and
+   type sizes already here, don't invent new ones. */
 *{box-sizing:border-box}
 html,body,#root{height:100%}
 body{margin:0;background:#fafbfd;color:#343741;font-family:Inter,system-ui,sans-serif;font-size:14px;line-height:1.4}
@@ -42,8 +42,3 @@ a{color:#0077cc;text-decoration:none}a:hover{color:#005a9e;text-decoration:under
 .node.on{border-color:#0077cc;box-shadow:0 0 0 2px rgba(0,119,204,.25)}
 .node.ext{border-style:dashed;background:#f7f8fc}
 .edge{display:flex;flex-direction:column;align-items:center;color:#98a2b3;font:10.5px "Roboto Mono",monospace;line-height:1.25}
-/* Cursor pagination controls — no dedicated component; every list page
-   builds its own "Older ↓"/page-number strip from these two classes. */
-.pg{display:flex;align-items:center;gap:7px;font-size:12px;color:#69707d}
-.pgb{border:1px solid #d3dae6;border-radius:3px;min-width:22px;text-align:center;padding:1px 5px;font:11.5px "Roboto Mono",monospace;background:#fff;cursor:pointer}
-.pgb.on{background:#0077cc;border-color:#0077cc;color:#fff}

@@ -4,7 +4,7 @@ import { useSnapshots } from '../../api/queries/snapshots'
 import type { SnapshotRow } from '../../api/pb/nagipath/api/v1/snapshots_pb'
 import { PageHeader } from '../../components/shared/PageHeader'
 import { StateBadge } from '../../components/shared/StateBadge'
-import { Badge, Button, EmptyPrompt, Field, Loading, Panel, Select, Table, type Column } from '../../components/ui'
+import { Badge, EmptyPrompt, Field, Loading, Panel, Select, Table, type Column } from '../../components/ui'
 
 // Ported from internal/web/templates/snapshots.html against GET
 // /api/snapshots (internal/api/snapshots.go), laid out as design/'s screen 2r —
@@ -68,14 +68,12 @@ export function SnapshotsListPage() {
             columns={columns}
             rowKey={(r) => r.id.toString()}
             emptyMessage="No snapshots in this window."
+            pagination={{
+              kind: 'cursor',
+              hasMore: data.hasMore,
+              onLoadMore: () => setParams((p) => { p.set('cursor', data.nextCursor); return p }),
+            }}
           />
-          {data.hasMore && (
-            <div style={{ padding: '8px 12px' }}>
-              <Button small onClick={() => setParams((p) => { p.set('cursor', data.nextCursor); return p })}>
-                Load more
-              </Button>
-            </div>
-          )}
         </Panel>
       </div>
     </>

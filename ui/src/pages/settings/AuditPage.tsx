@@ -4,7 +4,7 @@ import { useAudit } from '../../api/queries/settings'
 import type { AuditEventItem } from '../../api/pb/nagipath/api/v1/settings_pb'
 import { PanelHeader } from '../../components/shared/PanelHeader'
 import {
-  Button, Disclosure, Loading, Panel, PanelFooter, Select, Table,
+  Button, Disclosure, Loading, Panel, Select, Table,
   type Column,
 } from '../../components/ui'
 import { SettingsLayout } from './SettingsLayout'
@@ -120,7 +120,12 @@ export function AuditPage() {
         {isError && <div className="m" style={{ color: '#a1231c' }}>{error.message}</div>}
 
         {data && (
-          <Panel z style={{ flex: 1, minHeight: 0 }}>
+          <Panel z style={{ flex: 1, minHeight: 0, maxHeight: '52vh' }}>
+            {/* SettingsLayout gives its children no fixed height, so the panel
+                caps its own height — otherwise a 200-row page runs past the
+                bottom of the document and takes the pager with it. Table's own
+                .tw scrolls inside that cap; the pagination footer sits below
+                it, unscrolled. */}
             <PanelHeader
               title="Events"
               meta={`${data.total.toLocaleString()} in filter · expand an event for its actor, target and payload`}
@@ -133,61 +138,46 @@ export function AuditPage() {
                 />
               }
             />
-            {/* SettingsLayout gives its children no fixed height, so the table
-                caps its own scroll — otherwise a 200-row page runs past the
-                bottom of the document and takes the pager with it. */}
-            <div style={{ flex: 1, minHeight: 0, maxHeight: '52vh', overflow: 'auto' }}>
-              <Table
-                items={events}
-                columns={columns}
-                rowKey={key}
-                rowClassName={(e) => (sel && key(e) === key(sel) ? 'hl' : '')}
-                onRowClick={(e) => { setPicked(key(e) === picked ? '' : key(e)); setCopied(false) }}
-                emptyMessage="No event in this range matches the filter — an absent event is itself meaningful."
-                renderExpanded={(e) => key(e) === picked && (
-                  <>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
-                      <span className="lbl">{e.action}</span>
-                      <span className="m mus">{when(e.at)}</span>
-                      <div style={{ flex: 1 }} />
-                      <Button small onClick={() => {
-                        void navigator.clipboard.writeText(JSON.stringify(e, null, 2))
-                        setCopied(true)
-                      }}>
-                        {copied ? 'Copied' : 'Copy JSON'}
-                      </Button>
-                    </div>
-                    <div className="kv m" style={{ display: 'grid', gridTemplateColumns: '96px 1fr', gap: '4px 8px' }}>
-                      <span className="mus">actor</span>
-                      <span>{e.actorLabel || 'system'}{e.sourceIp && ` · from ${e.sourceIp}`}</span>
-                      <span className="mus">target</span><span>{target(e)}</span>
-                      <span className="mus">outcome</span><span className={e.outcome ? undefined : 'mus'}>{e.outcome || 'not recorded'}</span>
-                      <span className="mus">change</span>
-                      <span className={change(e) === '—' ? 'mus' : undefined}>{change(e) === '—' ? 'nothing recorded beyond the action' : change(e)}</span>
-                    </div>
-                  </>
-                )}
-              />
-            </div>
-            <PanelFooter>
-              <span className="m mus">{events.length} of {data.total.toLocaleString()} in filter</span>
-              <div style={{ flex: 1 }} />
-              {data.totalPages > 1 && (
-                <span className="pg">
-                  {from}–{to} of {data.total.toLocaleString()}
-                  <span className="pgb" onClick={() => page > 1 && goto(page - 1)}>‹</span>
-                  {Array.from({ length: data.totalPages }, (_, i) => i + 1)
-                    .filter((n) => n === 1 || n === data.totalPages || Math.abs(n - data.page) <= 1)
-                    .map((n, i, arr) => (
-                      <span key={n}>
-                        {i > 0 && n - arr[i - 1] > 1 && <span className="pgb">…</span>}
-                        <span className={`pgb${n === data.page ? ' on' : ''}`} onClick={() => goto(n)}>{n}</span>
-                      </span>
-                    ))}
-                  <span className="pgb" onClick={() => page < data.totalPages && goto(page + 1)}>›</span>
-                </span>
+            <Table
+              items={events}
+              columns={columns}
+              rowKey={key}
+              rowClassName={(e) => (sel && key(e) === key(sel) ? 'hl' : '')}
+              onRowClick={(e) => { setPicked(key(e) === picked ? '' : key(e)); setCopied(false) }}
+              emptyMessage="No event in this range matches the filter — an absent event is itself meaningful."
+              renderExpanded={(e) => key(e) === picked && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+                    <span className="lbl">{e.action}</span>
+                    <span className="m mus">{when(e.at)}</span>
+                    <div style={{ flex: 1 }} />
+                    <Button small onClick={() => {
+                      void navigator.clipboard.writeText(JSON.stringify(e, null, 2))
+                      setCopied(true)
+                    }}>
+                      {copied ? 'Copied' : 'Copy JSON'}
+                    </Button>
+                  </div>
+                  <div className="kv m" style={{ display: 'grid', gridTemplateColumns: '96px 1fr', gap: '4px 8px' }}>
+                    <span className="mus">actor</span>
+                    <span>{e.actorLabel || 'system'}{e.sourceIp && ` · from ${e.sourceIp}`}</span>
+                    <span className="mus">target</span><span>{target(e)}</span>
+                    <span className="mus">outcome</span><span className={e.outcome ? undefined : 'mus'}>{e.outcome || 'not recorded'}</span>
+                    <span className="mus">change</span>
+                    <span className={change(e) === '—' ? 'mus' : undefined}>{change(e) === '—' ? 'nothing recorded beyond the action' : change(e)}</span>
+                  </div>
+                </>
               )}
-            </PanelFooter>
+              pagination={{
+                kind: 'pages',
+                page: data.page,
+                totalPages: data.totalPages,
+                onGoto: goto,
+                from,
+                to,
+                total: data.total,
+              }}
+            />
           </Panel>
         )}
 

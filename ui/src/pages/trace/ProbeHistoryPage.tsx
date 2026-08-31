@@ -166,14 +166,17 @@ export function ProbeHistoryPage() {
                     </div>
                   )
                 }}
+                pagination={{
+                  kind: 'cursor',
+                  note: 'read-only record',
+                  from: data.from,
+                  to: data.to,
+                  total: data.total,
+                  hasMore: data.hasMore,
+                  label: 'Older ↓',
+                  onLoadMore: () => setParams((p) => { p.set('cursor', data.nextCursor); return p }),
+                }}
               />
-            )}
-            {data.probes.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderTop: '1px solid #d3dae6', marginTop: 'auto' }}>
-                <span className="m mus">read-only record · {data.from}–{data.to} of {data.total}</span>
-                <div style={{ flex: 1 }} />
-                {data.hasMore && <Button small onClick={() => setParams((p) => { p.set('cursor', data.nextCursor); return p })}>Older ↓</Button>}
-              </div>
             )}
           </Panel>
         )}

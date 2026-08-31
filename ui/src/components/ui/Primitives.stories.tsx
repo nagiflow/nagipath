@@ -75,7 +75,7 @@ function QueryBarDemo() {
       <Ui.Field grow placeholder="hostname, listener or certificate" value={q} onChange={setQ} />
       <Ui.Select value="all" onChange={() => {}} options={[{ value: 'all', text: 'Cluster: all' }]} />
       <Ui.Select value="risk" onChange={() => {}} options={[{ value: 'risk', text: 'Sort: risk' }]} />
-      <Ui.Button small subtle>Reset</Ui.Button>
+      <Ui.Button subtle>Reset</Ui.Button>
     </Ui.QueryBar>
   )
 }

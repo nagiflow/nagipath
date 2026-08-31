@@ -179,7 +179,7 @@ export function CertificatesListPage() {
           value={cluster}
           onChange={(v) => set('cluster', v)}
         />
-        <Button small subtle onClick={() => set('include_cas', includeCAs ? '' : '1')}>
+        <Button subtle onClick={() => set('include_cas', includeCAs ? '' : '1')}>
           {includeCAs ? 'Hide CA certificates' : 'Show CA certificates'}
         </Button>
       </QueryBar>

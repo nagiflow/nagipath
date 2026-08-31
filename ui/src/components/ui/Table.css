@@ -13,3 +13,9 @@
    the nowrap/ellipsis every other td gets. */
 .t td.ex{white-space:normal;overflow:visible;padding:9px 12px 11px;background:#f7f8fc;box-shadow:inset 2px 0 0 #0077cc}
 .t tr.zz td.ex{background:#f7f8fc}
+/* The numbered-pager footer's own controls (Table's `pagination` prop,
+   kind: 'pages') — RulesPage and SearchPage also draw these directly since
+   their tables are hand-rolled, not this component. */
+.pg{display:flex;align-items:center;gap:7px;font-size:12px;color:#69707d}
+.pgb{border:1px solid #d3dae6;border-radius:3px;min-width:22px;text-align:center;padding:1px 5px;font:11.5px "Roboto Mono",monospace;background:#fff;cursor:pointer}
+.pgb.on{background:#0077cc;border-color:#0077cc;color:#fff}
