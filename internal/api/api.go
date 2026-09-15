@@ -142,6 +142,8 @@ func New(db *store.DB, licenseStatus func(context.Context) (license.Status, stri
 	m.HandleFunc("POST /nodes/{id}/collect", s.requireAuth(nodeGW.ServeHTTP))
 	m.HandleFunc("POST /nodes/{id}/delete", s.requireAuth(nodeGW.ServeHTTP))
 	m.HandleFunc("POST /nodes/{id}/credential", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("POST /nodes/{id}/bastion", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("POST /nodes/{id}/test", s.requireAuth(nodeGW.ServeHTTP))
 	m.HandleFunc("POST /hostkeys/{id}/decide", s.requireAuth(nodeGW.ServeHTTP))
 	// DriftService (driftservice.go, proto/nagipath/api/v1/drift.proto).
 	// requireAuth wraps the whole gateway; the four mutations' admin checks
@@ -185,6 +187,7 @@ func New(db *store.DB, licenseStatus func(context.Context) (license.Status, stri
 	m.HandleFunc("GET /settings/credentials", s.requireAuth(settingsGW.ServeHTTP))
 	m.HandleFunc("POST /settings/credentials", s.requireAuth(settingsGW.ServeHTTP))
 	m.HandleFunc("GET /settings/hostkeys", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/hostkeys/policy", s.requireAuth(settingsGW.ServeHTTP))
 	m.HandleFunc("GET /settings/masterkey", s.requireAuth(settingsGW.ServeHTTP))
 	m.HandleFunc("GET /settings/collection-defaults", s.requireAuth(settingsGW.ServeHTTP))
 	m.HandleFunc("POST /settings/collection-defaults", s.requireAuth(settingsGW.ServeHTTP))

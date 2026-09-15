@@ -8,6 +8,8 @@
 .t td{border-bottom:1px solid #edf0f5;padding:5px 8px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .t tr.hl td{background:#e6f1fa;box-shadow:inset 2px 0 0 #0077cc}
 .t tr.zz td{background:#fcfcfd}
+/* No rows: the header stays, the message sits in one full-width cell. */
+.t td.empty{white-space:normal;text-align:center;padding:18px 12px}
 /* Row expansion. A row's detail belongs under the row, not in a separate
    right/bottom preview panel — so it is one full-width cell that opts out of
    the nowrap/ellipsis every other td gets. */

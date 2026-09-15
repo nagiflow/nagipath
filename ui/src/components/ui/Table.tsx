@@ -148,7 +148,6 @@ export function Table<T>({ columns, items, rowKey, rowClassName, onRowClick, emp
     window.addEventListener('mouseup', onUp)
   }
 
-  if (items.length === 0) return <div className="m mus" style={{ padding: '12px 0' }}>{emptyMessage ?? 'Nothing to show.'}</div>
   return (
     <>
       <div className="tw">
@@ -174,6 +173,13 @@ export function Table<T>({ columns, items, rowKey, rowClassName, onRowClick, emp
             </tr>
           </thead>
           <tbody>
+            {/* An empty list keeps its header row: the columns are what tell
+                the operator what they filtered away. */}
+            {items.length === 0 && (
+              <tr>
+                <td className="empty m mus" colSpan={columns.length}>{emptyMessage ?? 'Nothing to show.'}</td>
+              </tr>
+            )}
             {items.map((row, i) => {
               const zz = i % 2 === 1 ? 'zz' : ''
               const expanded = renderExpanded?.(row)

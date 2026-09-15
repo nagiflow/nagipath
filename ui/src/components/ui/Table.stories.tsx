@@ -36,8 +36,15 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = { args: { columns, items: rows, rowKey: (r: Row) => String(r.id) } }
 
+// An empty list is still a table: the header row is what tells the operator
+// which columns they just filtered everything out of.
 export const Empty: Story = {
-  args: { columns, items: [], rowKey: (r: Row) => String(r.id), emptyMessage: 'No node matches this filter.' },
+  render: () => (
+    <Panel z style={{ height: 240 }}>
+      <PanelHeader title="Nodes" meta="0 of 428" />
+      <Table columns={columns} items={[]} rowKey={(r) => String(r.id)} emptyMessage="No node matches this filter." />
+    </Panel>
+  ),
 }
 
 // The full list-screen shape every inventory page uses: panel header, table,
