@@ -47,11 +47,13 @@ var apacheModelled = map[string]string{
 }
 
 type apacheParser struct {
-	files map[string][]byte
-	root  string // ServerRoot, which is what Apache resolves a relative Include against
-	alt   string // the directory httpd.conf is in, which is what it is usually mistaken for
-	res   *Result
-	ord   map[string]int
+	files    map[string][]byte
+	root     string // ServerRoot, which is what Apache resolves a relative Include against
+	alt      string // the directory httpd.conf is in, which is what it is usually mistaken for
+	res      *Result
+	ord      map[string]int
+	read     map[string]bool // every file actually reached from the main config
+	mainPath string
 }
 
 // Load-time conditionals. Apache decides these when it reads the configuration,
@@ -82,6 +84,7 @@ func Apache(files []File, main string) *Result {
 		files: make(map[string][]byte, len(files)),
 		res:   &Result{Vendor: "apache"},
 		ord:   map[string]int{},
+		read:  map[string]bool{},
 	}
 	for _, f := range files {
 		p.files[f.Path] = f.Content
@@ -94,6 +97,8 @@ func Apache(files []File, main string) *Result {
 		p.res.degrade("main configuration file " + main + " was not captured")
 		return p.res
 	}
+	p.mainPath = main
+	p.read[main] = true
 	top, err := lexApache(main, src)
 	if err != nil {
 		p.res.degrade(err.Error())
@@ -106,6 +111,15 @@ func Apache(files []File, main string) *Result {
 	// tried, and resolve() says so when only the wrong one matched.
 	p.alt = path.Dir(main)
 	p.root = p.alt
+	// No ServerRoot directive means the compiled-in default, which by Apache's
+	// own convention is the parent of the conf/ directory httpd.conf sits in
+	// (/etc/httpd for /etc/httpd/conf/httpd.conf) — the same fallback the
+	// collector uses for HTTPD_ROOT. Defaulting to conf/ itself puts every
+	// relative IncludeOptional one level too deep, where it matches nothing
+	// and says nothing.
+	if path.Base(p.alt) == "conf" {
+		p.root = path.Dir(p.alt)
+	}
 	for _, d := range top {
 		if lower(d.Name) == "serverroot" && d.arg(0) != "" {
 			p.root = strings.TrimSuffix(d.arg(0), "/")
@@ -113,6 +127,7 @@ func Apache(files []File, main string) *Result {
 	}
 
 	top = p.expand(top, 0)
+	p.reportUnreached()
 
 	for _, d := range top {
 		switch lower(d.Name) {
@@ -127,6 +142,34 @@ func Apache(files []File, main string) *Result {
 		}
 	}
 	return p.res
+}
+
+// A captured file that no Include reached is configuration the running server
+// is not loading — an IncludeOptional whose pattern resolves somewhere else, a
+// conf.d/ nobody includes, a ServerRoot we read wrong. Apache says nothing
+// about it and neither did this parse, which is how a collection reports
+// success with no sites in it. Name the files instead.
+func (p *apacheParser) reportUnreached() {
+	var missed []string
+	for f := range p.files {
+		if !p.read[f] {
+			missed = append(missed, f)
+		}
+	}
+	if len(missed) == 0 {
+		return
+	}
+	sort.Strings(missed)
+	shown := missed
+	if len(shown) > 3 {
+		shown = shown[:3]
+	}
+	more := ""
+	if len(missed) > len(shown) {
+		more = fmt.Sprintf(" (and %d more)", len(missed)-len(shown))
+	}
+	p.res.degrade(fmt.Sprintf("captured but never included from %s: %s%s",
+		path.Base(p.mainPath), strings.Join(shown, ", "), more))
 }
 
 func (p *apacheParser) guessMain() string {
@@ -169,6 +212,7 @@ func (p *apacheParser) expand(ds []directive, depth int) []directive {
 				continue
 			}
 			for _, m := range matches {
+				p.read[m] = true
 				sub, err := lexApache(m, p.files[m])
 				if err != nil {
 					p.res.degrade(err.Error())

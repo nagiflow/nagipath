@@ -53,7 +53,7 @@ func parseApacheLab(t *testing.T) *Result {
 	t.Helper()
 	res := Apache([]File{
 		{Path: "/etc/httpd/conf/httpd.conf", Content: []byte(httpdConf)},
-		{Path: "/etc/httpd/conf/conf.d/vhost.conf", Content: []byte(vhostConf)},
+		{Path: "/etc/httpd/conf.d/vhost.conf", Content: []byte(vhostConf)},
 	}, "/etc/httpd/conf/httpd.conf")
 	if res.Degraded {
 		t.Fatalf("parse degraded: %s", res.DegradedReason)
@@ -259,7 +259,7 @@ func TestApacheRewriteLastAndUnknownDirective(t *testing.T) {
 
 func TestApacheProvenanceIsByteExact(t *testing.T) {
 	site := parseApacheLab(t).Sites[0]
-	if site.Path != "/etc/httpd/conf/conf.d/vhost.conf" {
+	if site.Path != "/etc/httpd/conf.d/vhost.conf" {
 		t.Fatalf("provenance path = %q", site.Path)
 	}
 	got := vhostConf[site.Start:site.End]
@@ -435,5 +435,38 @@ func TestHAProxyProvenance(t *testing.T) {
 		if !strings.Contains(slice, rule.Directive) {
 			t.Errorf("rule %q provenance points at %.30q", rule.Directive, slice)
 		}
+	}
+}
+
+// The silent failure this is here to prevent: a collection that succeeds, a
+// parse that reports no problem, and an inventory with no sites in it, because
+// a relative IncludeOptional resolved somewhere the captured files are not.
+// Two halves — the common layout must actually load, and anything still
+// unreached must say so by name.
+func TestApacheIncludeOptionalFindsConfD(t *testing.T) {
+	// RHEL's layout with no explicit ServerRoot: the compiled-in default is
+	// /etc/httpd, not the conf/ directory httpd.conf lives in.
+	res := Apache([]File{
+		{Path: "/etc/httpd/conf/httpd.conf", Content: []byte("Listen 80\nIncludeOptional conf.d/*.conf\n")},
+		{Path: "/etc/httpd/conf.d/site.conf", Content: []byte(vhostConf)},
+	}, "/etc/httpd/conf/httpd.conf")
+	if res.Degraded {
+		t.Fatalf("parse degraded: %s", res.DegradedReason)
+	}
+	if len(res.Sites) != 1 {
+		t.Fatalf("conf.d/*.conf under the default ServerRoot was not loaded: %d sites", len(res.Sites))
+	}
+
+	// A captured file no Include reaches is configuration the server is not
+	// running. IncludeOptional makes Apache silent about it; the parse must not be.
+	res = Apache([]File{
+		{Path: "/etc/httpd/conf/httpd.conf", Content: []byte("Listen 80\nIncludeOptional conf.d/*.conf\n")},
+		{Path: "/etc/httpd/vhosts.d/site.conf", Content: []byte(vhostConf)},
+	}, "/etc/httpd/conf/httpd.conf")
+	if !res.Degraded {
+		t.Fatal("a captured file that nothing includes must degrade the parse")
+	}
+	if !strings.Contains(res.DegradedReason, "/etc/httpd/vhosts.d/site.conf") {
+		t.Errorf("degraded reason does not name the unreached file: %q", res.DegradedReason)
 	}
 }
