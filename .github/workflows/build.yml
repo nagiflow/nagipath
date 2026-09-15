@@ -35,8 +35,11 @@ jobs:
       - name: Set up buf
         uses: bufbuild/buf-setup-action@v1
 
-      - name: Set up protoc-gen-go
-        run: go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+      - name: Set up protoc plugins
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+          go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@v2.30.0
 
       - name: Generate proto and check committed output for drift
         run: |
