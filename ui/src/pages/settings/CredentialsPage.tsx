@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSession } from '../../api/queries/session'
-import { useAddCredential, useCredentials } from '../../api/queries/settings'
+import { useAddCredential, useCredentials, useUpdateCredential } from '../../api/queries/settings'
 import type { CredentialItem } from '../../api/pb/nagipath/api/v1/settings_pb'
 import { PanelHeader } from '../../components/shared/PanelHeader'
 import {
@@ -82,7 +82,22 @@ export function CredentialsPage() {
   const [adding, setAdding] = useState(false)
   const { data, isPending, isError, error } = useCredentials(type)
   const add = useAddCredential()
+  const update = useUpdateCredential()
+  // null = the panel is adding (or closed); a credential = editing that one.
+  const [editing, setEditing] = useState<CredentialItem | null>(null)
   const [form, setForm] = useState(emptyForm)
+
+  function edit(c: CredentialItem) {
+    setForm({ ...emptyForm, name: c.name, username: c.username, authKind: c.authKind, externalRef: c.externalRef })
+    setEditing(c)
+    setAdding(true)
+  }
+
+  function close() {
+    setForm(emptyForm)
+    setEditing(null)
+    setAdding(false)
+  }
 
   const all = data?.credentials ?? []
   const rows = filter
@@ -122,7 +137,7 @@ export function CredentialsPage() {
       actions={
         <>
           <span className="m mus">stored encrypted with the master key</span>
-          {isAdmin && <Button small onClick={() => setAdding(!adding)}>Add credential</Button>}
+          {isAdmin && <Button small onClick={() => (adding ? close() : setAdding(true))}>Add credential</Button>}
         </>
       }
     >
@@ -166,6 +181,7 @@ export function CredentialsPage() {
                   <span className="mus">added</span><span>{c.createdAt ? new Date(c.createdAt).toLocaleString() : '—'}</span>
                   <span className="mus">nodes</span><span>{c.nodeCount} assigned · last used {hhmm(c.lastUsed)}</span>
                   <span className="mus">secret</span><span className="mus">write-only · never displayed</span>
+                  {isAdmin && <><span /><span><Button small subtle onClick={() => edit(c)}>Edit credential</Button></span></>}
                 </div>
               )}
             />
@@ -179,13 +195,20 @@ export function CredentialsPage() {
 
         {adding && isAdmin && (
           <Panel style={{ maxWidth: 420 }}>
-            <PanelHeader title="Add a credential" meta="the secret is sealed with the master key on save" />
+            <PanelHeader
+              title={editing ? `Edit ${editing.name}` : 'Add a credential'}
+              meta={editing
+                ? `${editing.nodeCount} node${editing.nodeCount === 1 ? '' : 's'} use this credential · leave a secret blank to keep the stored one`
+                : 'the secret is sealed with the master key on save'}
+            />
             <div className="col" style={{ marginTop: 10 }}>
               <FieldRow label="Name">
                 <Field value={form.name} onChange={(v) => setForm({ ...form, name: v })} grow />
               </FieldRow>
+              {/* The kind is fixed once stored: each kind seals a different
+                  column, so switching it is a new credential, not an edit. */}
               <FieldRow label="Type">
-                <Select options={authKinds} value={form.authKind} onChange={(v) => setForm({ ...form, authKind: v })} />
+                <Select options={authKinds} value={form.authKind} disabled={!!editing} onChange={(v) => setForm({ ...form, authKind: v })} />
               </FieldRow>
               <FieldRow label="Username">
                 <Field value={form.username} onChange={(v) => setForm({ ...form, username: v })} grow />
@@ -212,7 +235,7 @@ export function CredentialsPage() {
               )}
               {(form.authKind === 'username_password' || form.authKind === 'kerberos') && (
                 <FieldRow label="Password">
-                  <Field type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} grow />
+                  <Field type="password" placeholder={editing ? 'unchanged' : ''} value={form.password} onChange={(v) => setForm({ ...form, password: v })} grow />
                 </FieldRow>
               )}
               {(form.authKind === 'kerberos' || form.authKind === 'cyberark') && (
@@ -222,12 +245,15 @@ export function CredentialsPage() {
               )}
 
               {add.isError && <div className="m" style={{ color: '#a1231c' }}>{add.error.message}</div>}
+              {update.isError && <div className="m" style={{ color: '#a1231c' }}>{update.error.message}</div>}
               <div className="row">
-                <Button primary loading={add.isPending}
-                  onClick={() => add.mutate(form, { onSuccess: () => { setForm(emptyForm); setAdding(false) } })}>
-                  Store credential
+                <Button primary loading={add.isPending || update.isPending}
+                  onClick={() => editing
+                    ? update.mutate({ ...form, id: editing.id }, { onSuccess: close })
+                    : add.mutate(form, { onSuccess: close })}>
+                  {editing ? 'Save credential' : 'Store credential'}
                 </Button>
-                <Button subtle onClick={() => setAdding(false)}>Cancel</Button>
+                <Button subtle onClick={close}>Cancel</Button>
               </div>
             </div>
           </Panel>

@@ -90,6 +90,21 @@ func (c *settingsService) AddCredential(ctx context.Context, req *pb.AddCredenti
 	return &pb.IdResponse{Ok: true, Id: id}, nil
 }
 
+// UpdateCredential is the rotate/fix-a-typo path: same fields as AddCredential
+// minus the kind, with every secret optional (blank keeps what is sealed).
+func (c *settingsService) UpdateCredential(ctx context.Context, req *pb.UpdateCredentialRequest) (*pb.Ok, error) {
+	if err := requireAdminRPC(ctx); err != nil {
+		return nil, err
+	}
+	u := userOf(ctx)
+	if err := c.s.DB.UpdateCredential(ctx, c.s.Master, req.Id, req.Name, req.Username,
+		req.PrivateKey, req.Passphrase, req.Certificate, req.Password, req.ExternalRef); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	_ = c.s.DB.Audit(ctx, &u.ID, "credential.update", "credential", &req.Id, req.Name)
+	return &pb.Ok{Ok: true}, nil
+}
+
 func (c *settingsService) GetHostKeys(ctx context.Context, req *pb.GetHostKeysRequest) (*pb.HostKeysResponse, error) {
 	if err := requireAdminRPC(ctx); err != nil {
 		return nil, err

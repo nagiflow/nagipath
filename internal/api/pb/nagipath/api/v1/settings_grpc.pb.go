@@ -131,6 +131,7 @@ var CollectionService_ServiceDesc = grpc.ServiceDesc{
 const (
 	SettingsService_GetCredentials_FullMethodName        = "/nagipath.api.v1.SettingsService/GetCredentials"
 	SettingsService_AddCredential_FullMethodName         = "/nagipath.api.v1.SettingsService/AddCredential"
+	SettingsService_UpdateCredential_FullMethodName      = "/nagipath.api.v1.SettingsService/UpdateCredential"
 	SettingsService_GetHostKeys_FullMethodName           = "/nagipath.api.v1.SettingsService/GetHostKeys"
 	SettingsService_SetHostKeyPolicy_FullMethodName      = "/nagipath.api.v1.SettingsService/SetHostKeyPolicy"
 	SettingsService_GetMasterKey_FullMethodName          = "/nagipath.api.v1.SettingsService/GetMasterKey"
@@ -165,6 +166,7 @@ const (
 type SettingsServiceClient interface {
 	GetCredentials(ctx context.Context, in *GetCredentialsRequest, opts ...grpc.CallOption) (*CredentialsResponse, error)
 	AddCredential(ctx context.Context, in *AddCredentialRequest, opts ...grpc.CallOption) (*IdResponse, error)
+	UpdateCredential(ctx context.Context, in *UpdateCredentialRequest, opts ...grpc.CallOption) (*Ok, error)
 	GetHostKeys(ctx context.Context, in *GetHostKeysRequest, opts ...grpc.CallOption) (*HostKeysResponse, error)
 	SetHostKeyPolicy(ctx context.Context, in *SetHostKeyPolicyRequest, opts ...grpc.CallOption) (*Ok, error)
 	GetMasterKey(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*MasterKeyResponse, error)
@@ -208,6 +210,16 @@ func (c *settingsServiceClient) AddCredential(ctx context.Context, in *AddCreden
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(IdResponse)
 	err := c.cc.Invoke(ctx, SettingsService_AddCredential_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *settingsServiceClient) UpdateCredential(ctx context.Context, in *UpdateCredentialRequest, opts ...grpc.CallOption) (*Ok, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Ok)
+	err := c.cc.Invoke(ctx, SettingsService_UpdateCredential_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -417,6 +429,7 @@ func (c *settingsServiceClient) GetDiagnostics(ctx context.Context, in *Empty, o
 type SettingsServiceServer interface {
 	GetCredentials(context.Context, *GetCredentialsRequest) (*CredentialsResponse, error)
 	AddCredential(context.Context, *AddCredentialRequest) (*IdResponse, error)
+	UpdateCredential(context.Context, *UpdateCredentialRequest) (*Ok, error)
 	GetHostKeys(context.Context, *GetHostKeysRequest) (*HostKeysResponse, error)
 	SetHostKeyPolicy(context.Context, *SetHostKeyPolicyRequest) (*Ok, error)
 	GetMasterKey(context.Context, *Empty) (*MasterKeyResponse, error)
@@ -451,6 +464,9 @@ func (UnimplementedSettingsServiceServer) GetCredentials(context.Context, *GetCr
 }
 func (UnimplementedSettingsServiceServer) AddCredential(context.Context, *AddCredentialRequest) (*IdResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddCredential not implemented")
+}
+func (UnimplementedSettingsServiceServer) UpdateCredential(context.Context, *UpdateCredentialRequest) (*Ok, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateCredential not implemented")
 }
 func (UnimplementedSettingsServiceServer) GetHostKeys(context.Context, *GetHostKeysRequest) (*HostKeysResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetHostKeys not implemented")
@@ -562,6 +578,24 @@ func _SettingsService_AddCredential_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SettingsServiceServer).AddCredential(ctx, req.(*AddCredentialRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SettingsService_UpdateCredential_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateCredentialRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SettingsServiceServer).UpdateCredential(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SettingsService_UpdateCredential_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SettingsServiceServer).UpdateCredential(ctx, req.(*UpdateCredentialRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -922,6 +956,10 @@ var SettingsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddCredential",
 			Handler:    _SettingsService_AddCredential_Handler,
+		},
+		{
+			MethodName: "UpdateCredential",
+			Handler:    _SettingsService_UpdateCredential_Handler,
 		},
 		{
 			MethodName: "GetHostKeys",

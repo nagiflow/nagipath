@@ -186,6 +186,7 @@ func New(db *store.DB, licenseStatus func(context.Context) (license.Status, stri
 	}
 	m.HandleFunc("GET /settings/credentials", s.requireAuth(settingsGW.ServeHTTP))
 	m.HandleFunc("POST /settings/credentials", s.requireAuth(settingsGW.ServeHTTP))
+	m.HandleFunc("POST /settings/credentials/{id}", s.requireAuth(settingsGW.ServeHTTP))
 	m.HandleFunc("GET /settings/hostkeys", s.requireAuth(settingsGW.ServeHTTP))
 	m.HandleFunc("POST /settings/hostkeys/policy", s.requireAuth(settingsGW.ServeHTTP))
 	m.HandleFunc("GET /settings/masterkey", s.requireAuth(settingsGW.ServeHTTP))

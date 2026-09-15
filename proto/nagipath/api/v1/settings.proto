@@ -286,6 +286,21 @@ message AddCredentialRequest {
   string external_ref = 8;
 }
 
+// UpdateCredentialRequest edits a stored profile. auth_kind is absent on
+// purpose: each kind seals a different column, so switching kind is a new
+// credential. An empty secret field means "keep the stored one" — the UI can
+// never show a sealed secret back, so blank has to mean unchanged.
+message UpdateCredentialRequest {
+  int64 id = 1;
+  string name = 2;
+  string username = 3;
+  string private_key = 4;
+  string passphrase = 5;
+  string certificate = 6;
+  string password = 7;
+  string external_ref = 8;
+}
+
 message GetHostKeysRequest {
   string state = 1;
   string cluster = 2;
@@ -383,6 +398,9 @@ service SettingsService {
   }
   rpc AddCredential(AddCredentialRequest) returns (IdResponse) {
     option (google.api.http) = { post: "/settings/credentials", body: "*" };
+  }
+  rpc UpdateCredential(UpdateCredentialRequest) returns (Ok) {
+    option (google.api.http) = { post: "/settings/credentials/{id}", body: "*" };
   }
   rpc GetHostKeys(GetHostKeysRequest) returns (HostKeysResponse) {
     option (google.api.http) = { get: "/settings/hostkeys" };

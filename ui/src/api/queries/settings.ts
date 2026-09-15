@@ -32,6 +32,17 @@ export function useAddCredential() {
   })
 }
 
+// Blank secret fields mean "keep the stored one" — a sealed secret is never
+// sent back to the browser, so there is nothing to prefill them with.
+export function useUpdateCredential() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: bigint } & Record<string, unknown>) =>
+      api.postAction(`/settings/credentials/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings-credentials'] }),
+  })
+}
+
 // ---------------------------------------------------------------- host keys
 
 export function useHostKeys(state: string, cluster: string) {

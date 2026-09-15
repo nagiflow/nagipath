@@ -130,6 +130,86 @@ func (db *DB) CreatePasswordCredential(ctx context.Context, m *keys.Master, name
 	return id, tx.Commit()
 }
 
+// UpdateCredential edits an existing profile in place. The auth kind is not
+// editable — each kind seals a different column, so "change the kind" is a
+// different credential, not an edit of this one.
+//
+// An empty secret means "keep what is stored": the UI can never show the
+// sealed value back, so a blank field has to mean unchanged rather than
+// erased. Everything else (name, username, external reference) is plain and
+// always overwritten.
+func (db *DB) UpdateCredential(ctx context.Context, m *keys.Master, id int64, name, username, privateKey, passphrase, certificate, password, externalRef string) error {
+	var kind string
+	if err := db.R.QueryRowContext(ctx, `SELECT auth_kind FROM credential WHERE id = ?`, id).Scan(&kind); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("credential %d does not exist", id)
+		}
+		return err
+	}
+	if name == "" || username == "" {
+		return errors.New("a name and username are required")
+	}
+
+	tx, err := db.W.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE credential SET name = ?, username = ?, external_ref = ? WHERE id = ?`,
+		name, username, externalRef, id); err != nil {
+		return err
+	}
+
+	seal := func(column, plaintext string) error {
+		ct, nonce, err := m.Seal([]byte(plaintext), keys.AAD("credential", column, id))
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx,
+			fmt.Sprintf(`UPDATE credential SET %s_ct = ?, %s_nonce = ? WHERE id = ?`, column, column),
+			ct, nonce, id)
+		return err
+	}
+
+	switch kind {
+	case "private_key", "ssh_certificate":
+		if privateKey != "" {
+			signer, err := parseSigner(privateKey, passphrase)
+			if err != nil {
+				return fmt.Errorf("private key rejected: %w", err)
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE credential SET public_key = ?, key_fingerprint = ? WHERE id = ?`,
+				string(ssh.MarshalAuthorizedKey(signer.PublicKey())), ssh.FingerprintSHA256(signer.PublicKey()), id); err != nil {
+				return err
+			}
+			if err := seal("private_key", privateKey); err != nil {
+				return err
+			}
+			if err := seal("passphrase", passphrase); err != nil {
+				return err
+			}
+		}
+		if certificate != "" {
+			if err := seal("certificate", certificate); err != nil {
+				return err
+			}
+		}
+	case "cyberark":
+		if externalRef == "" {
+			return errors.New("a CyberArk account reference is required")
+		}
+	default:
+		if password != "" {
+			if err := seal("password", password); err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit()
+}
+
 // CreateCyberArkCredential stores a vault account reference, never a copied
 // vault secret. A future provider integration can resolve that reference.
 func (db *DB) CreateCyberArkCredential(ctx context.Context, name, username, reference string, by *int64) (int64, error) {
