@@ -182,7 +182,7 @@ Database growth is dominated by `snapshot_file` rows rather than blob content, b
 
 ## 10. Security posture summary
 
-The one-page answer for a security review. Every item is a design property, not a configuration option:
+The one-page answer for a security review. Every item is a design property; the one row with a configuration option says so explicitly and states its default:
 
 | Question | Answer |
 |---|---|
@@ -191,7 +191,7 @@ The one-page answer for a security review. Every item is a design property, not 
 | Does it scan our network? | Never. Nodes come only from an operator-supplied list or an imported inventory. |
 | Where are our credentials? | AES-256-GCM in the database, key in a `0600` file outside it, AAD-bound to column and row. |
 | Can anyone read them back? | No role, no API path, no export, no diagnostics bundle. |
-| Trust on first use? | No. Host key approval is mandatory and explicit. A changed key fails. |
+| Trust on first use? | Off by default — host key approval is manual and explicit. An admin can opt in (Settings › Host keys) to auto-approve a Node's first-ever key only; a key that would replace an already-approved one always fails and always requires manual approval either way, and enabling the setting is itself audited. |
 | Does it phone home? | No outbound connections except SSH to your Nodes and operator-initiated Probes. Licences verify offline. |
 | Does it send traffic to our apps? | Only an explicitly initiated Probe: GET or HEAD, self-identifying, rate-limited, audited. |
 | Is it audited? | Append-only, exempt from retention, includes denials, readable after a user is deleted. |

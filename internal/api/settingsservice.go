@@ -106,6 +106,7 @@ func (c *settingsService) GetHostKeys(ctx context.Context, req *pb.GetHostKeysRe
 	resp := &pb.HostKeysResponse{
 		Stats: &pb.HostKeyStatsPB{Pending: int32(stats.Pending), Changed: int32(stats.Changed),
 			Approved: int32(stats.Approved), Algorithms: map[string]int32{}},
+		TofuEnabled: s.DB.SettingBool(ctx, "tofu_enabled"),
 	}
 	for algo, n := range stats.Algorithms {
 		resp.Stats.Algorithms[algo] = int32(n)
@@ -124,6 +125,28 @@ func (c *settingsService) GetHostKeys(ctx context.Context, req *pb.GetHostKeysRe
 		}
 	}
 	return resp, nil
+}
+
+// SetHostKeyPolicy is the only setting on this page an operator can actually
+// change (docs/frontend/settings.md's "no trust-on-first-use toggle" claim no
+// longer holds — this is that toggle, off by default). "Refuse collection on
+// key change" stays fixed: a key that would replace an already-approved one
+// is always decided manually, tofu_enabled or not (store.CheckHostKey).
+func (c *settingsService) SetHostKeyPolicy(ctx context.Context, req *pb.SetHostKeyPolicyRequest) (*pb.Ok, error) {
+	if err := requireAdminRPC(ctx); err != nil {
+		return nil, err
+	}
+	s := c.s
+	u := userOf(ctx)
+	value := "0"
+	if req.TofuEnabled {
+		value = "1"
+	}
+	if err := s.DB.SetSetting(ctx, "tofu_enabled", value, &u.ID); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	_ = s.DB.Audit(ctx, &u.ID, "hostkey_policy.update", "setting", nil, "tofu_enabled="+value)
+	return &pb.Ok{Ok: true}, nil
 }
 
 func (c *settingsService) GetMasterKey(ctx context.Context, _ *pb.Empty) (*pb.MasterKeyResponse, error) {

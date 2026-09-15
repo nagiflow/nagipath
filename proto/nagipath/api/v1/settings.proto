@@ -43,6 +43,11 @@ message HostKeysResponse {
   // Cluster names for the Cluster filter, which has to list clusters the
   // current filter has already excluded.
   repeated string clusters = 3;
+  // Off by default: an unrecognized key still blocks the connection pending
+  // manual approval. On, a node's first-ever key (never one that replaces an
+  // already-approved key — that is always a mismatch, decided manually
+  // regardless of this setting) is auto-approved instead.
+  bool tofu_enabled = 4;
 }
 
 // ---------------------------------------------------------------- master key
@@ -286,6 +291,10 @@ message GetHostKeysRequest {
   string cluster = 2;
 }
 
+message SetHostKeyPolicyRequest {
+  bool tofu_enabled = 1;
+}
+
 message SetRetentionRequest {
   optional int32 snapshot_days = 1;
   optional int32 min_per_instance = 2;
@@ -377,6 +386,9 @@ service SettingsService {
   }
   rpc GetHostKeys(GetHostKeysRequest) returns (HostKeysResponse) {
     option (google.api.http) = { get: "/settings/hostkeys" };
+  }
+  rpc SetHostKeyPolicy(SetHostKeyPolicyRequest) returns (Ok) {
+    option (google.api.http) = { post: "/settings/hostkeys/policy", body: "*" };
   }
   rpc GetMasterKey(Empty) returns (MasterKeyResponse) {
     option (google.api.http) = { get: "/settings/masterkey" };

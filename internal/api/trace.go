@@ -111,7 +111,8 @@ func (s *Server) traceCore(ctx context.Context, tq trace.Query, method string, r
 	resp.ProbesCount = int32(probe.Count(ctx, s.DB, resp.Url))
 	if last != nil {
 		resp.LastProbe = &pb.LastProbePB{Outcome: last.Outcome, Method: last.Method,
-			RequestedAt: last.RequestedAt, Error: last.Err, Probed: probedHops(result.Hops, last)}
+			RequestedAt: last.RequestedAt, Error: last.Err, Probed: probedHops(result.Hops, last),
+			ProbeId: last.ProbeID}
 	}
 
 	if runID != 0 {

@@ -16,7 +16,7 @@ export const credentialsFixture = pb(CredentialsResponseSchema, {
   authKinds: ['ssh_key', 'password', 'external'],
 })
 
-export const hostKeysFixture = pb(HostKeysResponseSchema, {
+const hostKeysBase = {
   stats: { pending: 3, changed: 1, approved: 425, algorithms: { 'ssh-ed25519': 402, 'ecdsa-sha2-nistp256': 26 } },
   clusters: ['legacy', 'app-iad3', 'app-sfo2', 'edge-iad3', 'edge-sfo2'],
   keys: [
@@ -24,7 +24,13 @@ export const hostKeysFixture = pb(HostKeysResponseSchema, {
     { nodeName: 'edge-iad3-07', nodeAddress: '10.7.1.7', cluster: 'edge-iad3', key: { id: 91n, nodeId: 431n, algorithm: 'ssh-ed25519', fingerprint: 'SHA256:7Lp…3vT', state: 'pending', firstSeenAt: '2026-08-30T08:55:00Z' } },
     { nodeName: 'edge-iad3-08', nodeAddress: '10.7.1.8', cluster: 'edge-iad3', key: { id: 92n, nodeId: 432n, algorithm: 'ecdsa-sha2-nistp256', fingerprint: 'SHA256:1Zx…9qM', state: 'pending', firstSeenAt: '2026-08-30T08:55:00Z' } },
   ],
-})
+}
+
+export const hostKeysFixture = pb(HostKeysResponseSchema, hostKeysBase)
+
+// tofu_enabled on — the Policy panel's second radio picked, its note
+// describing auto-approval instead.
+export const hostKeysTofuFixture = pb(HostKeysResponseSchema, { ...hostKeysBase, tofuEnabled: true })
 
 export const masterKeyFixture = pb(MasterKeyResponseSchema, {
   path: '/var/lib/nagipath/master.key',

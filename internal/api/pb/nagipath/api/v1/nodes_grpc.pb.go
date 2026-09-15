@@ -22,10 +22,14 @@ const (
 	NodeService_ListNodes_FullMethodName            = "/nagipath.api.v1.NodeService/ListNodes"
 	NodeService_AddNode_FullMethodName              = "/nagipath.api.v1.NodeService/AddNode"
 	NodeService_ImportNodes_FullMethodName          = "/nagipath.api.v1.NodeService/ImportNodes"
+	NodeService_GetNodeFile_FullMethodName          = "/nagipath.api.v1.NodeService/GetNodeFile"
+	NodeService_WriteNodeFile_FullMethodName        = "/nagipath.api.v1.NodeService/WriteNodeFile"
+	NodeService_RestartInstance_FullMethodName      = "/nagipath.api.v1.NodeService/RestartInstance"
 	NodeService_GetNode_FullMethodName              = "/nagipath.api.v1.NodeService/GetNode"
 	NodeService_CollectNode_FullMethodName          = "/nagipath.api.v1.NodeService/CollectNode"
 	NodeService_DeleteNode_FullMethodName           = "/nagipath.api.v1.NodeService/DeleteNode"
 	NodeService_ChangeNodeCredential_FullMethodName = "/nagipath.api.v1.NodeService/ChangeNodeCredential"
+	NodeService_ChangeNodeBastion_FullMethodName    = "/nagipath.api.v1.NodeService/ChangeNodeBastion"
 	NodeService_DecideHostKey_FullMethodName        = "/nagipath.api.v1.NodeService/DecideHostKey"
 	NodeService_TestNodeConnection_FullMethodName   = "/nagipath.api.v1.NodeService/TestNodeConnection"
 )
@@ -42,10 +46,17 @@ type NodeServiceClient interface {
 	ListNodes(ctx context.Context, in *ListNodesRequest, opts ...grpc.CallOption) (*NodesListResponse, error)
 	AddNode(ctx context.Context, in *AddNodeRequest, opts ...grpc.CallOption) (*IdResponse, error)
 	ImportNodes(ctx context.Context, in *ImportNodesRequest, opts ...grpc.CallOption) (*ImportNodesResponse, error)
+	// Declared before GetNode on purpose: grpc-gateway matches patterns in
+	// registration order, and GetNode's `/nodes/{id}/{tab}` would otherwise
+	// swallow every `/nodes/{node_id}/livefile` as a tab named "livefile".
+	GetNodeFile(ctx context.Context, in *GetNodeFileRequest, opts ...grpc.CallOption) (*NodeFileResponse, error)
+	WriteNodeFile(ctx context.Context, in *WriteNodeFileRequest, opts ...grpc.CallOption) (*WriteNodeFileResponse, error)
+	RestartInstance(ctx context.Context, in *RestartInstanceRequest, opts ...grpc.CallOption) (*RestartInstanceResponse, error)
 	GetNode(ctx context.Context, in *GetNodeRequest, opts ...grpc.CallOption) (*NodeDetailResponse, error)
 	CollectNode(ctx context.Context, in *NodeIdRequest, opts ...grpc.CallOption) (*Ok, error)
 	DeleteNode(ctx context.Context, in *NodeIdRequest, opts ...grpc.CallOption) (*Ok, error)
 	ChangeNodeCredential(ctx context.Context, in *ChangeNodeCredentialRequest, opts ...grpc.CallOption) (*Ok, error)
+	ChangeNodeBastion(ctx context.Context, in *ChangeNodeBastionRequest, opts ...grpc.CallOption) (*Ok, error)
 	DecideHostKey(ctx context.Context, in *DecideHostKeyRequest, opts ...grpc.CallOption) (*DecideHostKeyResponse, error)
 	TestNodeConnection(ctx context.Context, in *NodeIdRequest, opts ...grpc.CallOption) (*TestConnectionResponse, error)
 }
@@ -82,6 +93,36 @@ func (c *nodeServiceClient) ImportNodes(ctx context.Context, in *ImportNodesRequ
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ImportNodesResponse)
 	err := c.cc.Invoke(ctx, NodeService_ImportNodes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeServiceClient) GetNodeFile(ctx context.Context, in *GetNodeFileRequest, opts ...grpc.CallOption) (*NodeFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NodeFileResponse)
+	err := c.cc.Invoke(ctx, NodeService_GetNodeFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeServiceClient) WriteNodeFile(ctx context.Context, in *WriteNodeFileRequest, opts ...grpc.CallOption) (*WriteNodeFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WriteNodeFileResponse)
+	err := c.cc.Invoke(ctx, NodeService_WriteNodeFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeServiceClient) RestartInstance(ctx context.Context, in *RestartInstanceRequest, opts ...grpc.CallOption) (*RestartInstanceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RestartInstanceResponse)
+	err := c.cc.Invoke(ctx, NodeService_RestartInstance_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +169,16 @@ func (c *nodeServiceClient) ChangeNodeCredential(ctx context.Context, in *Change
 	return out, nil
 }
 
+func (c *nodeServiceClient) ChangeNodeBastion(ctx context.Context, in *ChangeNodeBastionRequest, opts ...grpc.CallOption) (*Ok, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Ok)
+	err := c.cc.Invoke(ctx, NodeService_ChangeNodeBastion_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *nodeServiceClient) DecideHostKey(ctx context.Context, in *DecideHostKeyRequest, opts ...grpc.CallOption) (*DecideHostKeyResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DecideHostKeyResponse)
@@ -160,10 +211,17 @@ type NodeServiceServer interface {
 	ListNodes(context.Context, *ListNodesRequest) (*NodesListResponse, error)
 	AddNode(context.Context, *AddNodeRequest) (*IdResponse, error)
 	ImportNodes(context.Context, *ImportNodesRequest) (*ImportNodesResponse, error)
+	// Declared before GetNode on purpose: grpc-gateway matches patterns in
+	// registration order, and GetNode's `/nodes/{id}/{tab}` would otherwise
+	// swallow every `/nodes/{node_id}/livefile` as a tab named "livefile".
+	GetNodeFile(context.Context, *GetNodeFileRequest) (*NodeFileResponse, error)
+	WriteNodeFile(context.Context, *WriteNodeFileRequest) (*WriteNodeFileResponse, error)
+	RestartInstance(context.Context, *RestartInstanceRequest) (*RestartInstanceResponse, error)
 	GetNode(context.Context, *GetNodeRequest) (*NodeDetailResponse, error)
 	CollectNode(context.Context, *NodeIdRequest) (*Ok, error)
 	DeleteNode(context.Context, *NodeIdRequest) (*Ok, error)
 	ChangeNodeCredential(context.Context, *ChangeNodeCredentialRequest) (*Ok, error)
+	ChangeNodeBastion(context.Context, *ChangeNodeBastionRequest) (*Ok, error)
 	DecideHostKey(context.Context, *DecideHostKeyRequest) (*DecideHostKeyResponse, error)
 	TestNodeConnection(context.Context, *NodeIdRequest) (*TestConnectionResponse, error)
 	mustEmbedUnimplementedNodeServiceServer()
@@ -185,6 +243,15 @@ func (UnimplementedNodeServiceServer) AddNode(context.Context, *AddNodeRequest) 
 func (UnimplementedNodeServiceServer) ImportNodes(context.Context, *ImportNodesRequest) (*ImportNodesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ImportNodes not implemented")
 }
+func (UnimplementedNodeServiceServer) GetNodeFile(context.Context, *GetNodeFileRequest) (*NodeFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNodeFile not implemented")
+}
+func (UnimplementedNodeServiceServer) WriteNodeFile(context.Context, *WriteNodeFileRequest) (*WriteNodeFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WriteNodeFile not implemented")
+}
+func (UnimplementedNodeServiceServer) RestartInstance(context.Context, *RestartInstanceRequest) (*RestartInstanceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RestartInstance not implemented")
+}
 func (UnimplementedNodeServiceServer) GetNode(context.Context, *GetNodeRequest) (*NodeDetailResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNode not implemented")
 }
@@ -196,6 +263,9 @@ func (UnimplementedNodeServiceServer) DeleteNode(context.Context, *NodeIdRequest
 }
 func (UnimplementedNodeServiceServer) ChangeNodeCredential(context.Context, *ChangeNodeCredentialRequest) (*Ok, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChangeNodeCredential not implemented")
+}
+func (UnimplementedNodeServiceServer) ChangeNodeBastion(context.Context, *ChangeNodeBastionRequest) (*Ok, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChangeNodeBastion not implemented")
 }
 func (UnimplementedNodeServiceServer) DecideHostKey(context.Context, *DecideHostKeyRequest) (*DecideHostKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DecideHostKey not implemented")
@@ -278,6 +348,60 @@ func _NodeService_ImportNodes_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodeService_GetNodeFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetNodeFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServiceServer).GetNodeFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NodeService_GetNodeFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServiceServer).GetNodeFile(ctx, req.(*GetNodeFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodeService_WriteNodeFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WriteNodeFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServiceServer).WriteNodeFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NodeService_WriteNodeFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServiceServer).WriteNodeFile(ctx, req.(*WriteNodeFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodeService_RestartInstance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RestartInstanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServiceServer).RestartInstance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NodeService_RestartInstance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServiceServer).RestartInstance(ctx, req.(*RestartInstanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NodeService_GetNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetNodeRequest)
 	if err := dec(in); err != nil {
@@ -350,6 +474,24 @@ func _NodeService_ChangeNodeCredential_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodeService_ChangeNodeBastion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeNodeBastionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServiceServer).ChangeNodeBastion(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NodeService_ChangeNodeBastion_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServiceServer).ChangeNodeBastion(ctx, req.(*ChangeNodeBastionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NodeService_DecideHostKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DecideHostKeyRequest)
 	if err := dec(in); err != nil {
@@ -406,6 +548,18 @@ var NodeService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _NodeService_ImportNodes_Handler,
 		},
 		{
+			MethodName: "GetNodeFile",
+			Handler:    _NodeService_GetNodeFile_Handler,
+		},
+		{
+			MethodName: "WriteNodeFile",
+			Handler:    _NodeService_WriteNodeFile_Handler,
+		},
+		{
+			MethodName: "RestartInstance",
+			Handler:    _NodeService_RestartInstance_Handler,
+		},
+		{
 			MethodName: "GetNode",
 			Handler:    _NodeService_GetNode_Handler,
 		},
@@ -420,6 +574,10 @@ var NodeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ChangeNodeCredential",
 			Handler:    _NodeService_ChangeNodeCredential_Handler,
+		},
+		{
+			MethodName: "ChangeNodeBastion",
+			Handler:    _NodeService_ChangeNodeBastion_Handler,
 		},
 		{
 			MethodName: "DecideHostKey",

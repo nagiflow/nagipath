@@ -59,7 +59,7 @@ Changed rows use the side-by-side treatment with typed confirmation from [onboar
 
 `Revoke` returns the Node to awaiting-approval; its next connection fails until re-approved. Confirm names that consequence.
 
-**There is no "trust all future host keys" toggle**, and the section states so in one line. A reviewer looks for that toggle, and finding an explicit statement that it does not exist is worth more than its silent absence.
+**There is only one toggle, and it's narrower than "trust all future host keys."** A Policy panel offers "Approve manually" (default) or "Trust on first use"; the latter auto-approves only a Node's first-ever key — a changed key always requires manual approval either way, stated as a fixed line under the toggle so a reviewer doesn't have to infer it.
 
 ---
 

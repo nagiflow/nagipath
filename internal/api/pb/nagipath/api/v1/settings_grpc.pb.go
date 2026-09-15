@@ -132,6 +132,7 @@ const (
 	SettingsService_GetCredentials_FullMethodName        = "/nagipath.api.v1.SettingsService/GetCredentials"
 	SettingsService_AddCredential_FullMethodName         = "/nagipath.api.v1.SettingsService/AddCredential"
 	SettingsService_GetHostKeys_FullMethodName           = "/nagipath.api.v1.SettingsService/GetHostKeys"
+	SettingsService_SetHostKeyPolicy_FullMethodName      = "/nagipath.api.v1.SettingsService/SetHostKeyPolicy"
 	SettingsService_GetMasterKey_FullMethodName          = "/nagipath.api.v1.SettingsService/GetMasterKey"
 	SettingsService_GetCollectionDefaults_FullMethodName = "/nagipath.api.v1.SettingsService/GetCollectionDefaults"
 	SettingsService_SetCollectionDefaults_FullMethodName = "/nagipath.api.v1.SettingsService/SetCollectionDefaults"
@@ -165,6 +166,7 @@ type SettingsServiceClient interface {
 	GetCredentials(ctx context.Context, in *GetCredentialsRequest, opts ...grpc.CallOption) (*CredentialsResponse, error)
 	AddCredential(ctx context.Context, in *AddCredentialRequest, opts ...grpc.CallOption) (*IdResponse, error)
 	GetHostKeys(ctx context.Context, in *GetHostKeysRequest, opts ...grpc.CallOption) (*HostKeysResponse, error)
+	SetHostKeyPolicy(ctx context.Context, in *SetHostKeyPolicyRequest, opts ...grpc.CallOption) (*Ok, error)
 	GetMasterKey(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*MasterKeyResponse, error)
 	GetCollectionDefaults(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CollectionDefaultsResponse, error)
 	SetCollectionDefaults(ctx context.Context, in *SetCollectionDefaultsRequest, opts ...grpc.CallOption) (*Ok, error)
@@ -216,6 +218,16 @@ func (c *settingsServiceClient) GetHostKeys(ctx context.Context, in *GetHostKeys
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HostKeysResponse)
 	err := c.cc.Invoke(ctx, SettingsService_GetHostKeys_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *settingsServiceClient) SetHostKeyPolicy(ctx context.Context, in *SetHostKeyPolicyRequest, opts ...grpc.CallOption) (*Ok, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Ok)
+	err := c.cc.Invoke(ctx, SettingsService_SetHostKeyPolicy_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -406,6 +418,7 @@ type SettingsServiceServer interface {
 	GetCredentials(context.Context, *GetCredentialsRequest) (*CredentialsResponse, error)
 	AddCredential(context.Context, *AddCredentialRequest) (*IdResponse, error)
 	GetHostKeys(context.Context, *GetHostKeysRequest) (*HostKeysResponse, error)
+	SetHostKeyPolicy(context.Context, *SetHostKeyPolicyRequest) (*Ok, error)
 	GetMasterKey(context.Context, *Empty) (*MasterKeyResponse, error)
 	GetCollectionDefaults(context.Context, *Empty) (*CollectionDefaultsResponse, error)
 	SetCollectionDefaults(context.Context, *SetCollectionDefaultsRequest) (*Ok, error)
@@ -441,6 +454,9 @@ func (UnimplementedSettingsServiceServer) AddCredential(context.Context, *AddCre
 }
 func (UnimplementedSettingsServiceServer) GetHostKeys(context.Context, *GetHostKeysRequest) (*HostKeysResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetHostKeys not implemented")
+}
+func (UnimplementedSettingsServiceServer) SetHostKeyPolicy(context.Context, *SetHostKeyPolicyRequest) (*Ok, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetHostKeyPolicy not implemented")
 }
 func (UnimplementedSettingsServiceServer) GetMasterKey(context.Context, *Empty) (*MasterKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMasterKey not implemented")
@@ -564,6 +580,24 @@ func _SettingsService_GetHostKeys_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SettingsServiceServer).GetHostKeys(ctx, req.(*GetHostKeysRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SettingsService_SetHostKeyPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetHostKeyPolicyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SettingsServiceServer).SetHostKeyPolicy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SettingsService_SetHostKeyPolicy_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SettingsServiceServer).SetHostKeyPolicy(ctx, req.(*SetHostKeyPolicyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -892,6 +926,10 @@ var SettingsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetHostKeys",
 			Handler:    _SettingsService_GetHostKeys_Handler,
+		},
+		{
+			MethodName: "SetHostKeyPolicy",
+			Handler:    _SettingsService_SetHostKeyPolicy_Handler,
 		},
 		{
 			MethodName: "GetMasterKey",

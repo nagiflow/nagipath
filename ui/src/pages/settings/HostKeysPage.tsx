@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSession } from '../../api/queries/session'
-import { useDecideHostKey, useHostKeys } from '../../api/queries/settings'
+import { useDecideHostKey, useHostKeys, useSetHostKeyPolicy } from '../../api/queries/settings'
 import type { PendingHostKey } from '../../api/pb/nagipath/api/v1/nodes_pb'
 import { PanelHeader } from '../../components/shared/PanelHeader'
 import {
-  Badge, Button, Loading, Panel, PanelFooter, Select, StatRow, Table,
+  Badge, Button, Loading, Panel, PanelFooter, Radio, Select, StatRow, Table,
   type Column,
 } from '../../components/ui'
 import { SettingsLayout } from './SettingsLayout'
@@ -43,11 +43,8 @@ function fp(s: string): string {
 // Selection drives the footer's Approve/Reject the way design/ does; each
 // decision is one POST to the per-row endpoint, looped.
 // Omitted from that screen: "Import known_hosts" (nothing parses one — every key
-// nagipath trusts was presented by the host and approved by a human), the
-// "Policy: approve on first use — off" select and the Policy panel's editability
-// (the policy is fixed in code: internal/sshx has no trust-on-first-use path and
-// a changed key always refuses collection, so the panel states the policy rather
-// than offering to change it), the "of 428 nodes" figure under Approved
+// nagipath trusts was presented by the host and approved by a human) and the
+// "of 428 nodes" figure under Approved
 // (HostKeyStats counts keys, not the nodes they cover), the "Collect after
 // approval" action (approval does not queue a collection), "approved <date> by
 // <user>" on the recorded key (the decision is audited, but AllHostKeys returns
@@ -61,6 +58,7 @@ export function HostKeysPage() {
   const cluster = params.get('cluster') ?? ''
   const { data, isPending, isError, error } = useHostKeys(state, cluster)
   const decide = useDecideHostKey()
+  const setPolicy = useSetHostKeyPolicy()
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [bulkError, setBulkError] = useState('')
@@ -197,12 +195,25 @@ export function HostKeysPage() {
         {data && (
           <Panel>
             <div className="lbl" style={{ marginBottom: 7 }}>Policy</div>
-            <div className="fct"><input type="radio" className="rd" checked readOnly disabled /><span className="m">Approve manually</span></div>
-            <div className="fct"><input type="radio" className="rd" readOnly disabled /><span className="m mus">Trust on first use</span></div>
+            {isAdmin ? (
+              <>
+                <div className="fct">
+                  <Radio name="hostkey-policy" checked={!data.tofuEnabled} onChange={() => setPolicy.mutate(false)} label="Approve manually" />
+                </div>
+                <div className="fct">
+                  <Radio name="hostkey-policy" checked={data.tofuEnabled} onChange={() => setPolicy.mutate(true)} label="Trust on first use" />
+                </div>
+              </>
+            ) : (
+              <div className="fct"><span className="m">{data.tofuEnabled ? 'Trust on first use' : 'Approve manually'}</span></div>
+            )}
             <div className="fct"><input type="checkbox" className="cb" checked readOnly disabled /><span className="m">Refuse collection on key change</span></div>
+            {setPolicy.isError && <div className="m" style={{ color: '#a1231c', marginTop: 4 }}>{setPolicy.error.message}</div>}
             <div className="m mus" style={{ marginTop: 7 }}>
-              Fixed. A host key is trusted only once a human approves the fingerprint it presented, and a key that
-              replaces an approved one stops collection until someone decides which it is.
+              {data.tofuEnabled
+                ? "A node's first-ever key is trusted automatically. "
+                : 'A host key is trusted only once a human approves the fingerprint it presented. '}
+              A key that replaces an approved one is always treated as a rekey and stops collection until someone decides which it is — that part never changes.
             </div>
           </Panel>
         )}

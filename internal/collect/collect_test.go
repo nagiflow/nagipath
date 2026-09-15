@@ -45,6 +45,14 @@ func (f *fakeHost) Run(ctx context.Context, c sshx.Command) (sshx.Result, error)
 	return sshx.Result{Stdout: out}, nil
 }
 
+func (f *fakeHost) WriteFile(ctx context.Context, path, body string) (string, error) {
+	return "", nil
+}
+
+func (f *fakeHost) Restart(ctx context.Context, line string) (sshx.Result, error) {
+	return sshx.Result{}, nil
+}
+
 func (f *fakeHost) ReadFile(ctx context.Context, path string, max int64, sudo bool) ([]byte, bool, error) {
 	body, ok := f.files[path]
 	if !ok {

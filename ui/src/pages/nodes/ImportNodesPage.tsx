@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ImportedNode, ImportNodesResponse, TestConnectionResponse } from '../../api/pb/nagipath/api/v1/nodes_pb'
-import { useCollectNodes, useImportNodes, useTestNodeConnection } from '../../api/queries/nodes'
+import { useCollectNodes, useImportNodes, useNodes, useTestNodeConnection } from '../../api/queries/nodes'
 import { useCredentials, useDecideHostKey } from '../../api/queries/settings'
 import { PageHeader } from '../../components/shared/PageHeader'
 import { PanelHeader } from '../../components/shared/PanelHeader'
@@ -137,18 +137,25 @@ function ImportTestRow({ node, zebra, onChange }: {
 export function ImportNodesPage() {
   const navigate = useNavigate()
   const { data: credentials } = useCredentials('')
+  const { data: nodes } = useNodes('')
   const importNodes = useImportNodes()
   const collectNodes = useCollectNodes()
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [inventory, setInventory] = useState('')
   const [credentialId, setCredentialId] = useState('')
+  const [useProxy, setUseProxy] = useState(false)
+  const [bastionNodeId, setBastionNodeId] = useState('')
   const [result, setResult] = useState<ImportNodesResponse>()
   const [rows, setRows] = useState<Record<number, RowState>>({})
   const [startCollection, setStartCollection] = useState(true)
 
   async function submitStep1() {
-    const resp = await importNodes.mutateAsync({ inventory, credentialId: Number(credentialId) })
+    const resp = await importNodes.mutateAsync({
+      inventory,
+      credentialId: Number(credentialId),
+      bastionNodeId: useProxy && bastionNodeId ? Number(bastionNodeId) : undefined,
+    })
     setResult(resp)
     if (resp.added.length > 0) {
       setRows({})
@@ -215,6 +222,30 @@ export function ImportNodesPage() {
                   value={credentialId}
                   onChange={setCredentialId}
                 />
+              </div>
+
+              <div className="col" style={{ gap: 4 }}>
+                <Checkbox
+                  checked={useProxy}
+                  onChange={() => setUseProxy((v) => !v)}
+                  label="Connect through a proxy"
+                />
+                {useProxy && (
+                  <>
+                    <Select
+                      options={[
+                        { value: '', text: 'Select a node to tunnel through' },
+                        ...(nodes?.nodes ?? []).map((n) => ({
+                          value: n.id.toString(),
+                          text: `${n.displayName} · ${n.address}`,
+                        })),
+                      ]}
+                      value={bastionNodeId}
+                      onChange={setBastionNodeId}
+                    />
+                    <span className="m mus">Every host in this batch dials out through that node's own SSH connection instead of directly.</span>
+                  </>
+                )}
               </div>
 
               {importNodes.isError && <p className="m" style={{ color: '#a1231c' }}>{importNodes.error.message}</p>}

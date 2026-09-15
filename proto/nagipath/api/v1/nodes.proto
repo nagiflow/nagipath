@@ -53,6 +53,10 @@ message Node {
   string first_seen_at = 13;
   string last_collection = 14;
   string last_status = 15;
+  // 0 means a direct connection; set means every dial to this node tunnels
+  // through the referenced node's own SSH connection instead (sshx.go's
+  // bastion chain, capped at 4 hops).
+  int64 bastion_node_id = 16;
 }
 
 message Credential {
@@ -83,6 +87,11 @@ message Instance {
   bool degraded = 14;
   string parse_state = 15;
   string state = 16;
+  // The restart line for this Instance, already resolved: the operator's
+  // stored override if there is one, otherwise the derived default
+  // (`systemctl restart <unit>`), otherwise empty — which means nagipath
+  // cannot guess and the operator has to supply one.
+  string restart_command = 17;
 }
 
 message HostKey {
@@ -306,6 +315,10 @@ message NodeDetailResponse {
   string selected_site_name = 29;
   Route selected_route = 30;
   RouteEffect route_effect = 31;
+
+  // Display name of node.bastion_node_id's target, resolved the same way
+  // credential_name is — empty when the node connects directly.
+  string bastion_name = 32;
 }
 
 // ImportedNode is one row of what Import inventory actually added — enough
@@ -336,11 +349,15 @@ message AddNodeRequest {
   string display_name = 3;
   string username = 4;
   int64 credential_id = 5;
+  // Optional: an already-registered node to tunnel this connection through.
+  int64 bastion_node_id = 6;
 }
 
 message ImportNodesRequest {
   string inventory = 1;
   int64 credential_id = 2;
+  // Optional: applied to every host in this batch, same as credential_id.
+  int64 bastion_node_id = 3;
 }
 
 // GetNodeRequest covers every tab's query params in one flat message — the
@@ -364,6 +381,12 @@ message NodeIdRequest {
 message ChangeNodeCredentialRequest {
   int64 id = 1;
   int64 credential_id = 2;
+}
+
+message ChangeNodeBastionRequest {
+  int64 id = 1;
+  // 0 clears it back to a direct connection.
+  int64 bastion_node_id = 2;
 }
 
 message DecideHostKeyRequest {
@@ -400,6 +423,50 @@ message TestConnectionResponse {
   string previous_fingerprint = 6;
 }
 
+// GetNodeFileRequest reads a config file as it is on the Node right now, not
+// as a Snapshot captured it — an edit has to start from the live bytes or it
+// silently reverts whatever changed since the last Collection.
+message GetNodeFileRequest {
+  int64 node_id = 1;
+  string path = 2;
+}
+
+message NodeFileResponse {
+  string path = 1;
+  string body = 2;
+  // The file was longer than the edit cap and is NOT safe to write back.
+  bool truncated = 3;
+}
+
+message WriteNodeFileRequest {
+  int64 node_id = 1;
+  string path = 2;
+  string body = 3;
+}
+
+message WriteNodeFileResponse {
+  bool ok = 1;
+  // Where the previous content was copied to on the Node. Empty when the file
+  // did not exist before this write.
+  string backup_path = 2;
+}
+
+// RestartInstanceRequest carries the command the operator saw and approved.
+// Empty means "use whatever Instance.restart_command resolved to"; anything
+// else is stored as that Instance's override and reused next time.
+message RestartInstanceRequest {
+  int64 instance_id = 1;
+  string command = 2;
+}
+
+message RestartInstanceResponse {
+  bool ok = 1;
+  string command = 2;
+  string stdout = 3;
+  string stderr = 4;
+  int32 exit_code = 5;
+}
+
 // NodeService: every /nodes and /hostkeys route (internal/api/nodes.go).
 // requireAuth wraps the whole gateway; every RPC but ListNodes and GetNode
 // calls requireAdminRPC as its own first line — same reasoning as
@@ -413,6 +480,18 @@ service NodeService {
   }
   rpc ImportNodes(ImportNodesRequest) returns (ImportNodesResponse) {
     option (google.api.http) = { post: "/nodes/import", body: "*" };
+  }
+  // Declared before GetNode on purpose: grpc-gateway matches patterns in
+  // registration order, and GetNode's `/nodes/{id}/{tab}` would otherwise
+  // swallow every `/nodes/{node_id}/livefile` as a tab named "livefile".
+  rpc GetNodeFile(GetNodeFileRequest) returns (NodeFileResponse) {
+    option (google.api.http) = { get: "/nodes/{node_id}/livefile" };
+  }
+  rpc WriteNodeFile(WriteNodeFileRequest) returns (WriteNodeFileResponse) {
+    option (google.api.http) = { post: "/nodes/{node_id}/livefile", body: "*" };
+  }
+  rpc RestartInstance(RestartInstanceRequest) returns (RestartInstanceResponse) {
+    option (google.api.http) = { post: "/instances/{instance_id}/restart", body: "*" };
   }
   rpc GetNode(GetNodeRequest) returns (NodeDetailResponse) {
     option (google.api.http) = {
@@ -428,6 +507,9 @@ service NodeService {
   }
   rpc ChangeNodeCredential(ChangeNodeCredentialRequest) returns (Ok) {
     option (google.api.http) = { post: "/nodes/{id}/credential", body: "*" };
+  }
+  rpc ChangeNodeBastion(ChangeNodeBastionRequest) returns (Ok) {
+    option (google.api.http) = { post: "/nodes/{id}/bastion", body: "*" };
   }
   rpc DecideHostKey(DecideHostKeyRequest) returns (DecideHostKeyResponse) {
     option (google.api.http) = { post: "/hostkeys/{id}/decide", body: "*" };

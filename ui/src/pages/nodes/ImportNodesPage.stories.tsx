@@ -6,6 +6,7 @@ import {
   importTestConnectedFixture,
   importTestFailedFixture,
   importTestHostKeyPendingFixture,
+  nodesListFixture,
 } from '../../stories/fixtures/nodes'
 import { credentialsFixture } from '../../stories/fixtures/settings'
 
@@ -25,6 +26,7 @@ export default {
     // so pasting a host list and continuing shows the whole wizard for real.
     api: {
       '/settings/credentials': credentialsFixture,
+      '/nodes': nodesListFixture,
       '/nodes/import': importNodesFixture,
       '/nodes/431/test': importTestConnectedFixture,
       '/nodes/432/test': importTestHostKeyPendingFixture,

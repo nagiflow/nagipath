@@ -40,6 +40,7 @@ export const traceFixture = pb(TraceResponseSchema, {
     outcome: 'verified',
     method: 'GET',
     requestedAt: '2026-08-30T09:42:00Z',
+    probeId: 5501n,
     probed: [
       { ordinal: 0, label: '0', evidence: 'access log line matched correlation token', before: 'inferred', after: 'verified' },
       { ordinal: 1, label: '1-a', evidence: 'access log line matched correlation token', before: 'inferred', after: 'verified' },

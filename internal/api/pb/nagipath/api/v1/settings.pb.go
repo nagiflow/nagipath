@@ -264,7 +264,12 @@ type HostKeysResponse struct {
 	Keys  []*PendingHostKey      `protobuf:"bytes,2,rep,name=keys,proto3" json:"keys,omitempty"`
 	// Cluster names for the Cluster filter, which has to list clusters the
 	// current filter has already excluded.
-	Clusters      []string `protobuf:"bytes,3,rep,name=clusters,proto3" json:"clusters,omitempty"`
+	Clusters []string `protobuf:"bytes,3,rep,name=clusters,proto3" json:"clusters,omitempty"`
+	// Off by default: an unrecognized key still blocks the connection pending
+	// manual approval. On, a node's first-ever key (never one that replaces an
+	// already-approved key — that is always a mismatch, decided manually
+	// regardless of this setting) is auto-approved instead.
+	TofuEnabled   bool `protobuf:"varint,4,opt,name=tofu_enabled,json=tofuEnabled,proto3" json:"tofu_enabled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -318,6 +323,13 @@ func (x *HostKeysResponse) GetClusters() []string {
 		return x.Clusters
 	}
 	return nil
+}
+
+func (x *HostKeysResponse) GetTofuEnabled() bool {
+	if x != nil {
+		return x.TofuEnabled
+	}
+	return false
 }
 
 type MasterKeyResponse struct {
@@ -2252,6 +2264,50 @@ func (x *GetHostKeysRequest) GetCluster() string {
 	return ""
 }
 
+type SetHostKeyPolicyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TofuEnabled   bool                   `protobuf:"varint,1,opt,name=tofu_enabled,json=tofuEnabled,proto3" json:"tofu_enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetHostKeyPolicyRequest) Reset() {
+	*x = SetHostKeyPolicyRequest{}
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetHostKeyPolicyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetHostKeyPolicyRequest) ProtoMessage() {}
+
+func (x *SetHostKeyPolicyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetHostKeyPolicyRequest.ProtoReflect.Descriptor instead.
+func (*SetHostKeyPolicyRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *SetHostKeyPolicyRequest) GetTofuEnabled() bool {
+	if x != nil {
+		return x.TofuEnabled
+	}
+	return false
+}
+
 type SetRetentionRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	SnapshotDays   *int32                 `protobuf:"varint,1,opt,name=snapshot_days,json=snapshotDays,proto3,oneof" json:"snapshot_days,omitempty"`
@@ -2265,7 +2321,7 @@ type SetRetentionRequest struct {
 
 func (x *SetRetentionRequest) Reset() {
 	*x = SetRetentionRequest{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[26]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2277,7 +2333,7 @@ func (x *SetRetentionRequest) String() string {
 func (*SetRetentionRequest) ProtoMessage() {}
 
 func (x *SetRetentionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[26]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2290,7 +2346,7 @@ func (x *SetRetentionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetRetentionRequest.ProtoReflect.Descriptor instead.
 func (*SetRetentionRequest) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{26}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *SetRetentionRequest) GetSnapshotDays() int32 {
@@ -2342,7 +2398,7 @@ type RunRetentionResponse struct {
 
 func (x *RunRetentionResponse) Reset() {
 	*x = RunRetentionResponse{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[27]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2354,7 +2410,7 @@ func (x *RunRetentionResponse) String() string {
 func (*RunRetentionResponse) ProtoMessage() {}
 
 func (x *RunRetentionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[27]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2367,7 +2423,7 @@ func (x *RunRetentionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunRetentionResponse.ProtoReflect.Descriptor instead.
 func (*RunRetentionResponse) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{27}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *RunRetentionResponse) GetOk() bool {
@@ -2428,7 +2484,7 @@ type SetCollectionDefaultsRequest struct {
 
 func (x *SetCollectionDefaultsRequest) Reset() {
 	*x = SetCollectionDefaultsRequest{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[28]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2440,7 +2496,7 @@ func (x *SetCollectionDefaultsRequest) String() string {
 func (*SetCollectionDefaultsRequest) ProtoMessage() {}
 
 func (x *SetCollectionDefaultsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[28]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2453,7 +2509,7 @@ func (x *SetCollectionDefaultsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCollectionDefaultsRequest.ProtoReflect.Descriptor instead.
 func (*SetCollectionDefaultsRequest) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{28}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *SetCollectionDefaultsRequest) GetIntervalMinutes() int32 {
@@ -2525,7 +2581,7 @@ type AddUserRequest struct {
 
 func (x *AddUserRequest) Reset() {
 	*x = AddUserRequest{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[29]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2537,7 +2593,7 @@ func (x *AddUserRequest) String() string {
 func (*AddUserRequest) ProtoMessage() {}
 
 func (x *AddUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[29]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2550,7 +2606,7 @@ func (x *AddUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddUserRequest.ProtoReflect.Descriptor instead.
 func (*AddUserRequest) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{29}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *AddUserRequest) GetUsername() string {
@@ -2597,7 +2653,7 @@ type UserIdRequest struct {
 
 func (x *UserIdRequest) Reset() {
 	*x = UserIdRequest{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[30]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2609,7 +2665,7 @@ func (x *UserIdRequest) String() string {
 func (*UserIdRequest) ProtoMessage() {}
 
 func (x *UserIdRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[30]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2622,7 +2678,7 @@ func (x *UserIdRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserIdRequest.ProtoReflect.Descriptor instead.
 func (*UserIdRequest) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{30}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *UserIdRequest) GetId() int64 {
@@ -2642,7 +2698,7 @@ type SetUserDisabledResponse struct {
 
 func (x *SetUserDisabledResponse) Reset() {
 	*x = SetUserDisabledResponse{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[31]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2654,7 +2710,7 @@ func (x *SetUserDisabledResponse) String() string {
 func (*SetUserDisabledResponse) ProtoMessage() {}
 
 func (x *SetUserDisabledResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[31]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2667,7 +2723,7 @@ func (x *SetUserDisabledResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserDisabledResponse.ProtoReflect.Descriptor instead.
 func (*SetUserDisabledResponse) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{31}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *SetUserDisabledResponse) GetOk() bool {
@@ -2697,7 +2753,7 @@ type GetAuditRequest struct {
 
 func (x *GetAuditRequest) Reset() {
 	*x = GetAuditRequest{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[32]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2709,7 +2765,7 @@ func (x *GetAuditRequest) String() string {
 func (*GetAuditRequest) ProtoMessage() {}
 
 func (x *GetAuditRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[32]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2722,7 +2778,7 @@ func (x *GetAuditRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAuditRequest.ProtoReflect.Descriptor instead.
 func (*GetAuditRequest) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{32}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetAuditRequest) GetActor() string {
@@ -2769,7 +2825,7 @@ type GetApiKeysRequest struct {
 
 func (x *GetApiKeysRequest) Reset() {
 	*x = GetApiKeysRequest{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[33]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2781,7 +2837,7 @@ func (x *GetApiKeysRequest) String() string {
 func (*GetApiKeysRequest) ProtoMessage() {}
 
 func (x *GetApiKeysRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[33]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2794,7 +2850,7 @@ func (x *GetApiKeysRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetApiKeysRequest.ProtoReflect.Descriptor instead.
 func (*GetApiKeysRequest) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{33}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetApiKeysRequest) GetState() string {
@@ -2814,7 +2870,7 @@ type CreateApiKeyRequest struct {
 
 func (x *CreateApiKeyRequest) Reset() {
 	*x = CreateApiKeyRequest{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[34]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2826,7 +2882,7 @@ func (x *CreateApiKeyRequest) String() string {
 func (*CreateApiKeyRequest) ProtoMessage() {}
 
 func (x *CreateApiKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[34]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2839,7 +2895,7 @@ func (x *CreateApiKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateApiKeyRequest.ProtoReflect.Descriptor instead.
 func (*CreateApiKeyRequest) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{34}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *CreateApiKeyRequest) GetName() string {
@@ -2867,7 +2923,7 @@ type CreateApiKeyResponse struct {
 
 func (x *CreateApiKeyResponse) Reset() {
 	*x = CreateApiKeyResponse{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[35]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2879,7 +2935,7 @@ func (x *CreateApiKeyResponse) String() string {
 func (*CreateApiKeyResponse) ProtoMessage() {}
 
 func (x *CreateApiKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[35]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2892,7 +2948,7 @@ func (x *CreateApiKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateApiKeyResponse.ProtoReflect.Descriptor instead.
 func (*CreateApiKeyResponse) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{35}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *CreateApiKeyResponse) GetOk() bool {
@@ -2925,7 +2981,7 @@ type ApiKeyIdRequest struct {
 
 func (x *ApiKeyIdRequest) Reset() {
 	*x = ApiKeyIdRequest{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[36]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2937,7 +2993,7 @@ func (x *ApiKeyIdRequest) String() string {
 func (*ApiKeyIdRequest) ProtoMessage() {}
 
 func (x *ApiKeyIdRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[36]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2950,7 +3006,7 @@ func (x *ApiKeyIdRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApiKeyIdRequest.ProtoReflect.Descriptor instead.
 func (*ApiKeyIdRequest) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{36}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ApiKeyIdRequest) GetId() int64 {
@@ -2969,7 +3025,7 @@ type InstallLicenseRequest struct {
 
 func (x *InstallLicenseRequest) Reset() {
 	*x = InstallLicenseRequest{}
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[37]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2981,7 +3037,7 @@ func (x *InstallLicenseRequest) String() string {
 func (*InstallLicenseRequest) ProtoMessage() {}
 
 func (x *InstallLicenseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_settings_proto_msgTypes[37]
+	mi := &file_nagipath_api_v1_settings_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2994,7 +3050,7 @@ func (x *InstallLicenseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallLicenseRequest.ProtoReflect.Descriptor instead.
 func (*InstallLicenseRequest) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{37}
+	return file_nagipath_api_v1_settings_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *InstallLicenseRequest) GetLicenseText() string {
@@ -3037,11 +3093,12 @@ const file_nagipath_api_v1_settings_proto_rawDesc = "" +
 	"algorithms\x1a=\n" +
 	"\x0fAlgorithmsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\x9a\x01\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xbd\x01\n" +
 	"\x10HostKeysResponse\x125\n" +
 	"\x05stats\x18\x01 \x01(\v2\x1f.nagipath.api.v1.HostKeyStatsPBR\x05stats\x123\n" +
 	"\x04keys\x18\x02 \x03(\v2\x1f.nagipath.api.v1.PendingHostKeyR\x04keys\x12\x1a\n" +
-	"\bclusters\x18\x03 \x03(\tR\bclusters\"\xd3\x01\n" +
+	"\bclusters\x18\x03 \x03(\tR\bclusters\x12!\n" +
+	"\ftofu_enabled\x18\x04 \x01(\bR\vtofuEnabled\"\xd3\x01\n" +
 	"\x11MasterKeyResponse\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x19\n" +
 	"\bdata_dir\x18\x02 \x01(\tR\adataDir\x123\n" +
@@ -3234,7 +3291,9 @@ const file_nagipath_api_v1_settings_proto_rawDesc = "" +
 	"\fexternal_ref\x18\b \x01(\tR\vexternalRef\"D\n" +
 	"\x12GetHostKeysRequest\x12\x14\n" +
 	"\x05state\x18\x01 \x01(\tR\x05state\x12\x18\n" +
-	"\acluster\x18\x02 \x01(\tR\acluster\"\xb3\x02\n" +
+	"\acluster\x18\x02 \x01(\tR\acluster\"<\n" +
+	"\x17SetHostKeyPolicyRequest\x12!\n" +
+	"\ftofu_enabled\x18\x01 \x01(\bR\vtofuEnabled\"\xb3\x02\n" +
 	"\x13SetRetentionRequest\x12(\n" +
 	"\rsnapshot_days\x18\x01 \x01(\x05H\x00R\fsnapshotDays\x88\x01\x01\x12-\n" +
 	"\x10min_per_instance\x18\x02 \x01(\x05H\x01R\x0eminPerInstance\x88\x01\x01\x12%\n" +
@@ -3307,11 +3366,12 @@ const file_nagipath_api_v1_settings_proto_rawDesc = "" +
 	"\x15InstallLicenseRequest\x12!\n" +
 	"\flicense_text\x18\x01 \x01(\tR\vlicenseText2\x8b\x01\n" +
 	"\x11CollectionService\x12v\n" +
-	"\x0fListCollections\x12'.nagipath.api.v1.ListCollectionsRequest\x1a$.nagipath.api.v1.CollectionsResponse\"\x14\x82\xd3\xe4\x93\x02\x0e\x12\f/collections2\xf4\x11\n" +
+	"\x0fListCollections\x12'.nagipath.api.v1.ListCollectionsRequest\x1a$.nagipath.api.v1.CollectionsResponse\"\x14\x82\xd3\xe4\x93\x02\x0e\x12\f/collections2\xed\x12\n" +
 	"\x0fSettingsService\x12}\n" +
 	"\x0eGetCredentials\x12&.nagipath.api.v1.GetCredentialsRequest\x1a$.nagipath.api.v1.CredentialsResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/settings/credentials\x12u\n" +
 	"\rAddCredential\x12%.nagipath.api.v1.AddCredentialRequest\x1a\x1b.nagipath.api.v1.IdResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/settings/credentials\x12q\n" +
-	"\vGetHostKeys\x12#.nagipath.api.v1.GetHostKeysRequest\x1a!.nagipath.api.v1.HostKeysResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/settings/hostkeys\x12g\n" +
+	"\vGetHostKeys\x12#.nagipath.api.v1.GetHostKeysRequest\x1a!.nagipath.api.v1.HostKeysResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/settings/hostkeys\x12w\n" +
+	"\x10SetHostKeyPolicy\x12(.nagipath.api.v1.SetHostKeyPolicyRequest\x1a\x13.nagipath.api.v1.Ok\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/settings/hostkeys/policy\x12g\n" +
 	"\fGetMasterKey\x12\x16.nagipath.api.v1.Empty\x1a\".nagipath.api.v1.MasterKeyResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/settings/masterkey\x12\x83\x01\n" +
 	"\x15GetCollectionDefaults\x12\x16.nagipath.api.v1.Empty\x1a+.nagipath.api.v1.CollectionDefaultsResponse\"%\x82\xd3\xe4\x93\x02\x1f\x12\x1d/settings/collection-defaults\x12\x85\x01\n" +
 	"\x15SetCollectionDefaults\x12-.nagipath.api.v1.SetCollectionDefaultsRequest\x1a\x13.nagipath.api.v1.Ok\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/settings/collection-defaults\x12g\n" +
@@ -3345,7 +3405,7 @@ func file_nagipath_api_v1_settings_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_settings_proto_rawDescData
 }
 
-var file_nagipath_api_v1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_nagipath_api_v1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_nagipath_api_v1_settings_proto_goTypes = []any{
 	(*CredentialItem)(nil),               // 0: nagipath.api.v1.CredentialItem
 	(*CredentialsResponse)(nil),          // 1: nagipath.api.v1.CredentialsResponse
@@ -3373,29 +3433,30 @@ var file_nagipath_api_v1_settings_proto_goTypes = []any{
 	(*GetCredentialsRequest)(nil),        // 23: nagipath.api.v1.GetCredentialsRequest
 	(*AddCredentialRequest)(nil),         // 24: nagipath.api.v1.AddCredentialRequest
 	(*GetHostKeysRequest)(nil),           // 25: nagipath.api.v1.GetHostKeysRequest
-	(*SetRetentionRequest)(nil),          // 26: nagipath.api.v1.SetRetentionRequest
-	(*RunRetentionResponse)(nil),         // 27: nagipath.api.v1.RunRetentionResponse
-	(*SetCollectionDefaultsRequest)(nil), // 28: nagipath.api.v1.SetCollectionDefaultsRequest
-	(*AddUserRequest)(nil),               // 29: nagipath.api.v1.AddUserRequest
-	(*UserIdRequest)(nil),                // 30: nagipath.api.v1.UserIdRequest
-	(*SetUserDisabledResponse)(nil),      // 31: nagipath.api.v1.SetUserDisabledResponse
-	(*GetAuditRequest)(nil),              // 32: nagipath.api.v1.GetAuditRequest
-	(*GetApiKeysRequest)(nil),            // 33: nagipath.api.v1.GetApiKeysRequest
-	(*CreateApiKeyRequest)(nil),          // 34: nagipath.api.v1.CreateApiKeyRequest
-	(*CreateApiKeyResponse)(nil),         // 35: nagipath.api.v1.CreateApiKeyResponse
-	(*ApiKeyIdRequest)(nil),              // 36: nagipath.api.v1.ApiKeyIdRequest
-	(*InstallLicenseRequest)(nil),        // 37: nagipath.api.v1.InstallLicenseRequest
-	nil,                                  // 38: nagipath.api.v1.HostKeyStatsPB.AlgorithmsEntry
-	(*PendingHostKey)(nil),               // 39: nagipath.api.v1.PendingHostKey
-	(*Empty)(nil),                        // 40: nagipath.api.v1.Empty
-	(*IdResponse)(nil),                   // 41: nagipath.api.v1.IdResponse
-	(*Ok)(nil),                           // 42: nagipath.api.v1.Ok
+	(*SetHostKeyPolicyRequest)(nil),      // 26: nagipath.api.v1.SetHostKeyPolicyRequest
+	(*SetRetentionRequest)(nil),          // 27: nagipath.api.v1.SetRetentionRequest
+	(*RunRetentionResponse)(nil),         // 28: nagipath.api.v1.RunRetentionResponse
+	(*SetCollectionDefaultsRequest)(nil), // 29: nagipath.api.v1.SetCollectionDefaultsRequest
+	(*AddUserRequest)(nil),               // 30: nagipath.api.v1.AddUserRequest
+	(*UserIdRequest)(nil),                // 31: nagipath.api.v1.UserIdRequest
+	(*SetUserDisabledResponse)(nil),      // 32: nagipath.api.v1.SetUserDisabledResponse
+	(*GetAuditRequest)(nil),              // 33: nagipath.api.v1.GetAuditRequest
+	(*GetApiKeysRequest)(nil),            // 34: nagipath.api.v1.GetApiKeysRequest
+	(*CreateApiKeyRequest)(nil),          // 35: nagipath.api.v1.CreateApiKeyRequest
+	(*CreateApiKeyResponse)(nil),         // 36: nagipath.api.v1.CreateApiKeyResponse
+	(*ApiKeyIdRequest)(nil),              // 37: nagipath.api.v1.ApiKeyIdRequest
+	(*InstallLicenseRequest)(nil),        // 38: nagipath.api.v1.InstallLicenseRequest
+	nil,                                  // 39: nagipath.api.v1.HostKeyStatsPB.AlgorithmsEntry
+	(*PendingHostKey)(nil),               // 40: nagipath.api.v1.PendingHostKey
+	(*Empty)(nil),                        // 41: nagipath.api.v1.Empty
+	(*IdResponse)(nil),                   // 42: nagipath.api.v1.IdResponse
+	(*Ok)(nil),                           // 43: nagipath.api.v1.Ok
 }
 var file_nagipath_api_v1_settings_proto_depIdxs = []int32{
 	0,  // 0: nagipath.api.v1.CredentialsResponse.credentials:type_name -> nagipath.api.v1.CredentialItem
-	38, // 1: nagipath.api.v1.HostKeyStatsPB.algorithms:type_name -> nagipath.api.v1.HostKeyStatsPB.AlgorithmsEntry
+	39, // 1: nagipath.api.v1.HostKeyStatsPB.algorithms:type_name -> nagipath.api.v1.HostKeyStatsPB.AlgorithmsEntry
 	2,  // 2: nagipath.api.v1.HostKeysResponse.stats:type_name -> nagipath.api.v1.HostKeyStatsPB
-	39, // 3: nagipath.api.v1.HostKeysResponse.keys:type_name -> nagipath.api.v1.PendingHostKey
+	40, // 3: nagipath.api.v1.HostKeysResponse.keys:type_name -> nagipath.api.v1.PendingHostKey
 	5,  // 4: nagipath.api.v1.PruneHistoryPB.examined:type_name -> nagipath.api.v1.PruneCountsPB
 	6,  // 5: nagipath.api.v1.PruneHistoryPB.deleted:type_name -> nagipath.api.v1.PrunedCountsPB
 	5,  // 6: nagipath.api.v1.PruneHistoryPB.kept:type_name -> nagipath.api.v1.PruneCountsPB
@@ -3411,46 +3472,48 @@ var file_nagipath_api_v1_settings_proto_depIdxs = []int32{
 	23, // 16: nagipath.api.v1.SettingsService.GetCredentials:input_type -> nagipath.api.v1.GetCredentialsRequest
 	24, // 17: nagipath.api.v1.SettingsService.AddCredential:input_type -> nagipath.api.v1.AddCredentialRequest
 	25, // 18: nagipath.api.v1.SettingsService.GetHostKeys:input_type -> nagipath.api.v1.GetHostKeysRequest
-	40, // 19: nagipath.api.v1.SettingsService.GetMasterKey:input_type -> nagipath.api.v1.Empty
-	40, // 20: nagipath.api.v1.SettingsService.GetCollectionDefaults:input_type -> nagipath.api.v1.Empty
-	28, // 21: nagipath.api.v1.SettingsService.SetCollectionDefaults:input_type -> nagipath.api.v1.SetCollectionDefaultsRequest
-	40, // 22: nagipath.api.v1.SettingsService.GetRetention:input_type -> nagipath.api.v1.Empty
-	26, // 23: nagipath.api.v1.SettingsService.SetRetention:input_type -> nagipath.api.v1.SetRetentionRequest
-	40, // 24: nagipath.api.v1.SettingsService.RunRetention:input_type -> nagipath.api.v1.Empty
-	40, // 25: nagipath.api.v1.SettingsService.GetUsers:input_type -> nagipath.api.v1.Empty
-	29, // 26: nagipath.api.v1.SettingsService.AddUser:input_type -> nagipath.api.v1.AddUserRequest
-	30, // 27: nagipath.api.v1.SettingsService.DisableUser:input_type -> nagipath.api.v1.UserIdRequest
-	30, // 28: nagipath.api.v1.SettingsService.EnableUser:input_type -> nagipath.api.v1.UserIdRequest
-	32, // 29: nagipath.api.v1.SettingsService.GetAudit:input_type -> nagipath.api.v1.GetAuditRequest
-	33, // 30: nagipath.api.v1.SettingsService.GetApiKeys:input_type -> nagipath.api.v1.GetApiKeysRequest
-	34, // 31: nagipath.api.v1.SettingsService.CreateApiKey:input_type -> nagipath.api.v1.CreateApiKeyRequest
-	36, // 32: nagipath.api.v1.SettingsService.RevokeApiKey:input_type -> nagipath.api.v1.ApiKeyIdRequest
-	40, // 33: nagipath.api.v1.SettingsService.GetLicense:input_type -> nagipath.api.v1.Empty
-	37, // 34: nagipath.api.v1.SettingsService.InstallLicense:input_type -> nagipath.api.v1.InstallLicenseRequest
-	40, // 35: nagipath.api.v1.SettingsService.GetDiagnostics:input_type -> nagipath.api.v1.Empty
-	21, // 36: nagipath.api.v1.CollectionService.ListCollections:output_type -> nagipath.api.v1.CollectionsResponse
-	1,  // 37: nagipath.api.v1.SettingsService.GetCredentials:output_type -> nagipath.api.v1.CredentialsResponse
-	41, // 38: nagipath.api.v1.SettingsService.AddCredential:output_type -> nagipath.api.v1.IdResponse
-	3,  // 39: nagipath.api.v1.SettingsService.GetHostKeys:output_type -> nagipath.api.v1.HostKeysResponse
-	4,  // 40: nagipath.api.v1.SettingsService.GetMasterKey:output_type -> nagipath.api.v1.MasterKeyResponse
-	10, // 41: nagipath.api.v1.SettingsService.GetCollectionDefaults:output_type -> nagipath.api.v1.CollectionDefaultsResponse
-	42, // 42: nagipath.api.v1.SettingsService.SetCollectionDefaults:output_type -> nagipath.api.v1.Ok
-	9,  // 43: nagipath.api.v1.SettingsService.GetRetention:output_type -> nagipath.api.v1.RetentionResponse
-	42, // 44: nagipath.api.v1.SettingsService.SetRetention:output_type -> nagipath.api.v1.Ok
-	27, // 45: nagipath.api.v1.SettingsService.RunRetention:output_type -> nagipath.api.v1.RunRetentionResponse
-	12, // 46: nagipath.api.v1.SettingsService.GetUsers:output_type -> nagipath.api.v1.UsersResponse
-	41, // 47: nagipath.api.v1.SettingsService.AddUser:output_type -> nagipath.api.v1.IdResponse
-	31, // 48: nagipath.api.v1.SettingsService.DisableUser:output_type -> nagipath.api.v1.SetUserDisabledResponse
-	31, // 49: nagipath.api.v1.SettingsService.EnableUser:output_type -> nagipath.api.v1.SetUserDisabledResponse
-	14, // 50: nagipath.api.v1.SettingsService.GetAudit:output_type -> nagipath.api.v1.AuditResponse
-	16, // 51: nagipath.api.v1.SettingsService.GetApiKeys:output_type -> nagipath.api.v1.ApiKeysResponse
-	35, // 52: nagipath.api.v1.SettingsService.CreateApiKey:output_type -> nagipath.api.v1.CreateApiKeyResponse
-	42, // 53: nagipath.api.v1.SettingsService.RevokeApiKey:output_type -> nagipath.api.v1.Ok
-	18, // 54: nagipath.api.v1.SettingsService.GetLicense:output_type -> nagipath.api.v1.LicenseResponse
-	42, // 55: nagipath.api.v1.SettingsService.InstallLicense:output_type -> nagipath.api.v1.Ok
-	19, // 56: nagipath.api.v1.SettingsService.GetDiagnostics:output_type -> nagipath.api.v1.DiagnosticsResponse
-	36, // [36:57] is the sub-list for method output_type
-	15, // [15:36] is the sub-list for method input_type
+	26, // 19: nagipath.api.v1.SettingsService.SetHostKeyPolicy:input_type -> nagipath.api.v1.SetHostKeyPolicyRequest
+	41, // 20: nagipath.api.v1.SettingsService.GetMasterKey:input_type -> nagipath.api.v1.Empty
+	41, // 21: nagipath.api.v1.SettingsService.GetCollectionDefaults:input_type -> nagipath.api.v1.Empty
+	29, // 22: nagipath.api.v1.SettingsService.SetCollectionDefaults:input_type -> nagipath.api.v1.SetCollectionDefaultsRequest
+	41, // 23: nagipath.api.v1.SettingsService.GetRetention:input_type -> nagipath.api.v1.Empty
+	27, // 24: nagipath.api.v1.SettingsService.SetRetention:input_type -> nagipath.api.v1.SetRetentionRequest
+	41, // 25: nagipath.api.v1.SettingsService.RunRetention:input_type -> nagipath.api.v1.Empty
+	41, // 26: nagipath.api.v1.SettingsService.GetUsers:input_type -> nagipath.api.v1.Empty
+	30, // 27: nagipath.api.v1.SettingsService.AddUser:input_type -> nagipath.api.v1.AddUserRequest
+	31, // 28: nagipath.api.v1.SettingsService.DisableUser:input_type -> nagipath.api.v1.UserIdRequest
+	31, // 29: nagipath.api.v1.SettingsService.EnableUser:input_type -> nagipath.api.v1.UserIdRequest
+	33, // 30: nagipath.api.v1.SettingsService.GetAudit:input_type -> nagipath.api.v1.GetAuditRequest
+	34, // 31: nagipath.api.v1.SettingsService.GetApiKeys:input_type -> nagipath.api.v1.GetApiKeysRequest
+	35, // 32: nagipath.api.v1.SettingsService.CreateApiKey:input_type -> nagipath.api.v1.CreateApiKeyRequest
+	37, // 33: nagipath.api.v1.SettingsService.RevokeApiKey:input_type -> nagipath.api.v1.ApiKeyIdRequest
+	41, // 34: nagipath.api.v1.SettingsService.GetLicense:input_type -> nagipath.api.v1.Empty
+	38, // 35: nagipath.api.v1.SettingsService.InstallLicense:input_type -> nagipath.api.v1.InstallLicenseRequest
+	41, // 36: nagipath.api.v1.SettingsService.GetDiagnostics:input_type -> nagipath.api.v1.Empty
+	21, // 37: nagipath.api.v1.CollectionService.ListCollections:output_type -> nagipath.api.v1.CollectionsResponse
+	1,  // 38: nagipath.api.v1.SettingsService.GetCredentials:output_type -> nagipath.api.v1.CredentialsResponse
+	42, // 39: nagipath.api.v1.SettingsService.AddCredential:output_type -> nagipath.api.v1.IdResponse
+	3,  // 40: nagipath.api.v1.SettingsService.GetHostKeys:output_type -> nagipath.api.v1.HostKeysResponse
+	43, // 41: nagipath.api.v1.SettingsService.SetHostKeyPolicy:output_type -> nagipath.api.v1.Ok
+	4,  // 42: nagipath.api.v1.SettingsService.GetMasterKey:output_type -> nagipath.api.v1.MasterKeyResponse
+	10, // 43: nagipath.api.v1.SettingsService.GetCollectionDefaults:output_type -> nagipath.api.v1.CollectionDefaultsResponse
+	43, // 44: nagipath.api.v1.SettingsService.SetCollectionDefaults:output_type -> nagipath.api.v1.Ok
+	9,  // 45: nagipath.api.v1.SettingsService.GetRetention:output_type -> nagipath.api.v1.RetentionResponse
+	43, // 46: nagipath.api.v1.SettingsService.SetRetention:output_type -> nagipath.api.v1.Ok
+	28, // 47: nagipath.api.v1.SettingsService.RunRetention:output_type -> nagipath.api.v1.RunRetentionResponse
+	12, // 48: nagipath.api.v1.SettingsService.GetUsers:output_type -> nagipath.api.v1.UsersResponse
+	42, // 49: nagipath.api.v1.SettingsService.AddUser:output_type -> nagipath.api.v1.IdResponse
+	32, // 50: nagipath.api.v1.SettingsService.DisableUser:output_type -> nagipath.api.v1.SetUserDisabledResponse
+	32, // 51: nagipath.api.v1.SettingsService.EnableUser:output_type -> nagipath.api.v1.SetUserDisabledResponse
+	14, // 52: nagipath.api.v1.SettingsService.GetAudit:output_type -> nagipath.api.v1.AuditResponse
+	16, // 53: nagipath.api.v1.SettingsService.GetApiKeys:output_type -> nagipath.api.v1.ApiKeysResponse
+	36, // 54: nagipath.api.v1.SettingsService.CreateApiKey:output_type -> nagipath.api.v1.CreateApiKeyResponse
+	43, // 55: nagipath.api.v1.SettingsService.RevokeApiKey:output_type -> nagipath.api.v1.Ok
+	18, // 56: nagipath.api.v1.SettingsService.GetLicense:output_type -> nagipath.api.v1.LicenseResponse
+	43, // 57: nagipath.api.v1.SettingsService.InstallLicense:output_type -> nagipath.api.v1.Ok
+	19, // 58: nagipath.api.v1.SettingsService.GetDiagnostics:output_type -> nagipath.api.v1.DiagnosticsResponse
+	37, // [37:59] is the sub-list for method output_type
+	15, // [15:37] is the sub-list for method input_type
 	15, // [15:15] is the sub-list for extension type_name
 	15, // [15:15] is the sub-list for extension extendee
 	0,  // [0:15] is the sub-list for field type_name
@@ -3463,15 +3526,15 @@ func file_nagipath_api_v1_settings_proto_init() {
 	}
 	file_nagipath_api_v1_common_proto_init()
 	file_nagipath_api_v1_nodes_proto_init()
-	file_nagipath_api_v1_settings_proto_msgTypes[26].OneofWrappers = []any{}
-	file_nagipath_api_v1_settings_proto_msgTypes[28].OneofWrappers = []any{}
+	file_nagipath_api_v1_settings_proto_msgTypes[27].OneofWrappers = []any{}
+	file_nagipath_api_v1_settings_proto_msgTypes[29].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_settings_proto_rawDesc), len(file_nagipath_api_v1_settings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   39,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

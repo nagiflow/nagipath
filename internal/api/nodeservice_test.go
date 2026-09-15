@@ -18,6 +18,14 @@ type fakeConnHost struct{ checkErr error }
 func (f *fakeConnHost) Run(context.Context, sshx.Command) (sshx.Result, error) {
 	return sshx.Result{}, errors.New("not used by TestNodeConnection")
 }
+func (f *fakeConnHost) WriteFile(context.Context, string, string) (string, error) {
+	return "", nil
+}
+
+func (f *fakeConnHost) Restart(context.Context, string) (sshx.Result, error) {
+	return sshx.Result{}, nil
+}
+
 func (f *fakeConnHost) ReadFile(context.Context, string, int64, bool) ([]byte, bool, error) {
 	return nil, false, errors.New("not used by TestNodeConnection")
 }
@@ -126,5 +134,32 @@ func TestTestNodeConnectionReportsFailed(t *testing.T) {
 	}
 	if resp.Error == "" {
 		t.Error("error message missing on a failed test")
+	}
+}
+
+func TestEffectiveRestartCommand(t *testing.T) {
+	override := store.Instance{RestartCommand: "  /etc/init.d/nginx restart  ", ServiceManager: "systemd", UnitName: "nginx"}
+	if got := effectiveRestartCommand(override); got != "/etc/init.d/nginx restart" {
+		t.Fatalf("override ignored: %q", got)
+	}
+	systemd := store.Instance{ServiceManager: "systemd", UnitName: "nginx@web"}
+	if got := effectiveRestartCommand(systemd); got != "systemctl restart nginx@web" {
+		t.Fatalf("systemd default = %q", got)
+	}
+	// No unit discovered: nagipath has nothing to derive from and must say so
+	// rather than guess a command that restarts the wrong process.
+	if got := effectiveRestartCommand(store.Instance{ServiceManager: "unknown", Vendor: "nginx"}); got != "" {
+		t.Fatalf("guessed a restart command: %q", got)
+	}
+}
+
+func TestCheckLivePathRejectsTraversal(t *testing.T) {
+	for _, p := range []string{"", "nginx.conf", "/etc/nginx/../../etc/shadow", "/etc/nginx/"} {
+		if _, err := checkLivePath(p); err == nil {
+			t.Fatalf("path %q was accepted", p)
+		}
+	}
+	if got, err := checkLivePath("  /etc/nginx/nginx.conf "); err != nil || got != "/etc/nginx/nginx.conf" {
+		t.Fatalf("checkLivePath = (%q, %v)", got, err)
 	}
 }

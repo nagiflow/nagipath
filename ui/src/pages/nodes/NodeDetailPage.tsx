@@ -1,9 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams, type SetURLSearchParams } from 'react-router-dom'
 import { APIError } from '../../api/client'
-import { useChangeNodeCredential, useCollectNode, useDecideHostKey, useDeleteNode, useNode } from '../../api/queries/nodes'
+import {
+  useChangeNodeBastion,
+  useChangeNodeCredential,
+  useCollectNode,
+  useDecideHostKey,
+  useDeleteNode,
+  useNode,
+  useNodeFile,
+  useNodes,
+  useRestartInstance,
+  useWriteNodeFile,
+} from '../../api/queries/nodes'
 import { useSession } from '../../api/queries/session'
-import type { Credential, DriftFinding, FileRef, NodeCertBinding, NodeDetailResponse, Site, UpstreamMember, UpstreamPool } from '../../api/pb/nagipath/api/v1/nodes_pb'
+import type { Credential, DriftFinding, FileRef, Instance, NodeCertBinding, NodeDetailResponse, Site, UpstreamMember, UpstreamPool } from '../../api/pb/nagipath/api/v1/nodes_pb'
 import { PageHeader } from '../../components/shared/PageHeader'
 import { PanelHeader } from '../../components/shared/PanelHeader'
 import { StatRow } from '../../components/shared/StatTile'
@@ -12,10 +23,12 @@ import {
   Button,
   CallOut,
   CodeBlock,
+  CodeEditor,
   ConfirmModal,
   Disclosure,
   EmptyPrompt,
   Facet,
+  Field,
   Kv,
   Loading,
   Modal,
@@ -68,6 +81,7 @@ export function NodeDetailPage() {
   const del = useDeleteNode()
   const decide = useDecideHostKey()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [restarting, setRestarting] = useState(false)
   // design/'s 2o/2p/5a/5b put each tab's filters in a query bar above the
   // body rather than in the panel header, so the state lives here with the
   // tab that owns it.
@@ -138,6 +152,7 @@ export function NodeDetailPage() {
                 <Button small loading={collect.isPending || data.running} onClick={() => collect.mutate()}>
                   {data.running ? 'Collecting…' : 'Collect now'}
                 </Button>
+                {data.selected && <Button small onClick={() => setRestarting(true)}>Restart process</Button>}
                 <Button small danger onClick={() => setConfirmDelete(true)}>Remove node</Button>
               </>
             )}
@@ -257,7 +272,7 @@ export function NodeDetailPage() {
 
         {tab === 'certificates' && <CertificatesTab data={data} filter={tabQ} expiry={expiry} />}
 
-        {tab === 'files' && <ConfigFilesTab data={data} setParams={setParams} filter={tabQ} />}
+        {tab === 'files' && <ConfigFilesTab data={data} setParams={setParams} filter={tabQ} nodeID={nodeID} isAdmin={isAdmin} />}
 
         {tab === 'drift' && (
           <Panel z>
@@ -292,7 +307,58 @@ export function NodeDetailPage() {
           confirmLabel="Remove"
         />
       )}
+
+      {restarting && data.selected && (
+        <RestartInstanceModal instance={data.selected} onClose={() => setRestarting(false)} />
+      )}
     </>
+  )
+}
+
+// The command is shown, editable, before anything runs: nagipath does not know
+// how a given fleet restarts a given process, and the operator is the one who
+// does. What they run is stored on the Instance and prefilled next time.
+function RestartInstanceModal({ instance, onClose }: { instance: Instance; onClose: () => void }) {
+  const restart = useRestartInstance(Number(instance.id))
+  const [command, setCommand] = useState(instance.restartCommand)
+  const result = restart.data
+  return (
+    <Modal
+      title={`Restart ${instance.displayName}`}
+      onClose={onClose}
+      footer={
+        <>
+          <Button subtle onClick={onClose}>{result ? 'Close' : 'Cancel'}</Button>
+          <Button
+            primary
+            disabled={!command.trim()}
+            loading={restart.isPending}
+            onClick={() => restart.mutate(command.trim())}
+          >
+            {result ? 'Run again' : 'Restart'}
+          </Button>
+        </>
+      }
+    >
+      <div className="col" style={{ gap: 8 }}>
+        <div className="m mu">
+          Runs on {instance.nodeDisplayName || 'this node'} over the same SSH credential nagipath collects with,
+          with sudo where the node has it. It is one command with arguments — no pipes, redirects or separators.
+        </div>
+        <Field value={command} onChange={setCommand} placeholder="systemctl restart nginx" grow />
+        {!instance.restartCommand && (
+          <div className="m mus">No command is stored for this process yet. What you run here is kept for next time.</div>
+        )}
+        {restart.isError && <p className="m" style={{ color: '#a1231c' }}>{restart.error.message}</p>}
+        {result && (
+          <CallOut title={result.ok ? 'Restarted' : `Exited ${result.exitCode}`} color={result.ok ? 'success' : 'danger'}>
+            {(result.stderr || result.stdout) && (
+              <CodeBlock lines={(result.stderr || result.stdout).trimEnd().split('\n')} />
+            )}
+          </CallOut>
+        )}
+      </div>
+    </Modal>
   )
 }
 
@@ -341,14 +407,60 @@ function ChangeCredentialModal({ nodeID, current, credentials, onClose }: {
   )
 }
 
+// Same shape as ChangeCredentialModal, one node down: picks another
+// already-registered node for this node's connections to tunnel through
+// (sshx.go's bastion chain), or clears it back to a direct connection.
+// Fetches the node list itself, lazily, since it only mounts once opened.
+function ChangeBastionModal({ nodeID, current, onClose }: {
+  nodeID: number
+  current: string
+  onClose: () => void
+}) {
+  const { data: nodes } = useNodes('')
+  const change = useChangeNodeBastion(nodeID)
+  const [picked, setPicked] = useState('')
+  const options = (nodes?.nodes ?? []).filter((n) => Number(n.id) !== nodeID)
+  return (
+    <Modal
+      title="Change proxy"
+      onClose={onClose}
+      footer={
+        <>
+          <Button subtle onClick={onClose}>Cancel</Button>
+          <Button
+            primary
+            loading={change.isPending}
+            onClick={() => change.mutate(picked ? Number(picked) : 0, { onSuccess: onClose })}
+          >
+            Save
+          </Button>
+        </>
+      }
+    >
+      <div className="col" style={{ gap: 8 }}>
+        <div className="m mu">Currently {current || 'a direct connection'}. When set, every dial to this node tunnels through the picked node's own SSH connection instead.</div>
+        <Select
+          value={picked}
+          onChange={setPicked}
+          options={[
+            { value: '', text: 'Direct connection (no proxy)' },
+            ...options.map((n) => ({ value: n.id.toString(), text: `${n.displayName} · ${n.address}` })),
+          ]}
+        />
+        {change.isError && <p className="m" style={{ color: '#a1231c' }}>{change.error.message}</p>}
+      </div>
+    </Modal>
+  )
+}
+
 // design/'s screen 3c: a 300px Host / Processes / Collection column beside
 // the five stat tiles and the sites table. Every number here comes from
 // GetNode's `stats` and `snapshot`, which the page previously ignored.
-// Omitted from 3c: the "bastion" and collection "method"/"duration"/
-// "schedule" kv rows (NodeDetailResponse carries none of them — collection
-// scheduling lives on Settings › Collection defaults, not per node) and the
-// "3 default_server" / "41 regex" stat sub-labels, which NodeStats
-// doesn't break out.
+// Omitted from 3c: the collection "method"/"duration"/"schedule" kv rows
+// (collection scheduling lives on Settings › Collection defaults, not per
+// node) and the "3 default_server" / "41 regex" stat sub-labels, which
+// NodeStats doesn't break out. Proxy (bastion) is not in the wireframe either
+// but reuses the same "Change" pattern as credential just below it.
 function OverviewTab({ data, setProcess, nodeID, isAdmin }: {
   data: NodeDetailResponse
   setProcess: (pid: bigint) => void
@@ -359,11 +471,19 @@ function OverviewTab({ data, setProcess, nodeID, isAdmin }: {
   const snap = data.snapshot
   const approved = data.hostKeys.find((k) => k.state === 'approved') ?? data.hostKeys[0]
   const [changingCredential, setChangingCredential] = useState(false)
+  const [changingBastion, setChangingBastion] = useState(false)
 
   const credentialValue = (
     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       {data.credentialName || <span className="mus">none assigned</span>}
       {isAdmin && <Button small subtle onClick={() => setChangingCredential(true)}>Change</Button>}
+    </span>
+  )
+
+  const bastionValue = (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      {data.bastionName || <span className="mus">direct connection</span>}
+      {isAdmin && <Button small subtle onClick={() => setChangingBastion(true)}>Change</Button>}
     </span>
   )
 
@@ -377,6 +497,7 @@ function OverviewTab({ data, setProcess, nodeID, isAdmin }: {
             ['os', data.node?.osFamily || <span className="mus">unknown</span>],
             ['cluster', data.selected?.clusterName || <span className="mus">unassigned</span>],
             ['credential', credentialValue],
+            ['proxy', bastionValue],
             ['ssh user', data.node?.sshUsername || <span className="mus">—</span>],
             ['host key', approved ? `${approved.algorithm} ${approved.fingerprint}` : <span className="mus">none recorded</span>],
             ['source', data.node?.source || <span className="mus">—</span>],
@@ -443,6 +564,13 @@ function OverviewTab({ data, setProcess, nodeID, isAdmin }: {
           current={data.credentialName}
           credentials={data.credentials}
           onClose={() => setChangingCredential(false)}
+        />
+      )}
+      {changingBastion && (
+        <ChangeBastionModal
+          nodeID={nodeID}
+          current={data.bastionName}
+          onClose={() => setChangingBastion(false)}
         />
       )}
     </>
@@ -753,7 +881,14 @@ function fmtBytes(n: bigint): string {
 // classes 5b's own `<pre>`-free code block uses), seeded at the snapshot's
 // recorded `line_start` rather than always starting at 1, since the backend
 // already resolves that offset for exactly this view.
-function ConfigFilesTab({ data, setParams, filter }: { data: NodeDetailResponse; setParams: SetURLSearchParams; filter: string }) {
+function ConfigFilesTab({ data, setParams, filter, nodeID, isAdmin }: {
+  data: NodeDetailResponse
+  setParams: SetURLSearchParams
+  filter: string
+  nodeID: number
+  isAdmin: boolean
+}) {
+  const [editing, setEditing] = useState(false)
   const byDir = new Map<string, FileRef[]>()
   for (const f of data.files.filter((f) => !filter || f.path.toLowerCase().includes(filter.toLowerCase()))) {
     const dir = f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '/'
@@ -800,16 +935,91 @@ function ConfigFilesTab({ data, setParams, filter }: { data: NodeDetailResponse;
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderBottom: '1px solid #edf0f5', background: '#f7f8fc' }}>
                 <span className="m" style={{ fontWeight: 600 }}>{data.selectedFile.path}</span>
-                <span className="m mus">{fmtBytes(data.selectedFile.bytesRaw)}</span>
+                <span className="m mus">{editing ? 'live file on the node' : fmtBytes(data.selectedFile.bytesRaw)}</span>
+                {isAdmin && !editing && (
+                  <>
+                    <FlexSpacer />
+                    <Button small subtle onClick={() => setEditing(true)}>Edit on node</Button>
+                  </>
+                )}
               </div>
-              <div style={{ flex: 1, minHeight: 0, padding: '10px 12px', overflow: 'auto' }}>
-                <CodeBlock lines={lines} startLine={data.lineStart || 1} />
-              </div>
+              {editing ? (
+                <LiveFileEditor
+                  key={data.selectedFile.path}
+                  nodeID={nodeID}
+                  path={data.selectedFile.path}
+                  onClose={() => setEditing(false)}
+                />
+              ) : (
+                <div style={{ flex: 1, minHeight: 0, padding: '10px 12px', overflow: 'auto' }}>
+                  <CodeBlock lines={lines} startLine={data.lineStart || 1} />
+                </div>
+              )}
             </>
           ) : (
             <div className="m mus" style={{ padding: '10px 12px' }}>Select a file to view it.</div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// The snapshot beside this is a capture; this edits the file as it is on the
+// node right now, which is why it fetches its own copy instead of seeding the
+// textarea from data.fileBody — the two differ the moment anyone else changes
+// something, and writing back a stale capture would silently revert them.
+function LiveFileEditor({ nodeID, path, onClose }: { nodeID: number; path: string; onClose: () => void }) {
+  const live = useNodeFile(nodeID, path)
+  const write = useWriteNodeFile(nodeID)
+  const [draft, setDraft] = useState('')
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    if (live.data && !loaded) {
+      setDraft(live.data.body)
+      setLoaded(true)
+    }
+  }, [live.data, loaded])
+
+  if (live.isPending) return <Loading label="Reading the file from the node…" />
+  if (live.isError) return (
+    <div style={{ padding: '10px 12px' }}>
+      <CallOut title="Could not read this file from the node" color="danger">{live.error.message}</CallOut>
+      <div className="row" style={{ marginTop: 8 }}><Button small subtle onClick={onClose}>Back to the capture</Button></div>
+    </div>
+  )
+
+  const dirty = loaded && draft !== live.data.body
+  return (
+    <div style={{ flex: 1, minHeight: 0, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {live.data.truncated && (
+        <CallOut title="Too large to edit" color="danger">
+          This file is past the 1 MB edit limit, so only part of it was read. Saving would truncate it.
+        </CallOut>
+      )}
+      <CodeEditor value={draft} onChange={setDraft} disabled={write.isPending || live.data.truncated} />
+      {write.isError && <p className="m" style={{ color: '#a1231c' }}>{write.error.message}</p>}
+      {write.data && (
+        <div className="m mus">
+          Written. Previous content kept at {write.data.backupPath || 'no backup — the file did not exist'}.
+          Restart the process to apply it.
+        </div>
+      )}
+      <div className="row" style={{ justifyContent: 'flex-end', gap: 6 }}>
+        <span className="m mus" style={{ marginRight: 'auto' }}>
+          Writes over SSH with sudo where the node has it, keeping a timestamped backup beside the file.
+        </span>
+        <Button small subtle onClick={onClose}>Cancel</Button>
+        <Button
+          small
+          primary
+          disabled={!dirty || live.data.truncated}
+          loading={write.isPending}
+          onClick={() => write.mutate({ path, body: draft })}
+        >
+          Save to node
+        </Button>
       </div>
     </div>
   )

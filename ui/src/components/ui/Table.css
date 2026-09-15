@@ -2,7 +2,7 @@
    height, then scrolls, keeping the header row in view. */
 .tw{flex:1 1 auto;min-height:0;overflow:auto}
 .t{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;table-layout:fixed}
-.t th{position:sticky;top:0;z-index:1;text-align:left;font:600 10.5px "Roboto Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:#69707d;background:#f7f8fc;border-top:1px solid #d3dae6;border-bottom:1px solid #d3dae6;padding:6px 8px;white-space:nowrap}
+.t th{position:sticky;top:0;z-index:1;text-align:left;font:600 10.5px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#69707d;background:#f7f8fc;border-top:1px solid #d3dae6;border-bottom:1px solid #d3dae6;padding:6px 8px;white-space:nowrap}
 .t .col-rz{position:absolute;top:0;right:-3px;bottom:0;width:6px;cursor:col-resize;z-index:2}
 .t .col-rz:hover{background:rgba(0,119,204,.35)}
 .t td{border-bottom:1px solid #edf0f5;padding:5px 8px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -17,5 +17,5 @@
    kind: 'pages') — RulesPage and SearchPage also draw these directly since
    their tables are hand-rolled, not this component. */
 .pg{display:flex;align-items:center;gap:7px;font-size:12px;color:#69707d}
-.pgb{border:1px solid #d3dae6;border-radius:3px;min-width:22px;text-align:center;padding:1px 5px;font:11.5px "Roboto Mono",monospace;background:#fff;cursor:pointer}
+.pgb{border:1px solid #d3dae6;border-radius:3px;min-width:22px;text-align:center;padding:1px 5px;font:11.5px Inter,sans-serif;background:#fff;cursor:pointer}
 .pgb.on{background:#0077cc;border-color:#0077cc;color:#fff}

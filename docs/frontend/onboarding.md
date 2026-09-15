@@ -255,8 +255,8 @@ If it returns a single Hop, an inline note explains why that is a complete and c
 | 3 | The Master Key warning appears in the terminal at generation and in Settings thereafter. |
 | 4 | The server refuses to start on a missing or malformed Master Key and never generates a replacement. |
 | 5 | Adding a Node performs no connection. |
-| 6 | No command runs on a Node before its host key is explicitly approved. |
-| 7 | No trust-on-first-use option exists anywhere in the UI. |
+| 6 | No command runs on a Node before its host key is explicitly approved, unless the operator has opted into trust-on-first-use (off by default). |
+| 7 | The trust-on-first-use setting, when on, is confined to a Node's first-ever key — a changed key always requires explicit approval regardless. |
 | 8 | Bulk host key approval groups by shared fingerprint and shows the count. |
 | 9 | A changed host key requires typed confirmation, shows both fingerprints and the prior approval, and is audited. |
 | 10 | Inventory import defaults to a dry run showing exactly what would change. |

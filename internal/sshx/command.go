@@ -3,6 +3,7 @@ package sshx
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // ID is a closed enum. Nothing runs on a managed host unless its ID appears in
@@ -11,7 +12,9 @@ import (
 // the injection boundary: a caller cannot express a command this file does not
 // already know how to build.
 //
-// Every command here is read-only. v1 writes nothing to any managed host.
+// Most commands here are read-only. The three that are not — FileBackup,
+// FileWrite and ServiceRestart — are operator-initiated, admin-only and
+// audited; they are the whole of nagipath's write surface on a managed host.
 type ID string
 
 const (
@@ -35,9 +38,13 @@ const (
 	CmdHAProxyVersion ID = "haproxy.version"
 	CmdHAProxyCheck   ID = "haproxy.check"
 
-	CmdFileRead ID = "fs.read"
-	CmdFileStat ID = "fs.stat"
-	CmdFindConf ID = "fs.find_conf"
+	CmdFileRead   ID = "fs.read"
+	CmdFileStat   ID = "fs.stat"
+	CmdFindConf   ID = "fs.find_conf"
+	CmdFileBackup ID = "fs.backup"
+	CmdFileWrite  ID = "fs.write"
+
+	CmdServiceRestart ID = "service.restart"
 
 	CmdGetentHosts ID = "net.getent_hosts"
 	CmdX509        ID = "tls.x509_metadata"
@@ -51,6 +58,7 @@ var allowed = map[ID]bool{
 	CmdHTTPDVersion: true, CmdHTTPDVhosts: true, CmdHTTPDModules: true, CmdHTTPDIncludes: true,
 	CmdHAProxyVersion: true, CmdHAProxyCheck: true,
 	CmdFileRead: true, CmdFileStat: true, CmdFindConf: true,
+	CmdFileBackup: true, CmdFileWrite: true, CmdServiceRestart: true,
 	CmdGetentHosts: true, CmdX509: true, CmdLogTail: true,
 }
 
@@ -63,6 +71,14 @@ type Command struct {
 	// TolerateExit says a non-zero exit is data, not failure. `nginx -t` on a
 	// broken config and `getent hosts` on an unresolvable name both matter.
 	TolerateExit bool
+	// Stdin is fed to the command's standard input. Only the write path uses
+	// it: the file body never appears on a command line, so no quoting of it
+	// is needed and no length limit of the remote shell applies.
+	Stdin string
+	// Timeout overrides the client's own when set. Only the restart path needs
+	// it: a web server that drains connections on stop can outlast the timeout
+	// every read-only command is sized for.
+	Timeout time.Duration
 	// SudoRetry says: if this fails as the login user and sudo is available, run
 	// it again with sudo. `nginx -T` is the case that matters — unprivileged it
 	// aborts on the pid file before printing a single line of configuration, so
@@ -81,7 +97,10 @@ func (c Command) validate() error {
 	// sudoers grant can name individual binaries. Anything with a pipe, a
 	// redirect or a separator in it would need `sh -c` and therefore a grant
 	// equivalent to root, so it is rejected here rather than silently widened.
-	if c.Sudo {
+	// A restart command is the one line an operator writes rather than this
+	// file, so it gets the shell-operator check whether or not it runs under
+	// sudo — `systemctl restart nginx; rm -rf /` is not a service name.
+	if c.Sudo || c.ID == CmdServiceRestart {
 		for _, op := range []string{"|", ";", "&", ">", "<", "$(", "`", "\n"} {
 			if strings.Contains(c.Line, op) {
 				return fmt.Errorf("command %s uses %q and cannot run under sudo", c.ID, op)
@@ -263,4 +282,31 @@ func X509(path string, sudo bool) Command {
 func LogTail(path string, bytes int64, sudo bool) Command {
 	return Command{ID: CmdLogTail, Sudo: sudo, TolerateExit: true,
 		Line: fmt.Sprintf("tail -c %d -- %s", bytes, q(path))}
+}
+
+// FileBackup copies a file aside before FileWrite overwrites it. -p keeps the
+// mode, owner and timestamps, so the copy is a usable rollback and not just a
+// record that something used to be there.
+func FileBackup(path, dest string, sudo bool) Command {
+	return Command{ID: CmdFileBackup, Sudo: sudo, TolerateExit: true,
+		Line: "cp -p -- " + q(path) + " " + q(dest)}
+}
+
+// FileWrite overwrites path with body. dd rather than tee: tee echoes the whole
+// file back over the connection, and a redirect would need `sh -c` and so make
+// the command ineligible for sudo (see Command.validate). dd truncates in
+// place, which keeps the file's inode, owner and mode.
+func FileWrite(path, body string, sudo bool) Command {
+	return Command{ID: CmdFileWrite, Sudo: sudo, Stdin: body, TolerateExit: true,
+		Line: "dd status=none of=" + q(path)}
+}
+
+// ServiceRestart runs the operator's own restart line — the one place a command
+// is not built from a constructor's parts, because no closed enum can know how
+// a given fleet restarts a given process. validate() still rejects anything
+// with a shell operator in it, so the line stays a single command with
+// arguments and a per-binary sudoers grant remains expressible.
+func ServiceRestart(line string, sudo bool) Command {
+	return Command{ID: CmdServiceRestart, Sudo: sudo, TolerateExit: true,
+		Timeout: 60 * time.Second, Line: strings.TrimSpace(line)}
 }

@@ -476,12 +476,14 @@ func (x *ProbedHopPB) GetAfter() string {
 // LastProbePB is internal/probe.Past, reduced to what the Trace page shows
 // beside the graph: the outcome badge and the per-hop evidence table.
 type LastProbePB struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Outcome       string                 `protobuf:"bytes,1,opt,name=outcome,proto3" json:"outcome,omitempty"`
-	Method        string                 `protobuf:"bytes,2,opt,name=method,proto3" json:"method,omitempty"`
-	RequestedAt   string                 `protobuf:"bytes,3,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
-	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
-	Probed        []*ProbedHopPB         `protobuf:"bytes,5,rep,name=probed,proto3" json:"probed,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Outcome     string                 `protobuf:"bytes,1,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	Method      string                 `protobuf:"bytes,2,opt,name=method,proto3" json:"method,omitempty"`
+	RequestedAt string                 `protobuf:"bytes,3,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
+	Error       string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	Probed      []*ProbedHopPB         `protobuf:"bytes,5,rep,name=probed,proto3" json:"probed,omitempty"`
+	// Links "Last probe" straight to its Probe detail page (GET /trace/probe/{id}).
+	ProbeId       int64 `protobuf:"varint,6,opt,name=probe_id,json=probeId,proto3" json:"probe_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -549,6 +551,13 @@ func (x *LastProbePB) GetProbed() []*ProbedHopPB {
 		return x.Probed
 	}
 	return nil
+}
+
+func (x *LastProbePB) GetProbeId() int64 {
+	if x != nil {
+		return x.ProbeId
+	}
+	return 0
 }
 
 type ProbeStepPB struct {
@@ -1662,13 +1671,14 @@ const file_nagipath_api_v1_trace_proto_rawDesc = "" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n" +
 	"\bevidence\x18\x03 \x01(\tR\bevidence\x12\x16\n" +
 	"\x06before\x18\x04 \x01(\tR\x06before\x12\x14\n" +
-	"\x05after\x18\x05 \x01(\tR\x05after\"\xae\x01\n" +
+	"\x05after\x18\x05 \x01(\tR\x05after\"\xc9\x01\n" +
 	"\vLastProbePB\x12\x18\n" +
 	"\aoutcome\x18\x01 \x01(\tR\aoutcome\x12\x16\n" +
 	"\x06method\x18\x02 \x01(\tR\x06method\x12!\n" +
 	"\frequested_at\x18\x03 \x01(\tR\vrequestedAt\x12\x14\n" +
 	"\x05error\x18\x04 \x01(\tR\x05error\x124\n" +
-	"\x06probed\x18\x05 \x03(\v2\x1c.nagipath.api.v1.ProbedHopPBR\x06probed\"m\n" +
+	"\x06probed\x18\x05 \x03(\v2\x1c.nagipath.api.v1.ProbedHopPBR\x06probed\x12\x19\n" +
+	"\bprobe_id\x18\x06 \x01(\x03R\aprobeId\"m\n" +
 	"\vProbeStepPB\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x18\n" +
 	"\aordinal\x18\x02 \x01(\x05R\aordinal\x12\x1a\n" +

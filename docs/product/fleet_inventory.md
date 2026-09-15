@@ -60,7 +60,7 @@ That makes "show me this file as it was in March" a real feature rather than a p
 
 1. Import an Ansible inventory, or paste a host list. **nagipath never scans networks** — Nodes come only from what the operator supplies. This is a deliberate constraint and it is the first question a security team asks.
 2. Dry-run the import (the default) and see exactly what would be created.
-3. Configure a default Credential. Approve host keys — each one explicitly, no trust-on-first-use.
+3. Configure a default Credential. Approve host keys — each one explicitly, the default policy (trust-on-first-use is an opt-in for fleets that would rather not).
 4. Run a bulk Collection. Watch a live per-Node progress list.
 5. Twenty minutes later there is a fleet inventory that did not exist that morning.
 

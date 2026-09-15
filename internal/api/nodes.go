@@ -51,6 +51,7 @@ type nodeBuild struct {
 	Tabs           []nodeTab
 	Tab            string
 	CredentialName string
+	BastionName    string
 
 	Inst         *trace.Inst
 	Upstreams    []store.UpstreamPool
@@ -106,6 +107,7 @@ func toPBNode(n store.Node) *pb.Node {
 		SudoAvailable: n.SudoAvailable, Enabled: n.Enabled, Source: n.Source, Notes: n.Notes,
 		ConsecutiveFailures: int32(n.ConsecutiveFailures), FirstSeenAt: n.FirstSeenAt,
 		LastCollection: n.LastCollection.String, LastStatus: n.LastStatus.String,
+		BastionNodeId: n.BastionNodeID.Int64,
 	}
 }
 
@@ -116,6 +118,7 @@ func toPBInstance(in store.Instance) *pb.Instance {
 		NodeDisplayName: in.NodeDisplayName, SiteCount: int32(in.SiteCount), RouteCount: int32(in.RouteCount),
 		CertCount: int32(in.CertCount), LastCaptured: in.LastCaptured.String, ClusterName: in.ClusterName,
 		Degraded: in.Degraded, ParseState: in.ParseState, State: in.State(),
+		RestartCommand: effectiveRestartCommand(in),
 	}
 }
 
@@ -171,7 +174,7 @@ func toPBInst(inst *trace.Inst) *pb.Inst {
 func (nb *nodeBuild) toProto() *pb.NodeDetailResponse {
 	resp := &pb.NodeDetailResponse{
 		Node: toPBNode(nb.Node), Running: nb.Running, Threshold: int32(nb.Threshold),
-		Tab: nb.Tab, CredentialName: nb.CredentialName,
+		Tab: nb.Tab, CredentialName: nb.CredentialName, BastionName: nb.BastionName,
 		Stats: &pb.NodeStats{
 			Sites: int32(nb.Stats.Sites), Routes: int32(nb.Stats.Routes), Upstreams: int32(nb.Stats.Upstreams),
 			CertCount: int32(nb.Stats.CertCount), DriftCount: int32(nb.Stats.DriftCount),

@@ -303,8 +303,12 @@ type Node struct {
 	FirstSeenAt         string                 `protobuf:"bytes,13,opt,name=first_seen_at,json=firstSeenAt,proto3" json:"first_seen_at,omitempty"`
 	LastCollection      string                 `protobuf:"bytes,14,opt,name=last_collection,json=lastCollection,proto3" json:"last_collection,omitempty"`
 	LastStatus          string                 `protobuf:"bytes,15,opt,name=last_status,json=lastStatus,proto3" json:"last_status,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// 0 means a direct connection; set means every dial to this node tunnels
+	// through the referenced node's own SSH connection instead (sshx.go's
+	// bastion chain, capped at 4 hops).
+	BastionNodeId int64 `protobuf:"varint,16,opt,name=bastion_node_id,json=bastionNodeId,proto3" json:"bastion_node_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Node) Reset() {
@@ -442,6 +446,13 @@ func (x *Node) GetLastStatus() string {
 	return ""
 }
 
+func (x *Node) GetBastionNodeId() int64 {
+	if x != nil {
+		return x.BastionNodeId
+	}
+	return 0
+}
+
 type Credential struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -560,8 +571,13 @@ type Instance struct {
 	Degraded        bool                   `protobuf:"varint,14,opt,name=degraded,proto3" json:"degraded,omitempty"`
 	ParseState      string                 `protobuf:"bytes,15,opt,name=parse_state,json=parseState,proto3" json:"parse_state,omitempty"`
 	State           string                 `protobuf:"bytes,16,opt,name=state,proto3" json:"state,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// The restart line for this Instance, already resolved: the operator's
+	// stored override if there is one, otherwise the derived default
+	// (`systemctl restart <unit>`), otherwise empty — which means nagipath
+	// cannot guess and the operator has to supply one.
+	RestartCommand string `protobuf:"bytes,17,opt,name=restart_command,json=restartCommand,proto3" json:"restart_command,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Instance) Reset() {
@@ -702,6 +718,13 @@ func (x *Instance) GetParseState() string {
 func (x *Instance) GetState() string {
 	if x != nil {
 		return x.State
+	}
+	return ""
+}
+
+func (x *Instance) GetRestartCommand() string {
+	if x != nil {
+		return x.RestartCommand
 	}
 	return ""
 }
@@ -2324,8 +2347,11 @@ type NodeDetailResponse struct {
 	SelectedSiteName string                 `protobuf:"bytes,29,opt,name=selected_site_name,json=selectedSiteName,proto3" json:"selected_site_name,omitempty"`
 	SelectedRoute    *Route                 `protobuf:"bytes,30,opt,name=selected_route,json=selectedRoute,proto3" json:"selected_route,omitempty"`
 	RouteEffect      *RouteEffect           `protobuf:"bytes,31,opt,name=route_effect,json=routeEffect,proto3" json:"route_effect,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Display name of node.bastion_node_id's target, resolved the same way
+	// credential_name is — empty when the node connects directly.
+	BastionName   string `protobuf:"bytes,32,opt,name=bastion_name,json=bastionName,proto3" json:"bastion_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NodeDetailResponse) Reset() {
@@ -2575,6 +2601,13 @@ func (x *NodeDetailResponse) GetRouteEffect() *RouteEffect {
 	return nil
 }
 
+func (x *NodeDetailResponse) GetBastionName() string {
+	if x != nil {
+		return x.BastionName
+	}
+	return ""
+}
+
 // ImportedNode is one row of what Import inventory actually added — enough
 // to link to the new node and offer a "Collect now" button without a
 // second round trip.
@@ -2746,12 +2779,14 @@ func (x *ListNodesRequest) GetQ() string {
 }
 
 type AddNodeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Address       string                 `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
-	Port          int32                  `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Username      string                 `protobuf:"bytes,4,opt,name=username,proto3" json:"username,omitempty"`
-	CredentialId  int64                  `protobuf:"varint,5,opt,name=credential_id,json=credentialId,proto3" json:"credential_id,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Address      string                 `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	Port         int32                  `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	DisplayName  string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Username     string                 `protobuf:"bytes,4,opt,name=username,proto3" json:"username,omitempty"`
+	CredentialId int64                  `protobuf:"varint,5,opt,name=credential_id,json=credentialId,proto3" json:"credential_id,omitempty"`
+	// Optional: an already-registered node to tunnel this connection through.
+	BastionNodeId int64 `protobuf:"varint,6,opt,name=bastion_node_id,json=bastionNodeId,proto3" json:"bastion_node_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2821,10 +2856,19 @@ func (x *AddNodeRequest) GetCredentialId() int64 {
 	return 0
 }
 
+func (x *AddNodeRequest) GetBastionNodeId() int64 {
+	if x != nil {
+		return x.BastionNodeId
+	}
+	return 0
+}
+
 type ImportNodesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Inventory     string                 `protobuf:"bytes,1,opt,name=inventory,proto3" json:"inventory,omitempty"`
-	CredentialId  int64                  `protobuf:"varint,2,opt,name=credential_id,json=credentialId,proto3" json:"credential_id,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Inventory    string                 `protobuf:"bytes,1,opt,name=inventory,proto3" json:"inventory,omitempty"`
+	CredentialId int64                  `protobuf:"varint,2,opt,name=credential_id,json=credentialId,proto3" json:"credential_id,omitempty"`
+	// Optional: applied to every host in this batch, same as credential_id.
+	BastionNodeId int64 `protobuf:"varint,3,opt,name=bastion_node_id,json=bastionNodeId,proto3" json:"bastion_node_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2869,6 +2913,13 @@ func (x *ImportNodesRequest) GetInventory() string {
 func (x *ImportNodesRequest) GetCredentialId() int64 {
 	if x != nil {
 		return x.CredentialId
+	}
+	return 0
+}
+
+func (x *ImportNodesRequest) GetBastionNodeId() int64 {
+	if x != nil {
+		return x.BastionNodeId
 	}
 	return 0
 }
@@ -3072,6 +3123,59 @@ func (x *ChangeNodeCredentialRequest) GetCredentialId() int64 {
 	return 0
 }
 
+type ChangeNodeBastionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// 0 clears it back to a direct connection.
+	BastionNodeId int64 `protobuf:"varint,2,opt,name=bastion_node_id,json=bastionNodeId,proto3" json:"bastion_node_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChangeNodeBastionRequest) Reset() {
+	*x = ChangeNodeBastionRequest{}
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangeNodeBastionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangeNodeBastionRequest) ProtoMessage() {}
+
+func (x *ChangeNodeBastionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangeNodeBastionRequest.ProtoReflect.Descriptor instead.
+func (*ChangeNodeBastionRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *ChangeNodeBastionRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *ChangeNodeBastionRequest) GetBastionNodeId() int64 {
+	if x != nil {
+		return x.BastionNodeId
+	}
+	return 0
+}
+
 type DecideHostKeyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -3082,7 +3186,7 @@ type DecideHostKeyRequest struct {
 
 func (x *DecideHostKeyRequest) Reset() {
 	*x = DecideHostKeyRequest{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[32]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3094,7 +3198,7 @@ func (x *DecideHostKeyRequest) String() string {
 func (*DecideHostKeyRequest) ProtoMessage() {}
 
 func (x *DecideHostKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[32]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3107,7 +3211,7 @@ func (x *DecideHostKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecideHostKeyRequest.ProtoReflect.Descriptor instead.
 func (*DecideHostKeyRequest) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{32}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *DecideHostKeyRequest) GetId() int64 {
@@ -3134,7 +3238,7 @@ type DecideHostKeyResponse struct {
 
 func (x *DecideHostKeyResponse) Reset() {
 	*x = DecideHostKeyResponse{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[33]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3146,7 +3250,7 @@ func (x *DecideHostKeyResponse) String() string {
 func (*DecideHostKeyResponse) ProtoMessage() {}
 
 func (x *DecideHostKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[33]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3159,7 +3263,7 @@ func (x *DecideHostKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecideHostKeyResponse.ProtoReflect.Descriptor instead.
 func (*DecideHostKeyResponse) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{33}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *DecideHostKeyResponse) GetOk() bool {
@@ -3205,7 +3309,7 @@ type TestConnectionResponse struct {
 
 func (x *TestConnectionResponse) Reset() {
 	*x = TestConnectionResponse{}
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[34]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3217,7 +3321,7 @@ func (x *TestConnectionResponse) String() string {
 func (*TestConnectionResponse) ProtoMessage() {}
 
 func (x *TestConnectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[34]
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3230,7 +3334,7 @@ func (x *TestConnectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestConnectionResponse.ProtoReflect.Descriptor instead.
 func (*TestConnectionResponse) Descriptor() ([]byte, []int) {
-	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{34}
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *TestConnectionResponse) GetStatus() string {
@@ -3275,6 +3379,367 @@ func (x *TestConnectionResponse) GetPreviousFingerprint() string {
 	return ""
 }
 
+// GetNodeFileRequest reads a config file as it is on the Node right now, not
+// as a Snapshot captured it — an edit has to start from the live bytes or it
+// silently reverts whatever changed since the last Collection.
+type GetNodeFileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        int64                  `protobuf:"varint,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNodeFileRequest) Reset() {
+	*x = GetNodeFileRequest{}
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNodeFileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNodeFileRequest) ProtoMessage() {}
+
+func (x *GetNodeFileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNodeFileRequest.ProtoReflect.Descriptor instead.
+func (*GetNodeFileRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *GetNodeFileRequest) GetNodeId() int64 {
+	if x != nil {
+		return x.NodeId
+	}
+	return 0
+}
+
+func (x *GetNodeFileRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type NodeFileResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Path  string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Body  string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	// The file was longer than the edit cap and is NOT safe to write back.
+	Truncated     bool `protobuf:"varint,3,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeFileResponse) Reset() {
+	*x = NodeFileResponse{}
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeFileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeFileResponse) ProtoMessage() {}
+
+func (x *NodeFileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeFileResponse.ProtoReflect.Descriptor instead.
+func (*NodeFileResponse) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *NodeFileResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *NodeFileResponse) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *NodeFileResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+type WriteNodeFileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        int64                  `protobuf:"varint,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteNodeFileRequest) Reset() {
+	*x = WriteNodeFileRequest{}
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteNodeFileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteNodeFileRequest) ProtoMessage() {}
+
+func (x *WriteNodeFileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteNodeFileRequest.ProtoReflect.Descriptor instead.
+func (*WriteNodeFileRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *WriteNodeFileRequest) GetNodeId() int64 {
+	if x != nil {
+		return x.NodeId
+	}
+	return 0
+}
+
+func (x *WriteNodeFileRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *WriteNodeFileRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+type WriteNodeFileResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Ok    bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	// Where the previous content was copied to on the Node. Empty when the file
+	// did not exist before this write.
+	BackupPath    string `protobuf:"bytes,2,opt,name=backup_path,json=backupPath,proto3" json:"backup_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteNodeFileResponse) Reset() {
+	*x = WriteNodeFileResponse{}
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteNodeFileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteNodeFileResponse) ProtoMessage() {}
+
+func (x *WriteNodeFileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteNodeFileResponse.ProtoReflect.Descriptor instead.
+func (*WriteNodeFileResponse) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *WriteNodeFileResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *WriteNodeFileResponse) GetBackupPath() string {
+	if x != nil {
+		return x.BackupPath
+	}
+	return ""
+}
+
+// RestartInstanceRequest carries the command the operator saw and approved.
+// Empty means "use whatever Instance.restart_command resolved to"; anything
+// else is stored as that Instance's override and reused next time.
+type RestartInstanceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	InstanceId    int64                  `protobuf:"varint,1,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	Command       string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestartInstanceRequest) Reset() {
+	*x = RestartInstanceRequest{}
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestartInstanceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestartInstanceRequest) ProtoMessage() {}
+
+func (x *RestartInstanceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestartInstanceRequest.ProtoReflect.Descriptor instead.
+func (*RestartInstanceRequest) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *RestartInstanceRequest) GetInstanceId() int64 {
+	if x != nil {
+		return x.InstanceId
+	}
+	return 0
+}
+
+func (x *RestartInstanceRequest) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+type RestartInstanceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Command       string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	Stdout        string                 `protobuf:"bytes,3,opt,name=stdout,proto3" json:"stdout,omitempty"`
+	Stderr        string                 `protobuf:"bytes,4,opt,name=stderr,proto3" json:"stderr,omitempty"`
+	ExitCode      int32                  `protobuf:"varint,5,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestartInstanceResponse) Reset() {
+	*x = RestartInstanceResponse{}
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestartInstanceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestartInstanceResponse) ProtoMessage() {}
+
+func (x *RestartInstanceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nagipath_api_v1_nodes_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestartInstanceResponse.ProtoReflect.Descriptor instead.
+func (*RestartInstanceResponse) Descriptor() ([]byte, []int) {
+	return file_nagipath_api_v1_nodes_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *RestartInstanceResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *RestartInstanceResponse) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *RestartInstanceResponse) GetStdout() string {
+	if x != nil {
+		return x.Stdout
+	}
+	return ""
+}
+
+func (x *RestartInstanceResponse) GetStderr() string {
+	if x != nil {
+		return x.Stderr
+	}
+	return ""
+}
+
+func (x *RestartInstanceResponse) GetExitCode() int32 {
+	if x != nil {
+		return x.ExitCode
+	}
+	return 0
+}
+
 var File_nagipath_api_v1_nodes_proto protoreflect.FileDescriptor
 
 const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
@@ -3307,7 +3772,7 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\tthreshold\x18\x04 \x01(\x05R\tthreshold\x12\x18\n" +
 	"\apending\x18\x05 \x01(\x05R\apending\x12 \n" +
 	"\vquarantined\x18\x06 \x01(\x05R\vquarantined\x12'\n" +
-	"\x0fnever_collected\x18\a \x01(\x05R\x0eneverCollected\"\xe3\x03\n" +
+	"\x0fnever_collected\x18\a \x01(\x05R\x0eneverCollected\"\x8b\x04\n" +
 	"\x04Node\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x18\n" +
 	"\aaddress\x18\x02 \x01(\tR\aaddress\x12\x19\n" +
@@ -3325,7 +3790,8 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\rfirst_seen_at\x18\r \x01(\tR\vfirstSeenAt\x12'\n" +
 	"\x0flast_collection\x18\x0e \x01(\tR\x0elastCollection\x12\x1f\n" +
 	"\vlast_status\x18\x0f \x01(\tR\n" +
-	"lastStatus\"\xec\x01\n" +
+	"lastStatus\x12&\n" +
+	"\x0fbastion_node_id\x18\x10 \x01(\x03R\rbastionNodeId\"\xec\x01\n" +
 	"\n" +
 	"Credential\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
@@ -3337,7 +3803,7 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\vfingerprint\x18\x06 \x01(\tR\vfingerprint\x12!\n" +
 	"\fexternal_ref\x18\a \x01(\tR\vexternalRef\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\b \x01(\tR\tcreatedAt\"\xf7\x03\n" +
+	"created_at\x18\b \x01(\tR\tcreatedAt\"\xa0\x04\n" +
 	"\bInstance\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\x03R\x06nodeId\x12\x1d\n" +
@@ -3360,7 +3826,8 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\bdegraded\x18\x0e \x01(\bR\bdegraded\x12\x1f\n" +
 	"\vparse_state\x18\x0f \x01(\tR\n" +
 	"parseState\x12\x14\n" +
-	"\x05state\x18\x10 \x01(\tR\x05state\"\xcb\x01\n" +
+	"\x05state\x18\x10 \x01(\tR\x05state\x12'\n" +
+	"\x0frestart_command\x18\x11 \x01(\tR\x0erestartCommand\"\xcb\x01\n" +
 	"\aHostKey\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\x03R\x06nodeId\x12\x1c\n" +
@@ -3516,7 +3983,7 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\rupstream_name\x18\x01 \x01(\tR\fupstreamName\x12!\n" +
 	"\fmember_count\x18\x02 \x01(\x05R\vmemberCount\x12%\n" +
 	"\x0ebalance_method\x18\x03 \x01(\tR\rbalanceMethod\x12<\n" +
-	"\amembers\x18\x04 \x03(\v2\".nagipath.api.v1.UpstreamMemberRefR\amembers\"\x8c\r\n" +
+	"\amembers\x18\x04 \x03(\v2\".nagipath.api.v1.UpstreamMemberRefR\amembers\"\xaf\r\n" +
 	"\x12NodeDetailResponse\x12)\n" +
 	"\x04node\x18\x01 \x01(\v2\x15.nagipath.api.v1.NodeR\x04node\x12=\n" +
 	"\vcredentials\x18\x02 \x03(\v2\x1b.nagipath.api.v1.CredentialR\vcredentials\x127\n" +
@@ -3552,7 +4019,8 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\x0fno_drift_reason\x18\x1c \x01(\tR\rnoDriftReason\x12,\n" +
 	"\x12selected_site_name\x18\x1d \x01(\tR\x10selectedSiteName\x12=\n" +
 	"\x0eselected_route\x18\x1e \x01(\v2\x16.nagipath.api.v1.RouteR\rselectedRoute\x12?\n" +
-	"\froute_effect\x18\x1f \x01(\v2\x1c.nagipath.api.v1.RouteEffectR\vrouteEffect\x1a@\n" +
+	"\froute_effect\x18\x1f \x01(\v2\x1c.nagipath.api.v1.RouteEffectR\vrouteEffect\x12!\n" +
+	"\fbastion_name\x18  \x01(\tR\vbastionName\x1a@\n" +
 	"\x12DriftByObjectEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"v\n" +
@@ -3565,16 +4033,18 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\x05added\x18\x01 \x03(\v2\x1d.nagipath.api.v1.ImportedNodeR\x05added\x12\x18\n" +
 	"\arefused\x18\x02 \x03(\tR\arefused\" \n" +
 	"\x10ListNodesRequest\x12\f\n" +
-	"\x01q\x18\x01 \x01(\tR\x01q\"\xa2\x01\n" +
+	"\x01q\x18\x01 \x01(\tR\x01q\"\xca\x01\n" +
 	"\x0eAddNodeRequest\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x12\n" +
 	"\x04port\x18\x02 \x01(\x05R\x04port\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1a\n" +
 	"\busername\x18\x04 \x01(\tR\busername\x12#\n" +
-	"\rcredential_id\x18\x05 \x01(\x03R\fcredentialId\"W\n" +
+	"\rcredential_id\x18\x05 \x01(\x03R\fcredentialId\x12&\n" +
+	"\x0fbastion_node_id\x18\x06 \x01(\x03R\rbastionNodeId\"\x7f\n" +
 	"\x12ImportNodesRequest\x12\x1c\n" +
 	"\tinventory\x18\x01 \x01(\tR\tinventory\x12#\n" +
-	"\rcredential_id\x18\x02 \x01(\x03R\fcredentialId\"\xac\x01\n" +
+	"\rcredential_id\x18\x02 \x01(\x03R\fcredentialId\x12&\n" +
+	"\x0fbastion_node_id\x18\x03 \x01(\x03R\rbastionNodeId\"\xac\x01\n" +
 	"\x0eGetNodeRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x10\n" +
 	"\x03tab\x18\x02 \x01(\tR\x03tab\x12\x18\n" +
@@ -3588,7 +4058,10 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"R\n" +
 	"\x1bChangeNodeCredentialRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12#\n" +
-	"\rcredential_id\x18\x02 \x01(\x03R\fcredentialId\"B\n" +
+	"\rcredential_id\x18\x02 \x01(\x03R\fcredentialId\"R\n" +
+	"\x18ChangeNodeBastionRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12&\n" +
+	"\x0fbastion_node_id\x18\x02 \x01(\x03R\rbastionNodeId\"B\n" +
 	"\x14DecideHostKeyRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1a\n" +
 	"\bdecision\x18\x02 \x01(\tR\bdecision\"C\n" +
@@ -3603,16 +4076,45 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\tos_family\x18\x04 \x01(\tR\bosFamily\x129\n" +
 	"\vpending_key\x18\x05 \x01(\v2\x18.nagipath.api.v1.HostKeyR\n" +
 	"pendingKey\x121\n" +
-	"\x14previous_fingerprint\x18\x06 \x01(\tR\x13previousFingerprint2\xf6\a\n" +
+	"\x14previous_fingerprint\x18\x06 \x01(\tR\x13previousFingerprint\"A\n" +
+	"\x12GetNodeFileRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\x03R\x06nodeId\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\"X\n" +
+	"\x10NodeFileResponse\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x12\n" +
+	"\x04body\x18\x02 \x01(\tR\x04body\x12\x1c\n" +
+	"\ttruncated\x18\x03 \x01(\bR\ttruncated\"W\n" +
+	"\x14WriteNodeFileRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\x03R\x06nodeId\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\"H\n" +
+	"\x15WriteNodeFileResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x1f\n" +
+	"\vbackup_path\x18\x02 \x01(\tR\n" +
+	"backupPath\"S\n" +
+	"\x16RestartInstanceRequest\x12\x1f\n" +
+	"\vinstance_id\x18\x01 \x01(\x03R\n" +
+	"instanceId\x12\x18\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\"\x90\x01\n" +
+	"\x17RestartInstanceResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\x12\x16\n" +
+	"\x06stdout\x18\x03 \x01(\tR\x06stdout\x12\x16\n" +
+	"\x06stderr\x18\x04 \x01(\tR\x06stderr\x12\x1b\n" +
+	"\texit_code\x18\x05 \x01(\x05R\bexitCode2\x80\f\n" +
 	"\vNodeService\x12b\n" +
 	"\tListNodes\x12!.nagipath.api.v1.ListNodesRequest\x1a\".nagipath.api.v1.NodesListResponse\"\x0e\x82\xd3\xe4\x93\x02\b\x12\x06/nodes\x12Z\n" +
 	"\aAddNode\x12\x1f.nagipath.api.v1.AddNodeRequest\x1a\x1b.nagipath.api.v1.IdResponse\"\x11\x82\xd3\xe4\x93\x02\v:\x01*\"\x06/nodes\x12r\n" +
-	"\vImportNodes\x12#.nagipath.api.v1.ImportNodesRequest\x1a$.nagipath.api.v1.ImportNodesResponse\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/nodes/import\x12y\n" +
+	"\vImportNodes\x12#.nagipath.api.v1.ImportNodesRequest\x1a$.nagipath.api.v1.ImportNodesResponse\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/nodes/import\x12x\n" +
+	"\vGetNodeFile\x12#.nagipath.api.v1.GetNodeFileRequest\x1a!.nagipath.api.v1.NodeFileResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/nodes/{node_id}/livefile\x12\x84\x01\n" +
+	"\rWriteNodeFile\x12%.nagipath.api.v1.WriteNodeFileRequest\x1a&.nagipath.api.v1.WriteNodeFileResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/nodes/{node_id}/livefile\x12\x91\x01\n" +
+	"\x0fRestartInstance\x12'.nagipath.api.v1.RestartInstanceRequest\x1a(.nagipath.api.v1.RestartInstanceResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /instances/{instance_id}/restart\x12y\n" +
 	"\aGetNode\x12\x1f.nagipath.api.v1.GetNodeRequest\x1a#.nagipath.api.v1.NodeDetailResponse\"(\x82\xd3\xe4\x93\x02\"Z\r\x12\v/nodes/{id}\x12\x11/nodes/{id}/{tab}\x12_\n" +
 	"\vCollectNode\x12\x1e.nagipath.api.v1.NodeIdRequest\x1a\x13.nagipath.api.v1.Ok\"\x1b\x82\xd3\xe4\x93\x02\x15\"\x13/nodes/{id}/collect\x12]\n" +
 	"\n" +
 	"DeleteNode\x12\x1e.nagipath.api.v1.NodeIdRequest\x1a\x13.nagipath.api.v1.Ok\"\x1a\x82\xd3\xe4\x93\x02\x14\"\x12/nodes/{id}/delete\x12|\n" +
-	"\x14ChangeNodeCredential\x12,.nagipath.api.v1.ChangeNodeCredentialRequest\x1a\x13.nagipath.api.v1.Ok\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/nodes/{id}/credential\x12\x80\x01\n" +
+	"\x14ChangeNodeCredential\x12,.nagipath.api.v1.ChangeNodeCredentialRequest\x1a\x13.nagipath.api.v1.Ok\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/nodes/{id}/credential\x12s\n" +
+	"\x11ChangeNodeBastion\x12).nagipath.api.v1.ChangeNodeBastionRequest\x1a\x13.nagipath.api.v1.Ok\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*\"\x13/nodes/{id}/bastion\x12\x80\x01\n" +
 	"\rDecideHostKey\x12%.nagipath.api.v1.DecideHostKeyRequest\x1a&.nagipath.api.v1.DecideHostKeyResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/hostkeys/{id}/decide\x12w\n" +
 	"\x12TestNodeConnection\x12\x1e.nagipath.api.v1.NodeIdRequest\x1a'.nagipath.api.v1.TestConnectionResponse\"\x18\x82\xd3\xe4\x93\x02\x12\"\x10/nodes/{id}/testB1Z/github.com/nagiflow/nagipath/internal/api/pb;pbb\x06proto3"
 
@@ -3628,7 +4130,7 @@ func file_nagipath_api_v1_nodes_proto_rawDescGZIP() []byte {
 	return file_nagipath_api_v1_nodes_proto_rawDescData
 }
 
-var file_nagipath_api_v1_nodes_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_nagipath_api_v1_nodes_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
 var file_nagipath_api_v1_nodes_proto_goTypes = []any{
 	(*NodeListRow)(nil),                 // 0: nagipath.api.v1.NodeListRow
 	(*NodesListResponse)(nil),           // 1: nagipath.api.v1.NodesListResponse
@@ -3662,12 +4164,19 @@ var file_nagipath_api_v1_nodes_proto_goTypes = []any{
 	(*GetNodeRequest)(nil),              // 29: nagipath.api.v1.GetNodeRequest
 	(*NodeIdRequest)(nil),               // 30: nagipath.api.v1.NodeIdRequest
 	(*ChangeNodeCredentialRequest)(nil), // 31: nagipath.api.v1.ChangeNodeCredentialRequest
-	(*DecideHostKeyRequest)(nil),        // 32: nagipath.api.v1.DecideHostKeyRequest
-	(*DecideHostKeyResponse)(nil),       // 33: nagipath.api.v1.DecideHostKeyResponse
-	(*TestConnectionResponse)(nil),      // 34: nagipath.api.v1.TestConnectionResponse
-	nil,                                 // 35: nagipath.api.v1.NodeDetailResponse.DriftByObjectEntry
-	(*IdResponse)(nil),                  // 36: nagipath.api.v1.IdResponse
-	(*Ok)(nil),                          // 37: nagipath.api.v1.Ok
+	(*ChangeNodeBastionRequest)(nil),    // 32: nagipath.api.v1.ChangeNodeBastionRequest
+	(*DecideHostKeyRequest)(nil),        // 33: nagipath.api.v1.DecideHostKeyRequest
+	(*DecideHostKeyResponse)(nil),       // 34: nagipath.api.v1.DecideHostKeyResponse
+	(*TestConnectionResponse)(nil),      // 35: nagipath.api.v1.TestConnectionResponse
+	(*GetNodeFileRequest)(nil),          // 36: nagipath.api.v1.GetNodeFileRequest
+	(*NodeFileResponse)(nil),            // 37: nagipath.api.v1.NodeFileResponse
+	(*WriteNodeFileRequest)(nil),        // 38: nagipath.api.v1.WriteNodeFileRequest
+	(*WriteNodeFileResponse)(nil),       // 39: nagipath.api.v1.WriteNodeFileResponse
+	(*RestartInstanceRequest)(nil),      // 40: nagipath.api.v1.RestartInstanceRequest
+	(*RestartInstanceResponse)(nil),     // 41: nagipath.api.v1.RestartInstanceResponse
+	nil,                                 // 42: nagipath.api.v1.NodeDetailResponse.DriftByObjectEntry
+	(*IdResponse)(nil),                  // 43: nagipath.api.v1.IdResponse
+	(*Ok)(nil),                          // 44: nagipath.api.v1.Ok
 }
 var file_nagipath_api_v1_nodes_proto_depIdxs = []int32{
 	0,  // 0: nagipath.api.v1.NodesListResponse.nodes:type_name -> nagipath.api.v1.NodeListRow
@@ -3697,7 +4206,7 @@ var file_nagipath_api_v1_nodes_proto_depIdxs = []int32{
 	11, // 24: nagipath.api.v1.NodeDetailResponse.selected_file:type_name -> nagipath.api.v1.FileRef
 	13, // 25: nagipath.api.v1.NodeDetailResponse.drift_runs:type_name -> nagipath.api.v1.DriftRun
 	15, // 26: nagipath.api.v1.NodeDetailResponse.drift_findings:type_name -> nagipath.api.v1.DriftFinding
-	35, // 27: nagipath.api.v1.NodeDetailResponse.drift_by_object:type_name -> nagipath.api.v1.NodeDetailResponse.DriftByObjectEntry
+	42, // 27: nagipath.api.v1.NodeDetailResponse.drift_by_object:type_name -> nagipath.api.v1.NodeDetailResponse.DriftByObjectEntry
 	16, // 28: nagipath.api.v1.NodeDetailResponse.selected_route:type_name -> nagipath.api.v1.Route
 	22, // 29: nagipath.api.v1.NodeDetailResponse.route_effect:type_name -> nagipath.api.v1.RouteEffect
 	24, // 30: nagipath.api.v1.ImportNodesResponse.added:type_name -> nagipath.api.v1.ImportedNode
@@ -3705,23 +4214,31 @@ var file_nagipath_api_v1_nodes_proto_depIdxs = []int32{
 	26, // 32: nagipath.api.v1.NodeService.ListNodes:input_type -> nagipath.api.v1.ListNodesRequest
 	27, // 33: nagipath.api.v1.NodeService.AddNode:input_type -> nagipath.api.v1.AddNodeRequest
 	28, // 34: nagipath.api.v1.NodeService.ImportNodes:input_type -> nagipath.api.v1.ImportNodesRequest
-	29, // 35: nagipath.api.v1.NodeService.GetNode:input_type -> nagipath.api.v1.GetNodeRequest
-	30, // 36: nagipath.api.v1.NodeService.CollectNode:input_type -> nagipath.api.v1.NodeIdRequest
-	30, // 37: nagipath.api.v1.NodeService.DeleteNode:input_type -> nagipath.api.v1.NodeIdRequest
-	31, // 38: nagipath.api.v1.NodeService.ChangeNodeCredential:input_type -> nagipath.api.v1.ChangeNodeCredentialRequest
-	32, // 39: nagipath.api.v1.NodeService.DecideHostKey:input_type -> nagipath.api.v1.DecideHostKeyRequest
-	30, // 40: nagipath.api.v1.NodeService.TestNodeConnection:input_type -> nagipath.api.v1.NodeIdRequest
-	1,  // 41: nagipath.api.v1.NodeService.ListNodes:output_type -> nagipath.api.v1.NodesListResponse
-	36, // 42: nagipath.api.v1.NodeService.AddNode:output_type -> nagipath.api.v1.IdResponse
-	25, // 43: nagipath.api.v1.NodeService.ImportNodes:output_type -> nagipath.api.v1.ImportNodesResponse
-	23, // 44: nagipath.api.v1.NodeService.GetNode:output_type -> nagipath.api.v1.NodeDetailResponse
-	37, // 45: nagipath.api.v1.NodeService.CollectNode:output_type -> nagipath.api.v1.Ok
-	37, // 46: nagipath.api.v1.NodeService.DeleteNode:output_type -> nagipath.api.v1.Ok
-	37, // 47: nagipath.api.v1.NodeService.ChangeNodeCredential:output_type -> nagipath.api.v1.Ok
-	33, // 48: nagipath.api.v1.NodeService.DecideHostKey:output_type -> nagipath.api.v1.DecideHostKeyResponse
-	34, // 49: nagipath.api.v1.NodeService.TestNodeConnection:output_type -> nagipath.api.v1.TestConnectionResponse
-	41, // [41:50] is the sub-list for method output_type
-	32, // [32:41] is the sub-list for method input_type
+	36, // 35: nagipath.api.v1.NodeService.GetNodeFile:input_type -> nagipath.api.v1.GetNodeFileRequest
+	38, // 36: nagipath.api.v1.NodeService.WriteNodeFile:input_type -> nagipath.api.v1.WriteNodeFileRequest
+	40, // 37: nagipath.api.v1.NodeService.RestartInstance:input_type -> nagipath.api.v1.RestartInstanceRequest
+	29, // 38: nagipath.api.v1.NodeService.GetNode:input_type -> nagipath.api.v1.GetNodeRequest
+	30, // 39: nagipath.api.v1.NodeService.CollectNode:input_type -> nagipath.api.v1.NodeIdRequest
+	30, // 40: nagipath.api.v1.NodeService.DeleteNode:input_type -> nagipath.api.v1.NodeIdRequest
+	31, // 41: nagipath.api.v1.NodeService.ChangeNodeCredential:input_type -> nagipath.api.v1.ChangeNodeCredentialRequest
+	32, // 42: nagipath.api.v1.NodeService.ChangeNodeBastion:input_type -> nagipath.api.v1.ChangeNodeBastionRequest
+	33, // 43: nagipath.api.v1.NodeService.DecideHostKey:input_type -> nagipath.api.v1.DecideHostKeyRequest
+	30, // 44: nagipath.api.v1.NodeService.TestNodeConnection:input_type -> nagipath.api.v1.NodeIdRequest
+	1,  // 45: nagipath.api.v1.NodeService.ListNodes:output_type -> nagipath.api.v1.NodesListResponse
+	43, // 46: nagipath.api.v1.NodeService.AddNode:output_type -> nagipath.api.v1.IdResponse
+	25, // 47: nagipath.api.v1.NodeService.ImportNodes:output_type -> nagipath.api.v1.ImportNodesResponse
+	37, // 48: nagipath.api.v1.NodeService.GetNodeFile:output_type -> nagipath.api.v1.NodeFileResponse
+	39, // 49: nagipath.api.v1.NodeService.WriteNodeFile:output_type -> nagipath.api.v1.WriteNodeFileResponse
+	41, // 50: nagipath.api.v1.NodeService.RestartInstance:output_type -> nagipath.api.v1.RestartInstanceResponse
+	23, // 51: nagipath.api.v1.NodeService.GetNode:output_type -> nagipath.api.v1.NodeDetailResponse
+	44, // 52: nagipath.api.v1.NodeService.CollectNode:output_type -> nagipath.api.v1.Ok
+	44, // 53: nagipath.api.v1.NodeService.DeleteNode:output_type -> nagipath.api.v1.Ok
+	44, // 54: nagipath.api.v1.NodeService.ChangeNodeCredential:output_type -> nagipath.api.v1.Ok
+	44, // 55: nagipath.api.v1.NodeService.ChangeNodeBastion:output_type -> nagipath.api.v1.Ok
+	34, // 56: nagipath.api.v1.NodeService.DecideHostKey:output_type -> nagipath.api.v1.DecideHostKeyResponse
+	35, // 57: nagipath.api.v1.NodeService.TestNodeConnection:output_type -> nagipath.api.v1.TestConnectionResponse
+	45, // [45:58] is the sub-list for method output_type
+	32, // [32:45] is the sub-list for method input_type
 	32, // [32:32] is the sub-list for extension type_name
 	32, // [32:32] is the sub-list for extension extendee
 	0,  // [0:32] is the sub-list for field type_name
@@ -3739,7 +4256,7 @@ func file_nagipath_api_v1_nodes_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nagipath_api_v1_nodes_proto_rawDesc), len(file_nagipath_api_v1_nodes_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   36,
+			NumMessages:   43,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -162,7 +162,7 @@ type Command struct {
 
 The SSH implementation uses `golang.org/x/crypto/ssh` in-process, because Credentials are entered in the UI and stored encrypted — shelling out to the system `ssh` client would mean materialising private keys to disk on every connection, defeating the encryption entirely (ADR-0011). Bastions work by dialling the bastion, then tunnelling a second `ssh.Client` through the resulting connection, which supports multiple hops by repetition.
 
-Host key verification uses a `HostKeyCallback` backed by the `host_key` table. An unknown key **fails the connection** and records a pending approval row. There is no trust-on-first-use path, not even a flag.
+Host key verification uses a `HostKeyCallback` backed by the `host_key` table. An unknown key **fails the connection** and records a pending approval row, by default. Settings › Host keys carries a `tofu_enabled` flag, off by default, that auto-approves only a Node's first-ever key; a key that would replace an already-approved one always fails and always requires manual approval, flag or not.
 
 ---
 

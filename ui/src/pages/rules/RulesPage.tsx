@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useRules } from '../../api/queries/rules'
 import type { LookupRulePB, RuleGroup } from '../../api/pb/nagipath/api/v1/rules_pb'
+import { parseRuleQuery, stringifyRuleQuery } from '../../lib/kql'
 import { PageHeader } from '../../components/shared/PageHeader'
 import { PanelHeader } from '../../components/shared/PanelHeader'
 import {
@@ -83,9 +84,13 @@ function GroupBody({ group, firesOnly }: { group: RuleGroup; firesOnly: boolean 
 // trace engine uses, stopped after one hop. Laid out as design/'s screen 2b:
 // the host/path pair in the query bar, the 216px facet rail, and one grouped
 // table where each band is a node and shadowed rules are greyed in place.
-// Omitted from that screen: "Saved queries · 6"/"Save query" and "Advanced
-// query" (there is no saved-query store and no query grammar behind the two
-// fields — hostname and path are the whole request), the "Cluster: all" select
+// The query bar takes a small KQL-like grammar (lib/kql.ts) — field:value
+// terms joined by and/or/not/parens — rather than separate host/path boxes;
+// compile() there rejects anything GetRules can't actually answer (not, or
+// across different fields, and repeated on vendor/class) with a specific
+// error instead of misinterpreting it.
+// Omitted from that screen: "Saved queries · 6"/"Save query" (there is no
+// saved-query store), the "Cluster: all" select
 // (GetRules filters by action class and vendor only; cluster is shown on each
 // band but not filterable server-side, and the facet counts come from the
 // server), the "Plain language" reading select (the plain-language templates
@@ -98,26 +103,47 @@ export function RulesPage() {
   const [params, setParams] = useSearchParams()
   const hostname = params.get('hostname') ?? ''
   const path = params.get('path') ?? ''
-  const [hostInput, setHostInput] = useState(hostname)
-  const [pathInput, setPathInput] = useState(path)
+  const scheme = params.get('scheme') ?? ''
+  const port = params.get('port') ?? ''
   const classes = params.getAll('class')
   const vendors = params.getAll('vendor')
   const page = Number(params.get('page') ?? '1')
   const [firesOnly, setFiresOnly] = useState(false)
 
+  const [queryInput, setQueryInput] = useState(() => stringifyRuleQuery({ hostname, path, scheme, port, classes, vendors }))
+  const [queryError, setQueryError] = useState('')
+
+  // Keeps the bar in sync whenever the committed query changes from any
+  // source — its own submit below, a facet checkbox, or a deep link — so it
+  // never shows text that would silently clear a filter set some other way.
+  useEffect(() => {
+    setQueryInput(stringifyRuleQuery({ hostname, path, scheme, port, classes, vendors }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hostname, path, scheme, port, classes.join(','), vendors.join(',')])
+
   const { data, isPending, isError, error } = useRules({
-    url: params.get('url') ?? '', hostname, path,
-    scheme: params.get('scheme') ?? '', port: params.get('port') ?? '',
+    url: params.get('url') ?? '', hostname, path, scheme, port,
     classes, vendors, page: params.get('page') ?? '',
   })
 
-  const submit = () => setParams((p) => {
-    p.delete('url')
-    if (hostInput) p.set('hostname', hostInput); else p.delete('hostname')
-    if (pathInput) p.set('path', pathInput); else p.delete('path')
-    p.delete('page')
-    return p
-  })
+  const submit = () => {
+    const result = parseRuleQuery(queryInput)
+    if ('error' in result) { setQueryError(result.error); return }
+    setQueryError('')
+    const q = result.query
+    setParams((p) => {
+      p.delete('url')
+      p.delete('class')
+      p.delete('vendor')
+      for (const [key, value] of [['hostname', q.hostname], ['path', q.path], ['scheme', q.scheme], ['port', q.port]] as const) {
+        if (value) p.set(key, value); else p.delete(key)
+      }
+      for (const v of q.vendors) p.append('vendor', v)
+      for (const c of q.classes) p.append('class', c)
+      p.delete('page')
+      return p
+    })
+  }
   const toggle = (key: 'class' | 'vendor', value: string) => setParams((p) => {
     const cur = p.getAll(key)
     p.delete(key)
@@ -138,19 +164,21 @@ export function RulesPage() {
       />
 
       <div className="qbar">
-        <span className="m mus">Which rules apply to</span>
-        <span className="fld" style={{ flex: 1.4 }}>
-          <span className="m mus">host</span>
-          <input value={hostInput} onChange={(e) => setHostInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()} placeholder="payments.corp.example" />
-        </span>
-        <span className="fld" style={{ flex: 1 }}>
-          <span className="m mus">path</span>
-          <input value={pathInput} onChange={(e) => setPathInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()} placeholder="/api/v2/charge" />
+        <span className="fld f">
+          <input
+            value={queryInput}
+            onChange={(e) => setQueryInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            placeholder='hostname:payments.corp.example and path:/api/v2/charge'
+          />
         </span>
         <Button primary onClick={submit}>Find rules</Button>
       </div>
+      {queryError && (
+        <div className="row" style={{ padding: '6px 16px 0', flex: 'none' }}>
+          <span className="m" style={{ color: '#a1231c' }}>{queryError}</span>
+        </div>
+      )}
 
       {data?.asked && (
         <div className="row" style={{ padding: '7px 16px 0', alignItems: 'center', flex: 'none' }}>
@@ -181,7 +209,7 @@ export function RulesPage() {
         {data && !data.empty && !data.asked && (
           <EmptyPrompt
             title="Name a host, a path, or both"
-            body={<>Look up the collected rules that would handle one request. A bare path, like <span className="m">/api/v2</span>, searches every site in the fleet for a route that claims it, with no host needed.</>}
+            body={<>Look up the collected rules that would handle one request, e.g. <span className="m">hostname:payments.corp.example and path:/api/v2/charge</span>. A bare <span className="m">path:/api/v2</span>, with no hostname, searches every site in the fleet for a route that claims it.</>}
           />
         )}
 

@@ -1,6 +1,7 @@
 import {
   ImportNodesResponseSchema,
   NodeDetailResponseSchema,
+  NodeFileResponseSchema,
   NodesListResponseSchema,
   TestConnectionResponseSchema,
 } from '../../api/pb/nagipath/api/v1/nodes_pb'
@@ -41,8 +42,8 @@ const node = {
 }
 
 const instances = [
-  { id: 900n, nodeId: 41n, clusterId: 2n, vendor: 'nginx', displayName: 'nginx (:443)', version: '1.24.0', mainConfigPath: '/etc/nginx/nginx.conf', nodeDisplayName: 'app-iad3-17', siteCount: 31, routeCount: 214, certCount: 6, lastCaptured: '2026-08-30T09:35:00Z', clusterName: 'app-iad3', parseState: 'parsed', state: 'drift' },
-  { id: 901n, nodeId: 41n, clusterId: 2n, vendor: 'nginx', displayName: 'nginx (:80)', version: '1.24.0', mainConfigPath: '/etc/nginx/nginx.conf', nodeDisplayName: 'app-iad3-17', siteCount: 31, routeCount: 34, certCount: 0, lastCaptured: '2026-08-30T09:35:00Z', clusterName: 'app-iad3', parseState: 'parsed', state: 'conforming' },
+  { id: 900n, nodeId: 41n, clusterId: 2n, vendor: 'nginx', displayName: 'nginx (:443)', version: '1.24.0', mainConfigPath: '/etc/nginx/nginx.conf', nodeDisplayName: 'app-iad3-17', siteCount: 31, routeCount: 214, certCount: 6, lastCaptured: '2026-08-30T09:35:00Z', clusterName: 'app-iad3', parseState: 'parsed', state: 'drift', restartCommand: 'systemctl restart nginx' },
+  { id: 901n, nodeId: 41n, clusterId: 2n, vendor: 'nginx', displayName: 'nginx (:80)', version: '1.24.0', mainConfigPath: '/etc/nginx/nginx.conf', nodeDisplayName: 'app-iad3-17', siteCount: 31, routeCount: 34, certCount: 0, lastCaptured: '2026-08-30T09:35:00Z', clusterName: 'app-iad3', parseState: 'parsed', state: 'conforming', restartCommand: '' },
 ]
 
 // Matches nodeservice.go's GetNode exactly: base + "/" + tab + "?process=" +
@@ -63,6 +64,7 @@ const base = {
   selected: instances[0],
   tabs,
   credentialName: 'iad3-collector',
+  bastionName: 'app-iad3-01',
   threshold: 3,
   stats: { sites: 31, routes: 214, upstreams: 8, certCount: 6, driftCount: 4 },
   credentials: [
@@ -222,4 +224,32 @@ export const importTestHostKeyPendingFixture = pb(TestConnectionResponseSchema, 
 })
 export const importTestFailedFixture = pb(TestConnectionResponseSchema, {
   status: 'failed', error: 'dial tcp 10.9.4.4:22: connect: connection refused',
+})
+
+// GET /nodes/41/livefile: the file as it is on the node right now, which is
+// what "Edit on node" reads before it lets anything be written back. Deliberately
+// one line off nodeFilesFixture's captured copy — the drift between a capture
+// and the live file is the reason this endpoint exists at all.
+export const nodeLiveFileFixture = pb(NodeFileResponseSchema, {
+  path: '/etc/nginx/conf.d/checkout.conf',
+  body: [
+    'server {',
+    '    listen 443 ssl http2;',
+    '    server_name checkout.example.com checkout-int.example.com;',
+    '',
+    '    ssl_certificate     /etc/ssl/checkout.pem;',
+    '    ssl_certificate_key /etc/ssl/checkout.key;',
+    '',
+    '    location = /healthz { return 200; }',
+    '',
+    '    location /api/v2/ {',
+    '        proxy_pass http://checkout_api_canary;',
+    '        proxy_set_header X-Request-Id $request_id;',
+    '        proxy_read_timeout 30s;',
+    '    }',
+    '',
+    '    location /static/ { root /srv/checkout/static; }',
+    '    location / { proxy_pass http://checkout_app; }',
+    '}',
+  ].join('\n'),
 })

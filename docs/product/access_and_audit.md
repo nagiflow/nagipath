@@ -20,7 +20,7 @@ The security reviewer's questions are predictable and specific:
 - Who can do what inside it, and is that recorded?
 - Does it phone home?
 
-Each has to have a short, verifiable answer. "It's secure" fails. "Trust on first use, then it caches the host key" fails harder, because that reviewer knows what that means.
+Each has to have a short, verifiable answer. "It's secure" fails. "Trust on first use, then it caches the host key" fails harder if it's the *only* answer offered with no way to turn it off — that reviewer knows what that means.
 
 ---
 
@@ -46,11 +46,13 @@ Private key fields are **write-only everywhere**: never returned by the API, nev
 
 Key-based and SSH-certificate authentication only. Password authentication is not supported, which removes a whole class of stored secret.
 
-### 2.3 Host keys: no trust on first use
+### 2.3 Host keys: manual approval by default, TOFU as an explicit opt-in
 
-No command runs on a Node until an operator explicitly accepts its SSH host key. The fingerprint is shown, the operator approves it, and the key is stored. A changed key **fails the connection** and requires re-approval, with both fingerprints displayed side by side.
+By default, no command runs on a Node until an operator explicitly accepts its SSH host key. The fingerprint is shown, the operator approves it, and the key is stored.
 
-Trust-on-first-use would be one line of code and it is the line that makes the tool MITM-able on first contact, against exactly the hosts that matter most. A reviewer who spots TOFU stops reading.
+Settings › Host keys carries one policy toggle, off by default: turning it on auto-approves a Node's *first-ever* host key instead of blocking on it. It changes nothing else. A changed key — one that would replace a key already approved, the actual MITM-on-an-established-host scenario — **always fails the connection** and requires manual re-approval with both fingerprints shown side by side, TOFU on or off. Turning the toggle on is itself an audited action (`hostkey_policy.update`), and every key it auto-approves is logged as `host_key.tofu_approved` rather than attributed to an operator, so it stays visible in the audit trail as what it is.
+
+The honest tradeoff: TOFU narrows the guarantee to "an established host can't be silently replaced" rather than "every host key was ever seen by a human." A deployment that wants the stronger guarantee leaves the toggle off — nothing in the product nudges it on.
 
 ### 2.4 No network scanning, ever
 

@@ -132,6 +132,12 @@ func New(db *store.DB, licenseStatus func(context.Context) (license.Status, stri
 	m.HandleFunc("POST /nodes", s.requireAuth(nodeGW.ServeHTTP))
 	m.HandleFunc("POST /nodes/import", s.requireAuth(nodeGW.ServeHTTP))
 	m.HandleFunc("GET /nodes/{id}", s.requireAuth(nodeGW.ServeHTTP))
+	// The live-file and restart routes are the write surface (sshx.Client's
+	// WriteFile and Restart); nodeservice.go's own requireAdminRPC gates them,
+	// like every other mutation on this gateway.
+	m.HandleFunc("GET /nodes/{id}/livefile", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("POST /nodes/{id}/livefile", s.requireAuth(nodeGW.ServeHTTP))
+	m.HandleFunc("POST /instances/{id}/restart", s.requireAuth(nodeGW.ServeHTTP))
 	m.HandleFunc("GET /nodes/{id}/{tab}", s.requireAuth(nodeGW.ServeHTTP))
 	m.HandleFunc("POST /nodes/{id}/collect", s.requireAuth(nodeGW.ServeHTTP))
 	m.HandleFunc("POST /nodes/{id}/delete", s.requireAuth(nodeGW.ServeHTTP))

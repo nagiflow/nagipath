@@ -3,9 +3,14 @@
 // Three invariants:
 //   - Every command comes from the closed enum in command.go.
 //   - No command runs until the Node's SSH host key has been explicitly
-//     approved by an operator. There is no trust-on-first-use.
-//   - Nothing is written to the target. There is no upload path, no `-w`, no
-//     shell that outlives a single command.
+//     approved — by an operator, or, only for a node's first-ever key and
+//     only when the tofu_enabled setting is on, automatically (see
+//     store.CheckHostKey). A key that would replace an already-approved one
+//     is never auto-approved either way.
+//   - The only writes are the operator-initiated ones: WriteFile (which always
+//     leaves a backup beside the file it replaces) and a restart of a single
+//     Instance. Both are admin-only and audited by the caller. Nothing else is
+//     written, and no shell outlives a single command.
 package sshx
 
 import (
@@ -37,6 +42,8 @@ type Result struct {
 type Executor interface {
 	Run(ctx context.Context, c Command) (Result, error)
 	ReadFile(ctx context.Context, path string, max int64, sudo bool) (data []byte, truncated bool, err error)
+	WriteFile(ctx context.Context, path, body string) (backup string, err error)
+	Restart(ctx context.Context, line string) (Result, error)
 	Check(ctx context.Context) error
 	Close() error
 }
@@ -159,8 +166,10 @@ func (d *Dialer) connect(ctx context.Context, nodeID int64, depth int) (*Client,
 	return &Client{conn: conn, parents: parents, node: node, timeout: timeout, sudoPassword: sudoPassword}, nil
 }
 
-// hostKeyCallback records an unknown key as pending and refuses the connection.
-// The refusal is the feature.
+// hostKeyCallback delegates the whole trust decision to store.CheckHostKey:
+// by default an unknown key is recorded as pending and the connection is
+// refused (the refusal is the feature) — only when tofu_enabled is on does a
+// node's first-ever key get auto-approved instead.
 func (d *Dialer) hostKeyCallback(ctx context.Context, nodeID int64) ssh.HostKeyCallback {
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		return d.DB.CheckHostKey(ctx, nodeID, key.Type(),
@@ -227,14 +236,21 @@ func (c *Client) run(ctx context.Context, cmd Command) (Result, error) {
 	var out, errBuf bytes.Buffer
 	sess.Stdout = &out
 	sess.Stderr = &errBuf
-	if sudoInput != "" {
-		sess.Stdin = strings.NewReader(sudoInput)
+	// sudo -S reads exactly one line (the password) and the command it runs
+	// then gets the rest of the stream, which is how a file body reaches dd
+	// under sudo without ever touching a command line.
+	if sudoInput != "" || cmd.Stdin != "" {
+		sess.Stdin = strings.NewReader(sudoInput + cmd.Stdin)
 	}
 
 	done := make(chan error, 1)
 	go func() { done <- sess.Run(line) }()
 
-	timer := time.NewTimer(c.timeout)
+	timeout := c.timeout
+	if cmd.Timeout > 0 {
+		timeout = cmd.Timeout
+	}
+	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	select {
 	case <-ctx.Done():
@@ -242,7 +258,7 @@ func (c *Client) run(ctx context.Context, cmd Command) (Result, error) {
 		return Result{}, ctx.Err()
 	case <-timer.C:
 		sess.Signal(ssh.SIGKILL)
-		return Result{}, fmt.Errorf("command %s timed out after %s", cmd.ID, c.timeout)
+		return Result{}, fmt.Errorf("command %s timed out after %s", cmd.ID, timeout)
 	case err := <-done:
 		res := Result{Stdout: out.String(), Stderr: errBuf.String()}
 		var ee *ssh.ExitError
@@ -293,6 +309,43 @@ func (c *Client) ReadFile(ctx context.Context, path string, max int64, sudo bool
 		return data[:max], true, nil
 	}
 	return data, false, nil
+}
+
+// WriteFile replaces path with body, after copying the existing file aside.
+// The backup path is returned so the caller can tell the operator where the
+// previous content went; it is empty when the file did not exist yet.
+//
+// sudo is used whenever the node has it: the files this edits are root-owned on
+// every fleet that matters, and a write that fails halfway is not a risk here —
+// dd cannot open the file at all without permission, so a refused write leaves
+// it untouched.
+func (c *Client) WriteFile(ctx context.Context, path, body string) (backup string, err error) {
+	sudo := c.node.SudoAvailable
+	if stat, err := c.Run(ctx, FileStat(path, sudo)); err == nil && stat.ExitCode == 0 {
+		backup = path + ".nagipath-" + time.Now().UTC().Format("20060102T150405Z") + ".bak"
+		res, err := c.Run(ctx, FileBackup(path, backup, sudo))
+		if err != nil {
+			return "", err
+		}
+		if res.ExitCode != 0 {
+			return "", fmt.Errorf("back up %s: %s", path, firstLine(res.Stderr))
+		}
+	}
+	res, err := c.Run(ctx, FileWrite(path, body, sudo))
+	if err != nil {
+		return "", err
+	}
+	if res.ExitCode != 0 {
+		return "", fmt.Errorf("write %s: %s", path, firstLine(res.Stderr))
+	}
+	return backup, nil
+}
+
+// Restart runs one operator-supplied restart line. The exit code and both
+// streams come back as data: a restart that fails is something the operator
+// has to read, not an error to flatten into a message.
+func (c *Client) Restart(ctx context.Context, line string) (Result, error) {
+	return c.Run(ctx, ServiceRestart(line, c.node.SudoAvailable))
 }
 
 // Check is the cheapest proof that the connection works and tells us the two

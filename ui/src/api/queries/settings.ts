@@ -54,6 +54,17 @@ export function useDecideHostKey() {
   })
 }
 
+// Off by default: a rekey (a key replacing an already-approved one) is never
+// auto-approved by this setting, tofu_enabled or not — only a node's
+// first-ever key is (internal/store/hostkey.go's CheckHostKey).
+export function useSetHostKeyPolicy() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (tofuEnabled: boolean) => api.postAction('/settings/hostkeys/policy', { tofu_enabled: tofuEnabled }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings-hostkeys'] }),
+  })
+}
+
 // ---------------------------------------------------------------- master key
 
 export function useMasterKey() {

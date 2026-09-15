@@ -161,5 +161,5 @@ The secret, held outside the database, that every stored Credential is encrypted
 _Avoid_: encryption key, secret key, root key
 
 **Host Key Approval**:
-The operator's explicit acceptance of a Node's SSH host key. Until it is given, nagipath runs no command on that Node.
+The operator's explicit acceptance of a Node's SSH host key. Until it is given, nagipath runs no command on that Node — unless the off-by-default `tofu_enabled` setting has auto-approved the Node's first-ever key, which a key that would replace an approved one never is; that always still needs explicit approval.
 _Avoid_: trust, fingerprint check, known host

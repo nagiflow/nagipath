@@ -9,10 +9,10 @@ import (
 type NodeListRow struct {
 	Node
 	// Vendor, Version, Cluster: mixed when the node runs multiple distinct processes.
-	Vendor        sql.NullString
-	Version       sql.NullString
-	Cluster       sql.NullString
-	ProcessCount  int
+	Vendor       sql.NullString
+	Version      sql.NullString
+	Cluster      sql.NullString
+	ProcessCount int
 	Listeners    sql.NullString // comma-separated port list (NULL when no listeners)
 	LastCaptured sql.NullString
 	// The last collection attempt lands in the embedded Node's LastCollection and
@@ -107,7 +107,7 @@ func (db *DB) NodeProcesses(ctx context.Context, nodeID int64) ([]Instance, erro
 			i.id, i.node_id, i.cluster_id, i.vendor, i.natural_key, i.display_name,
 			i.version, i.binary_path, i.config_root, i.main_config_path, i.build_flags,
 			i.service_manager, i.unit_name, i.detected_pid, i.first_seen_at, i.last_seen_at,
-			i.retired_at,
+			i.retired_at, i.restart_command,
 			(SELECT COUNT(*) FROM site WHERE snapshot_id = (SELECT id FROM snapshot WHERE instance_id = i.id AND is_current = 1 LIMIT 1)) AS site_count,
 			(SELECT COUNT(*) FROM route WHERE snapshot_id = (SELECT id FROM snapshot WHERE instance_id = i.id AND is_current = 1 LIMIT 1)) AS route_count,
 			-- certificate_id, not subject_cn: the subject lives on certificate, and one
@@ -136,7 +136,7 @@ func (db *DB) NodeProcesses(ctx context.Context, nodeID int64) ([]Instance, erro
 			&i.ID, &i.NodeID, &i.ClusterID, &i.Vendor, &i.NaturalKey, &i.DisplayName,
 			&i.Version, &i.BinaryPath, &i.ConfigRoot, &i.MainConfigPath, &i.BuildFlags,
 			&i.ServiceManager, &i.UnitName, &i.DetectedPID, &i.FirstSeenAt, &i.LastSeenAt,
-			&i.RetiredAt,
+			&i.RetiredAt, &i.RestartCommand,
 			&i.SiteCount, &i.RouteCount, &i.CertCount, &i.LastCaptured, &i.Ports,
 			&i.ClusterName,
 		)

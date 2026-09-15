@@ -1,0 +1,7 @@
+/* The editable twin of .code (CodeBlock.css): same face, same ground, so a
+   file being edited reads as the same file that was being viewed. No gutter —
+   line numbers cannot stay aligned with text the operator is retyping. */
+.ced{display:flex;flex-direction:column;flex:1;min-height:0}
+.ced textarea{flex:1;min-height:0;width:100%;box-sizing:border-box;resize:none;font:11.5px/1.6 Inter,sans-serif;tab-size:4;color:#343741;background:#fff;border:1px solid #d3dae6;border-radius:4px;padding:7px 10px;outline:none;white-space:pre;overflow:auto}
+.ced textarea:focus{border-color:#0077cc;box-shadow:0 0 0 1px #0077cc}
+.ced textarea:disabled{background:#f7f8fc;opacity:.65}

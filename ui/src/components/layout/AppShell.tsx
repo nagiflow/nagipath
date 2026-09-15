@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useSession } from '../../api/queries/session'
 import { logout } from '../../lib/auth'
 import { breadcrumbFor, navGroups, settingsHref } from './navConfig'
-import { EmptyPrompt, Loading, navIcons, SettingsIcon } from '../ui'
+import { EmptyPrompt, Loading, Mark, navIcons, SettingsIcon } from '../ui'
 
 // design/'s header search box ("Search hosts, rules, certificates" · ⌘K) —
 // routes into the existing Config search page rather than a new search
@@ -70,7 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <header className="hdr">
-        <Link to="/" className="lg">nagipath</Link>
+        <Link to="/" className="lg"><span className="ic"><Mark /></span>nagipath</Link>
         {session.demoMode && <span className="bg d">DEMO</span>}
         {crumb && (
           <span className="crumb">

@@ -74,6 +74,8 @@ message LastProbePB {
   string requested_at = 3;
   string error = 4;
   repeated ProbedHopPB probed = 5;
+  // Links "Last probe" straight to its Probe detail page (GET /trace/probe/{id}).
+  int64 probe_id = 6;
 }
 
 message ProbeStepPB {

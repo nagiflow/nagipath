@@ -29,6 +29,9 @@ type Instance struct {
 	FirstSeenAt    string
 	LastSeenAt     string
 	RetiredAt      sql.NullString
+	// RestartCommand is the operator's override for this Instance. Empty means
+	// the derived default is used instead (api.effectiveRestartCommand).
+	RestartCommand string
 
 	// Joined for list views.
 	NodeAddress     string
@@ -181,12 +184,12 @@ func (db *DB) Instance(ctx context.Context, id int64) (Instance, error) {
 		i.natural_key, i.display_name, i.version, i.binary_path, i.config_root,
 		i.main_config_path, i.build_flags, i.service_manager, i.unit_name, i.detected_pid,
 		i.access_log_paths, i.first_seen_at, i.last_seen_at, i.retired_at,
-		n.address, n.display_name
+		i.restart_command, n.address, n.display_name
 		FROM instance i JOIN node n ON n.id = i.node_id WHERE i.id = ?`, id).
 		Scan(&in.ID, &in.NodeID, &in.ClusterID, &in.Vendor, &in.NaturalKey, &in.DisplayName,
 			&in.Version, &in.BinaryPath, &in.ConfigRoot, &in.MainConfigPath, &in.BuildFlags,
 			&in.ServiceManager, &in.UnitName, &in.DetectedPID, &logs, &in.FirstSeenAt,
-			&in.LastSeenAt, &in.RetiredAt, &in.NodeAddress, &in.NodeDisplayName)
+			&in.LastSeenAt, &in.RetiredAt, &in.RestartCommand, &in.NodeAddress, &in.NodeDisplayName)
 	if err != nil {
 		return in, err
 	}
@@ -570,4 +573,15 @@ func boolInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// SetInstanceRestartCommand stores the operator's restart override for one
+// Instance, so the next restart prefills what worked last time.
+func (db *DB) SetInstanceRestartCommand(ctx context.Context, id int64, command string, by *int64) error {
+	if _, err := db.W.ExecContext(ctx,
+		`UPDATE instance SET restart_command = ? WHERE id = ?`, command, id); err != nil {
+		return err
+	}
+	db.Audit(ctx, by, "instance.restart_command", "instance", &id, command)
+	return nil
 }

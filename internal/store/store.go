@@ -229,6 +229,10 @@ var settingDefaults = map[string]string{
 	"snapshot_max_files":              "2000",
 	"quarantine_after_failures":       "10",
 	"ssh_workers":                     "8",
+	// Off by default — see CheckHostKey (hostkey.go). A rekey (a key that
+	// replaces an already-approved one) is never auto-approved by this
+	// setting; only a node's first-ever key is.
+	"tofu_enabled": "0",
 }
 
 func (db *DB) Setting(ctx context.Context, key string) string {
@@ -246,6 +250,10 @@ func (db *DB) SettingInt(ctx context.Context, key string) int {
 		n, _ = strconv.Atoi(settingDefaults[key])
 	}
 	return n
+}
+
+func (db *DB) SettingBool(ctx context.Context, key string) bool {
+	return db.Setting(ctx, key) == "1"
 }
 
 func (db *DB) SetSetting(ctx context.Context, key, value string, by *int64) error {

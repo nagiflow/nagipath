@@ -177,6 +177,37 @@ func (db *DB) SetNodeCredential(ctx context.Context, id, credentialID int64, by 
 	return tx.Commit()
 }
 
+// SetNodeBastion changes which node (if any) this node's connections tunnel
+// through. bastion nil clears it back to a direct connection.
+func (db *DB) SetNodeBastion(ctx context.Context, id int64, bastion *int64, by *int64) error {
+	if bastion != nil && *bastion == id {
+		return fmt.Errorf("a node cannot be its own proxy")
+	}
+	tx, err := db.W.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var address string
+	if err := tx.QueryRowContext(ctx, `SELECT address FROM node WHERE id = ?`, id).Scan(&address); err != nil {
+		return err
+	}
+	label := "direct connection"
+	if bastion != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT display_name FROM node WHERE id = ?`, *bastion).Scan(&label); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE node SET bastion_node_id = ? WHERE id = ?`, bastion, id); err != nil {
+		return err
+	}
+	if err := auditTx(ctx, tx, by, "node.bastion_changed", "node", &id,
+		fmt.Sprintf("%s: %s", address, label)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (db *DB) DeleteNode(ctx context.Context, id int64, by *int64) error {
 	tx, err := db.W.BeginTx(ctx, nil)
 	if err != nil {

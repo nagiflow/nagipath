@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -89,8 +90,12 @@ func (c *nodeService) AddNode(ctx context.Context, req *pb.AddNodeRequest) (*pb.
 	if req.CredentialId > 0 {
 		credID = &req.CredentialId
 	}
+	var bastionID *int64
+	if req.BastionNodeId > 0 {
+		bastionID = &req.BastionNodeId
+	}
 	u := userOf(ctx)
-	id, err := c.s.DB.AddNode(ctx, address, port, name, username, credID, nil, "manual", &u.ID)
+	id, err := c.s.DB.AddNode(ctx, address, port, name, username, credID, bastionID, "manual", &u.ID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -114,10 +119,14 @@ func (c *nodeService) ImportNodes(ctx context.Context, req *pb.ImportNodesReques
 		return nil, status.Error(codes.InvalidArgument, "select a credential before adding nodes")
 	}
 	credID := req.CredentialId
+	var bastionID *int64
+	if req.BastionNodeId > 0 {
+		bastionID = &req.BastionNodeId
+	}
 
 	var added []*pb.ImportedNode
 	for _, h := range hosts {
-		id, err := s.DB.AddNode(ctx, h.Address, h.Port, h.Name, h.User, &credID, nil, "ansible_inventory", &u.ID)
+		id, err := s.DB.AddNode(ctx, h.Address, h.Port, h.Name, h.User, &credID, bastionID, "ansible_inventory", &u.ID)
 		if err != nil {
 			refused = append(refused, h.label()+": "+err.Error())
 			continue
@@ -173,6 +182,11 @@ func (c *nodeService) GetNode(ctx context.Context, req *pb.GetNodeRequest) (*pb.
 				nb.CredentialName = cr.Name
 				break
 			}
+		}
+	}
+	if n.BastionNodeID.Valid {
+		if bastion, err := s.DB.Node(ctx, n.BastionNodeID.Int64); err == nil {
+			nb.BastionName = bastion.DisplayName
 		}
 	}
 
@@ -299,6 +313,24 @@ func (c *nodeService) ChangeNodeCredential(ctx context.Context, req *pb.ChangeNo
 	return &pb.Ok{Ok: true}, nil
 }
 
+// ChangeNodeBastion sets or clears the node this node's connections tunnel
+// through — the same underlying node.bastion_node_id sshx.go's dialer already
+// follows, just not settable from the API until now.
+func (c *nodeService) ChangeNodeBastion(ctx context.Context, req *pb.ChangeNodeBastionRequest) (*pb.Ok, error) {
+	if err := requireAdminRPC(ctx); err != nil {
+		return nil, err
+	}
+	var bastionID *int64
+	if req.BastionNodeId > 0 {
+		bastionID = &req.BastionNodeId
+	}
+	u := userOf(ctx)
+	if err := c.s.DB.SetNodeBastion(ctx, req.Id, bastionID, &u.ID); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	return &pb.Ok{Ok: true}, nil
+}
+
 func (c *nodeService) DecideHostKey(ctx context.Context, req *pb.DecideHostKeyRequest) (*pb.DecideHostKeyResponse, error) {
 	if err := requireAdminRPC(ctx); err != nil {
 		return nil, err
@@ -350,4 +382,142 @@ func (c *nodeService) TestNodeConnection(ctx context.Context, req *pb.NodeIdRequ
 	}
 	osFamily, _ := host.Facts()
 	return &pb.TestConnectionResponse{Status: "connected", LatencyMs: latency, OsFamily: osFamily}, nil
+}
+
+// maxLiveFileBytes caps both directions of the edit path. A config file is a
+// text file an operator reads; anything past this is a log, a binary or a
+// mistake, and reading it into a browser textarea helps nobody.
+const maxLiveFileBytes = 1 << 20
+
+// checkLivePath is the whole of the path policy: absolute, clean, no traversal.
+// Which files are readable and writable at all is the node's own business —
+// the SSH credential's permissions and its sudoers grant decide that, and
+// nagipath deliberately does not keep a second allowlist that would drift from
+// them.
+func checkLivePath(p string) (string, error) {
+	p = strings.TrimSpace(p)
+	if p == "" || !strings.HasPrefix(p, "/") || p != path.Clean(p) {
+		return "", status.Error(codes.InvalidArgument, "Give an absolute, normalized file path.")
+	}
+	return p, nil
+}
+
+// GetNodeFile reads a file off the Node as it is now. The Snapshot viewer shows
+// what a Collection captured; this is the other thing — the current bytes, which
+// is what an edit has to be based on.
+func (c *nodeService) GetNodeFile(ctx context.Context, req *pb.GetNodeFileRequest) (*pb.NodeFileResponse, error) {
+	if err := requireAdminRPC(ctx); err != nil {
+		return nil, err
+	}
+	p, err := checkLivePath(req.Path)
+	if err != nil {
+		return nil, err
+	}
+	host, err := c.s.Collector.Dialer.Connect(ctx, req.NodeId)
+	if err != nil {
+		return nil, status.Error(codes.Unavailable, err.Error())
+	}
+	defer host.Close()
+	body, truncated, err := host.ReadFile(ctx, p, maxLiveFileBytes, false)
+	if err != nil {
+		return nil, status.Error(codes.FailedPrecondition, err.Error())
+	}
+	return &pb.NodeFileResponse{Path: p, Body: string(body), Truncated: truncated}, nil
+}
+
+// WriteNodeFile replaces a file on the Node, leaving the previous content in a
+// timestamped backup beside it. It deliberately does not run the vendor's own
+// config test afterwards: the operator restarts the Instance when they are
+// ready, and that is where a bad config surfaces, with the vendor's own words.
+func (c *nodeService) WriteNodeFile(ctx context.Context, req *pb.WriteNodeFileRequest) (*pb.WriteNodeFileResponse, error) {
+	if err := requireAdminRPC(ctx); err != nil {
+		return nil, err
+	}
+	p, err := checkLivePath(req.Path)
+	if err != nil {
+		return nil, err
+	}
+	if len(req.Body) > maxLiveFileBytes {
+		return nil, status.Errorf(codes.InvalidArgument, "That file is larger than the %d KB edit limit.", maxLiveFileBytes/1024)
+	}
+	host, err := c.s.Collector.Dialer.Connect(ctx, req.NodeId)
+	if err != nil {
+		return nil, status.Error(codes.Unavailable, err.Error())
+	}
+	defer host.Close()
+
+	u := userOf(ctx)
+	backup, err := host.WriteFile(ctx, p, req.Body)
+	if err != nil {
+		c.s.DB.AuditDetail(ctx, &u.ID, "node.file.write", "node", &req.NodeId, p,
+			map[string]any{"path": p, "error": err.Error()}, "failed", remoteAddrOf(ctx))
+		return nil, status.Error(codes.FailedPrecondition, err.Error())
+	}
+	c.s.DB.AuditDetail(ctx, &u.ID, "node.file.write", "node", &req.NodeId, p,
+		map[string]any{"path": p, "bytes": len(req.Body), "backup": backup}, "ok", remoteAddrOf(ctx))
+	return &pb.WriteNodeFileResponse{Ok: true, BackupPath: backup}, nil
+}
+
+// effectiveRestartCommand is the operator's override, or the one default that
+// can be derived honestly: a systemd unit nagipath already discovered. Nothing
+// is guessed from the vendor name — "nginx" is not reliably the unit name, and
+// a wrong guess restarts the wrong process.
+func effectiveRestartCommand(in store.Instance) string {
+	if cmd := strings.TrimSpace(in.RestartCommand); cmd != "" {
+		return cmd
+	}
+	if in.ServiceManager == "systemd" && in.UnitName != "" {
+		return "systemctl restart " + in.UnitName
+	}
+	return ""
+}
+
+// RestartInstance runs one restart line against the Node the Instance sits on.
+// A non-zero exit is returned as data, not as an error: "systemctl says the
+// unit failed" is the answer the operator came for.
+func (c *nodeService) RestartInstance(ctx context.Context, req *pb.RestartInstanceRequest) (*pb.RestartInstanceResponse, error) {
+	if err := requireAdminRPC(ctx); err != nil {
+		return nil, err
+	}
+	s := c.s
+	in, err := s.DB.Instance(ctx, req.InstanceId)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "No such process.")
+	}
+	command := strings.TrimSpace(req.Command)
+	if command == "" {
+		command = effectiveRestartCommand(in)
+	}
+	if command == "" {
+		return nil, status.Error(codes.InvalidArgument,
+			"No restart command for this process — nagipath only derives one for a systemd unit it discovered. Enter the command to run.")
+	}
+	u := userOf(ctx)
+	if command != strings.TrimSpace(in.RestartCommand) {
+		if err := s.DB.SetInstanceRestartCommand(ctx, in.ID, command, &u.ID); err != nil {
+			return nil, status.Error(codes.Unavailable, err.Error())
+		}
+	}
+
+	host, err := s.Collector.Dialer.Connect(ctx, in.NodeID)
+	if err != nil {
+		return nil, status.Error(codes.Unavailable, err.Error())
+	}
+	defer host.Close()
+	res, err := host.Restart(ctx, command)
+	if err != nil {
+		s.DB.AuditDetail(ctx, &u.ID, "instance.restart", "instance", &in.ID, in.DisplayName,
+			map[string]any{"command": command, "error": err.Error()}, "failed", remoteAddrOf(ctx))
+		return nil, status.Error(codes.FailedPrecondition, err.Error())
+	}
+	outcome := "ok"
+	if res.ExitCode != 0 {
+		outcome = "failed"
+	}
+	s.DB.AuditDetail(ctx, &u.ID, "instance.restart", "instance", &in.ID, in.DisplayName,
+		map[string]any{"command": command, "exit_code": res.ExitCode}, outcome, remoteAddrOf(ctx))
+	return &pb.RestartInstanceResponse{
+		Ok: res.ExitCode == 0, Command: command,
+		Stdout: res.Stdout, Stderr: res.Stderr, ExitCode: int32(res.ExitCode),
+	}, nil
 }

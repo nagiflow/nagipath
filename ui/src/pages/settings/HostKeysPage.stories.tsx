@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { HostKeysPage } from './HostKeysPage'
 import { pageMeta } from '../../stories/support/story'
-import { hostKeysFixture } from '../../stories/fixtures/settings'
+import { hostKeysFixture, hostKeysTofuFixture } from '../../stories/fixtures/settings'
 
 export default {
   title: 'Pages/Settings/Host keys',
@@ -14,3 +14,7 @@ export default {
 } satisfies Meta
 
 export const Default: StoryObj = {}
+
+export const TrustOnFirstUse: StoryObj = {
+  parameters: { api: { '/settings/hostkeys': hostKeysTofuFixture } },
+}

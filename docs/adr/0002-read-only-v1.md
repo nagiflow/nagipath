@@ -8,4 +8,6 @@ nagipath also never scans networks. Nodes are supplied by the operator as a host
 
 The single exception to read-only is the Probe: an operator-initiated GET or HEAD request used to verify a Trace. It is never scheduled, never automatic, capped in redirect depth, audited with actor and target, and labelled with the host it originated from — because source-IP policy, WAF rules or a different ingress can route it differently than a real user's request.
 
-Editing is v2 and its mechanism is deliberately undecided; see `docs/OPEN-DECISIONS.md`.
+Editing is no longer undecided: [ADR-0020](0020-operator-initiated-edit-and-restart.md) adds two
+operator-initiated writes — edit one file, restart one Instance — and keeps everything else in this
+ADR's list rejected.

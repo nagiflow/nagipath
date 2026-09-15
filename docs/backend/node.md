@@ -68,7 +68,7 @@ State is **computed**, not stored — derived from `enabled`, `retired_at`, `con
 4. Insert with `source='manual'` or `'ansible_inventory'`, `enabled=1`, `first_seen_at=now`.
 5. **Do not connect.** Creation is a database write; connection is an explicit next step, so a mistyped address does not produce a mysterious hang on a form submit.
 6. `POST /nodes/{id}/check` performs first contact: dial, present the resolved Credential, capture the host key.
-   - Unknown host key → insert `host_key` state `pending`, **fail the connection**, return `409 host_key_not_approved`. There is no trust-on-first-use path, not even behind a flag.
+   - Unknown host key → insert `host_key` state `pending`, **fail the connection**, return `409 host_key_not_approved` — unless `tofu_enabled` (Settings › Host keys, off by default) is on and this is the Node's first-ever key, in which case it's auto-approved instead. A key replacing one already approved is always `pending` and always fails, regardless of that setting.
    - Approved key present → authenticate, run `id`, `uname -s`, and a `sudo -n -l` probe, set `os_family` and `sudo_available`.
    - The probe is `-l`, not `sudo -n true`: `true` is not in the grant nagipath documents, so probing with it would report every correctly configured host as having no sudo and then silently degrade all of its Collections. `-l` asks sudo what the user may run, which needs no grant of its own.
 7. On the first successful check, enqueue a `first_contact` Collection immediately rather than waiting for the schedule — the operator is standing there watching.

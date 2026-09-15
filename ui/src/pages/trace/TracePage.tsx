@@ -428,7 +428,14 @@ export function TracePage() {
                   <PanelHeader
                     title="Last probe"
                     meta={`${data.lastProbe.method} · ${new Date(data.lastProbe.requestedAt).toLocaleString()}`}
-                    actions={<Badge cls={data.lastProbe.outcome === 'completed' ? 'v' : 'd'}>{data.lastProbe.outcome.toUpperCase()}</Badge>}
+                    actions={
+                      <>
+                        <Badge cls={data.lastProbe.outcome === 'completed' ? 'v' : 'd'}>{data.lastProbe.outcome.toUpperCase()}</Badge>
+                        {data.lastProbe.probeId > 0 && (
+                          <Button small subtle href={`/trace/probe?probe=${data.lastProbe.probeId}`}>View probe ›</Button>
+                        )}
+                      </>
+                    }
                   />
                   <div style={{ padding: '2px 12px 8px' }}>
                     {data.lastProbe.error && <div className="m" style={{ color: '#a1231c' }}>{data.lastProbe.error}</div>}

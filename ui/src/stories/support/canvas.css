@@ -30,12 +30,12 @@
 
 .sb-canvas figcaption b {
   margin-right: 6px;
-  font: 600 11px "Roboto Mono", monospace;
+  font: 600 11px Inter, sans-serif;
   color: #1d1e24;
 }
 
 .sb-canvas figcaption code {
-  font: 400 11px "Roboto Mono", monospace;
+  font: 400 11px Inter, sans-serif;
   color: #98a2b3;
 }
 

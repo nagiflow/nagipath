@@ -102,7 +102,7 @@ stateDiagram-v2
 
 Rules:
 
-- `HostKeyCallback` consults the `host_key` table. No approved row → **connection fails** and a `pending` row is inserted. There is no trust-on-first-use, not even behind a flag or a first-run wizard.
+- `HostKeyCallback` consults the `host_key` table. No approved row → **connection fails** and a `pending` row is inserted, unless the `tofu_enabled` setting (Settings › Host keys, off by default) is on and this is the Node's first-ever key for that algorithm, in which case it's inserted `approved` and audited as `host_key.tofu_approved` instead. A key that would replace an already-approved one is never auto-approved by this setting — see the next rule.
 - Approval and rejection are audited with actor, fingerprint and Node.
 - A **different** key where an approved one exists is a distinct and louder state than an unknown key: the old row goes `superseded`, a new `pending` row appears, the Node stops collecting, and the UI says *the host key changed* rather than *approve this host*. That is the case where a mistake is a possible interception.
 - Bulk approval exists for onboarding (`POST /host-keys/approve` with a list) because approving 200 keys one at a time trains operators to click without reading. It shows every fingerprint, is audited per key, and **refuses to include any `superseded` transition** — changed keys must be approved individually.

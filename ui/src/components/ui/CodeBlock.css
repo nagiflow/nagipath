@@ -1,4 +1,4 @@
-.code{font:11.5px/1.6 "Roboto Mono",monospace;background:#f7f8fc;border:1px solid #d3dae6;border-radius:4px;padding:7px 0;overflow:auto}
+.code{font:11.5px/1.6 Inter,sans-serif;background:#f7f8fc;border:1px solid #d3dae6;border-radius:4px;padding:7px 0;overflow:auto}
 .cl{display:flex;gap:10px;padding:0 10px;white-space:pre}
 .cl .no{color:#c1c7d4;width:30px;text-align:right;flex:none}
 .cl.on{background:#fff8e1;box-shadow:inset 2px 0 0 #f5a700}

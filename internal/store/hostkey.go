@@ -7,9 +7,11 @@ import (
 	"fmt"
 )
 
-// ErrHostKeyPending is returned when a Node presents a key nobody has approved.
-// It is not a transient failure: the collection stops here until an operator
-// decides. There is no trust-on-first-use path anywhere in this package.
+// ErrHostKeyPending is returned when a Node presents a key nobody has approved
+// and the tofu_enabled setting is off (the default). It is not a transient
+// failure: the collection stops here until an operator decides. A key that
+// would replace an already-approved one is never auto-approved regardless of
+// tofu_enabled — see CheckHostKey.
 type ErrHostKeyPending struct {
 	NodeID      int64
 	Algorithm   string
@@ -47,6 +49,9 @@ type HostKey struct {
 }
 
 // CheckHostKey is the whole trust decision. Called from the ssh.HostKeyCallback.
+// A key that would replace one already approved for this node+algorithm is
+// always a mismatch requiring a manual decision — tofu_enabled only ever
+// applies to a node's first-ever key for that algorithm.
 func (db *DB) CheckHostKey(ctx context.Context, nodeID int64, algorithm, publicKey, fingerprint string) error {
 	var state string
 	err := db.R.QueryRowContext(ctx,
@@ -79,6 +84,24 @@ func (db *DB) CheckHostKey(ctx context.Context, nodeID int64, algorithm, publicK
 		return &ErrHostKeyMismatch{nodeID, algorithm, approved, fingerprint}
 	case !errors.Is(err, sql.ErrNoRows):
 		return err
+	}
+
+	if db.SettingBool(ctx, "tofu_enabled") {
+		tx, err := db.W.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO host_key
+			(node_id, algorithm, public_key, fingerprint, state, first_seen_at, decided_at)
+			VALUES (?,?,?,?,'approved',?,?)`, nodeID, algorithm, publicKey, fingerprint, Now(), Now()); err != nil {
+			return err
+		}
+		if err := auditTx(ctx, tx, nil, "host_key.tofu_approved", "node", &nodeID,
+			fmt.Sprintf("%s %s", algorithm, fingerprint)); err != nil {
+			return err
+		}
+		return tx.Commit()
 	}
 
 	if _, err := db.W.ExecContext(ctx, `INSERT OR IGNORE INTO host_key

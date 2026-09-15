@@ -18,9 +18,8 @@ believing it was an oversight:
 |---|---|
 | Every screen | Share, Export ▾, Customize, Views, Saved queries, Save search — nothing persists a view, and a "saved trace" would be a stored result nobody can re-derive. |
 | Settings | SAML, external KMS / Vault, per-user cluster scopes, a Service role, API-key scopes / rate limits / IP restriction / request logs. Roles are viewer and admin; the master key is a file on disk. |
-| Credentials | Credential testing, "test on N nodes", bastion / jump-host type, an "assigned to" cluster scope, a health column. Credentials resolve per node and have no runtime state. |
+| Credentials | Credential testing, "test on N nodes", an "assigned to" cluster scope, a health column. Credentials resolve per node and have no runtime state. |
 | Collection | A schedule editor, bulk collection. One global interval, which the collector actually reads. |
-| Host keys | Trust-on-first-use. Every key is decided by a person. |
 | Certificates | Chain completeness, OCSP, an externally-reachable flag, "find replacements". The collector parses the leaf; `combined_pem` is the one bundle fact stored. |
 | Drift | Reviewed / viewed tracking, "mark node reviewed", file-text diffs, patch export. Drift is computed over parsed objects, so a reformat is not a divergence. |
 | Config files | The include tree, file mode / owner / mtime. Rebuilding the tree means reparsing every file per page load. |
