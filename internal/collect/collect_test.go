@@ -19,6 +19,7 @@ type fakeHost struct {
 	out   map[sshx.ID]string
 	files map[string]string
 	ran   []sshx.ID
+	lines map[sshx.ID]string // the last command line run per id
 	// onStderr answers these commands on stderr instead of stdout. Real servers
 	// disagree about which stream is which — nginx prints -V to stderr and some
 	// builds print -T there too — so the collector may not assume stdout.
@@ -27,6 +28,10 @@ type fakeHost struct {
 
 func (f *fakeHost) Run(ctx context.Context, c sshx.Command) (sshx.Result, error) {
 	f.ran = append(f.ran, c.ID)
+	if f.lines == nil {
+		f.lines = map[sshx.ID]string{}
+	}
+	f.lines[c.ID] = c.Line
 	if c.ID == sshx.CmdFileRead {
 		for path, body := range f.files {
 			if strings.Contains(c.Line, path) {
@@ -508,5 +513,45 @@ func TestLogPathsHAProxyFallback(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// An Apache fallback walk starts at ServerRoot, not at the conf/ directory
+// httpd.conf sits in. On the stock RHEL layout the vhosts are in
+// /etc/httpd/conf.d — one level above httpd.conf — so walking conf/ captures
+// the main file, parses cleanly, and reports a successful collection with no
+// sites in it.
+func TestApacheFallbackWalksFromServerRoot(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	nodeID := seedNode(t, db)
+	host := &fakeHost{out: map[sshx.ID]string{
+		sshx.CmdUname:     "Linux 6.1.0",
+		sshx.CmdSudoCheck: "",
+		sshx.CmdProcList:  "1\t/usr/sbin/httpd -DFOREGROUND\n",
+		sshx.CmdWhich:     "/usr/sbin/httpd\n",
+		sshx.CmdHTTPDVersion: "Server version: Apache/2.4.57 (rocky)\n" +
+			" -D HTTPD_ROOT=\"/etc/httpd\"\n" +
+			" -D SERVER_CONFIG_FILE=\"conf/httpd.conf\"\n",
+		// DUMP_INCLUDES is absent (exit 127), which is what forces the walk.
+		sshx.CmdFindConf: "/etc/httpd/conf/httpd.conf\n/etc/httpd/conf.d/site.conf\n",
+	}, files: map[string]string{
+		"/etc/httpd/conf/httpd.conf":  "Listen 80\nIncludeOptional conf.d/*.conf\n",
+		"/etc/httpd/conf.d/site.conf": "<VirtualHost *:80>\n  ServerName shop.example.com\n</VirtualHost>\n",
+	}}
+
+	c := &Collector{DB: db, Dialer: host}
+	if err := c.Node(ctx, nodeID, "manual", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := host.lines[sshx.CmdFindConf]; !strings.Contains(got, "/etc/httpd ") && !strings.Contains(got, "'/etc/httpd'") {
+		t.Errorf("fallback walk ran %q, want it rooted at ServerRoot /etc/httpd", got)
+	}
+	sites, err := db.Sites(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sites) == 0 {
+		t.Fatal("no sites: the vhost in /etc/httpd/conf.d was never captured")
 	}
 }

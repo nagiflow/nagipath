@@ -355,7 +355,11 @@ func (c *Collector) captureApache(ctx context.Context, ex sshx.Executor, f Found
 	if len(paths) == 0 {
 		cp.fail("DUMP_INCLUDES named no files; falling back to reading the config tree")
 		cp.source = "fallback_walk"
-		cp.files = append(cp.files, c.walk(ctx, ex, cp, cp.mainConfig, path.Dir(cp.mainConfig))...)
+		// From ServerRoot, not from the conf/ directory httpd.conf sits in:
+		// the vhosts are in $ServerRoot/conf.d and $ServerRoot/sites-enabled,
+		// one level above httpd.conf, so walking conf/ captures the main file
+		// and nothing that defines a site.
+		cp.files = append(cp.files, c.walk(ctx, ex, cp, cp.mainConfig, root)...)
 		return
 	}
 	cp.files = append(cp.files, c.read(ctx, ex, cp, paths)...)
