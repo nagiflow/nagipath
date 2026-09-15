@@ -61,7 +61,26 @@ type Client struct {
 	parents      []*ssh.Client
 	node         store.Node
 	timeout      time.Duration
-	sudoPassword string // set only for username/password and LDAP-backed SSH
+	sudoPassword string // set only for username/password credentials
+}
+
+// A password credential offers both password and keyboard-interactive: sshd
+// with PAM (RHEL's default) advertises only keyboard-interactive, and OpenSSH
+// silently answers its prompts with the password — which is why a node that
+// accepts `ssh user@host` still failed here with "no supported methods
+// remain [none password]". Same one secret either way, so this is not a
+// fallback across credentials: at most two attempts, no lockout surprise.
+func passwordAuth(password string) []ssh.AuthMethod {
+	return []ssh.AuthMethod{
+		ssh.Password(password),
+		ssh.KeyboardInteractive(func(_, _ string, questions []string, _ []bool) ([]string, error) {
+			answers := make([]string, len(questions))
+			for i := range answers {
+				answers[i] = password
+			}
+			return answers, nil
+		}),
+	}
 }
 
 func (d *Dialer) Connect(ctx context.Context, nodeID int64) (*Client, error) {
@@ -89,20 +108,20 @@ func (d *Dialer) connect(ctx context.Context, nodeID int64, depth int) (*Client,
 		return nil, err
 	}
 	var credUser, sudoPassword string
-	var auth ssh.AuthMethod
+	var auth []ssh.AuthMethod
 	switch kind {
 	case "private_key", "ssh_certificate":
 		signerUser, signer, err := d.DB.Signer(ctx, d.Master, credID)
 		if err != nil {
 			return nil, err
 		}
-		credUser, auth = signerUser, ssh.PublicKeys(signer)
-	case "username_password", "ldap":
+		credUser, auth = signerUser, []ssh.AuthMethod{ssh.PublicKeys(signer)}
+	case "username_password":
 		passwordUser, password, err := d.DB.SSHPassword(ctx, d.Master, credID)
 		if err != nil {
 			return nil, err
 		}
-		credUser, auth, sudoPassword = passwordUser, ssh.Password(password), password
+		credUser, auth, sudoPassword = passwordUser, passwordAuth(password), password
 	case "kerberos":
 		return nil, fmt.Errorf("credential %d uses Kerberos; configure a GSSAPI provider before assigning it to a node", credID)
 	case "cyberark":
@@ -121,11 +140,12 @@ func (d *Dialer) connect(ctx context.Context, nodeID int64, depth int) (*Client,
 	}
 	cfg := &ssh.ClientConfig{
 		User:            user,
-		Auth:            []ssh.AuthMethod{auth},
+		Auth:            auth,
 		HostKeyCallback: d.hostKeyCallback(ctx, nodeID),
 		Timeout:         timeout,
 		// The selected method is one stored credential. The connector never
-		// falls back across methods, which prevents surprising account lockouts.
+		// falls back across credentials, which prevents surprising account
+		// lockouts — passwordAuth's two methods are the same one secret.
 	}
 
 	addr := net.JoinHostPort(node.Address, strconv.Itoa(node.SSHPort))

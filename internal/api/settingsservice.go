@@ -75,7 +75,7 @@ func (c *settingsService) AddCredential(ctx context.Context, req *pb.AddCredenti
 		}
 		id, err = s.DB.CreateCredential(ctx, s.Master, req.Name, req.Username, kind, req.PrivateKey,
 			req.Passphrase, req.Certificate, &u.ID)
-	case "username_password", "ldap", "kerberos":
+	case "username_password", "kerberos":
 		id, err = s.DB.CreatePasswordCredential(ctx, s.Master, req.Name, req.Username, kind,
 			req.Password, req.ExternalRef, &u.ID)
 	case "cyberark":

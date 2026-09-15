@@ -30,7 +30,6 @@ type Credential struct {
 var PasswordCredentialKinds = map[string]bool{
 	"username_password": true,
 	"kerberos":          true,
-	"ldap":              true,
 }
 
 // CreateCredential seals the private key material and stores it. The AAD binds
@@ -299,8 +298,9 @@ func (db *DB) Signer(ctx context.Context, m *keys.Master, id int64) (string, ssh
 }
 
 // SSHPassword decrypts a credential only when it is a password-backed SSH
-// profile. LDAP-backed SSH uses the same wire authentication; the directory
-// validation happens on the managed host, not in this process.
+// profile. Whether the account is local or comes from a directory is the
+// managed host's business (its PAM/nsswitch), not a distinction this side
+// can act on — hence one password kind, not one per directory.
 func (db *DB) SSHPassword(ctx context.Context, m *keys.Master, id int64) (string, string, error) {
 	var username, authKind string
 	var ct, nonce []byte
@@ -312,7 +312,7 @@ func (db *DB) SSHPassword(ctx context.Context, m *keys.Master, id int64) (string
 	if err != nil {
 		return "", "", err
 	}
-	if authKind != "username_password" && authKind != "ldap" {
+	if authKind != "username_password" {
 		return "", "", fmt.Errorf("credential %d (%s) cannot authenticate to SSH with a password", id, authKind)
 	}
 	password, err := m.Open(ct, nonce, keys.AAD("credential", "password", id))

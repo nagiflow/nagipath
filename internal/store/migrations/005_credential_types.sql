@@ -10,7 +10,7 @@ CREATE TABLE credential_new (
   id                 INTEGER PRIMARY KEY,
   name               TEXT NOT NULL UNIQUE,
   username           TEXT NOT NULL,
-  auth_kind          TEXT NOT NULL CHECK (auth_kind IN ('private_key', 'ssh_certificate', 'username_password', 'kerberos', 'ldap', 'cyberark')),
+  auth_kind          TEXT NOT NULL CHECK (auth_kind IN ('private_key', 'ssh_certificate', 'username_password', 'kerberos', 'cyberark')),
   private_key_ct     BLOB NOT NULL,
   private_key_nonce  BLOB NOT NULL,
   passphrase_ct      BLOB,

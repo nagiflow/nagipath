@@ -22,11 +22,11 @@ This is the highest-consequence surface in the product. nagipath holds SSH acces
 
 ## 2. Why in-process SSH
 
-Credentials are entered in the web UI and stored encrypted, so SSH runs in-process via `golang.org/x/crypto/ssh`. SSH private keys, certificates and username/password are usable now; LDAP-backed SSH passwords use the same method. For password-backed SSH credentials only, the same sealed password is passed to `sudo -S -p ''` over SSH stdin when a read needs elevation. Key and certificate credentials remain `sudo -n` / NOPASSWD-only. Kerberos and CyberArk profiles are provider-gated references, never silently treated as SSH passwords.
+Credentials are entered in the web UI and stored encrypted, so SSH runs in-process via `golang.org/x/crypto/ssh`. SSH private keys, certificates and username/password are usable now; a directory-backed account is just a username/password as far as this side is concerned. For password-backed SSH credentials only, the same sealed password is passed to `sudo -S -p ''` over SSH stdin when a read needs elevation. Key and certificate credentials remain `sudo -n` / NOPASSWD-only. Kerberos and CyberArk profiles are provider-gated references, never silently treated as SSH passwords.
 
 Shelling out to the system `ssh` binary was seriously considered. It would inherit `~/.ssh/config`, `ProxyJump`, `known_hosts` policy and GSSAPI/Kerberos for free — genuinely attractive. It was rejected because with UI-managed Credentials it would require **materialising private keys to disk on every connection**, which defeats encrypting them at all. Neither `ssh_config` inheritance nor Kerberos matters once Credentials come from the UI, and host-key approval as a UI action is better operator experience than editing `known_hosts` on a fleet tool's server (ADR-0011).
 
-Password authentication is sealed under distinct row-and-column AAD (`credential:password:<id>`), just like private key material. The schema explicitly distinguishes `username_password`, `ldap`, `kerberos`, and `cyberark`; only the first two are accepted by the current SSH connector.
+Password authentication is sealed under distinct row-and-column AAD (`credential:password:<id>`), just like private key material. The schema explicitly distinguishes `username_password`, `kerberos`, and `cyberark`; only the first is accepted by the current SSH connector.
 
 ---
 

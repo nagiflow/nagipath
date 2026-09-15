@@ -13,7 +13,6 @@ const authKinds = [
   { value: 'private_key', text: 'SSH private key' },
   { value: 'ssh_certificate', text: 'SSH certificate' },
   { value: 'username_password', text: 'Username + password' },
-  { value: 'ldap', text: 'LDAP' },
   { value: 'kerberos', text: 'Kerberos' },
   { value: 'cyberark', text: 'CyberArk reference' },
 ]
@@ -211,12 +210,12 @@ export function CredentialsPage() {
                   <Field type="password" value={form.passphrase} onChange={(v) => setForm({ ...form, passphrase: v })} grow />
                 </FieldRow>
               )}
-              {(form.authKind === 'username_password' || form.authKind === 'ldap' || form.authKind === 'kerberos') && (
+              {(form.authKind === 'username_password' || form.authKind === 'kerberos') && (
                 <FieldRow label="Password">
                   <Field type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} grow />
                 </FieldRow>
               )}
-              {(form.authKind === 'ldap' || form.authKind === 'kerberos' || form.authKind === 'cyberark') && (
+              {(form.authKind === 'kerberos' || form.authKind === 'cyberark') && (
                 <FieldRow label="External reference (optional)">
                   <Field value={form.externalRef} onChange={(v) => setForm({ ...form, externalRef: v })} grow />
                 </FieldRow>

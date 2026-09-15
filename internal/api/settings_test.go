@@ -51,13 +51,13 @@ func TestPostAddCredentialAndList(t *testing.T) {
 	ctx := asAdmin(t.Context(), adminID)
 
 	if _, err := ss.AddCredential(ctx, &pb.AddCredentialRequest{
-		Name: "ldap-ops", Username: "ops@example.com", AuthKind: "ldap", Password: "not-rendered-anywhere",
+		Name: "pam-ops", Username: "ops@example.com", AuthKind: "username_password", Password: "not-rendered-anywhere",
 	}); err != nil {
 		t.Fatalf("AddCredential: %v", err)
 	}
 
 	creds, err := db.Credentials(t.Context())
-	if err != nil || len(creds) != 1 || creds[0].AuthKind != "ldap" {
+	if err != nil || len(creds) != 1 || creds[0].AuthKind != "username_password" {
 		t.Fatalf("credentials = %#v, %v", creds, err)
 	}
 	user, password, err := db.SSHPassword(t.Context(), s.Master, creds[0].ID)
@@ -69,7 +69,7 @@ func TestPostAddCredentialAndList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list.Credentials) != 1 || list.Credentials[0].Name != "ldap-ops" {
+	if len(list.Credentials) != 1 || list.Credentials[0].Name != "pam-ops" {
 		t.Errorf("credentials list = %+v", list.Credentials)
 	}
 	if body, _ := protoJSON.Marshal(list); strings.Contains(string(body), "not-rendered-anywhere") {

@@ -1,6 +1,10 @@
 package sshx
 
-import "testing"
+import (
+	"testing"
+
+	"golang.org/x/crypto/ssh"
+)
 
 func TestSudoCommandUsesPasswordOnlyForPasswordCredentials(t *testing.T) {
 	passwordClient := Client{sudoPassword: "not-in-command"}
@@ -45,5 +49,26 @@ func TestWriteAndRestartCommandsValidate(t *testing.T) {
 	}
 	if w.Stdin != "worker_processes 1;\n" {
 		t.Fatalf("body must travel on stdin, not the command line: %q", w.Line)
+	}
+}
+
+// A PAM-backed sshd advertises keyboard-interactive and no password method,
+// so a password credential has to answer its prompts — every prompt, since
+// the server picks the wording ("Password: ", "密码：", a 2FA echo prompt).
+func TestPasswordAuthAnswersKeyboardInteractive(t *testing.T) {
+	methods := passwordAuth("hunter2")
+	if len(methods) != 2 {
+		t.Fatalf("password credential offers %d methods, want password + keyboard-interactive", len(methods))
+	}
+	ki, ok := methods[1].(ssh.KeyboardInteractiveChallenge)
+	if !ok {
+		t.Fatalf("second method is %T, not a keyboard-interactive challenge", methods[1])
+	}
+	answers, err := ki("root", "", []string{"Password: ", "Verification code: "}, []bool{false, true})
+	if err != nil {
+		t.Fatalf("challenge: %v", err)
+	}
+	if len(answers) != 2 || answers[0] != "hunter2" || answers[1] != "hunter2" {
+		t.Fatalf("answers = %q, want the password for every prompt", answers)
 	}
 }
