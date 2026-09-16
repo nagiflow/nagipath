@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../client'
 import { TraceResponseSchema, ProbeRunPBSchema } from '../pb/nagipath/api/v1/trace_pb'
 import { ProbeHistoryResponseSchema, ProbeDetailResponseSchema } from '../pb/nagipath/api/v1/probe_pb'
@@ -57,6 +57,7 @@ export function useProbeHistory(params: { url: string; q: string; range: string;
   if (params.cursor) qs.set('cursor', params.cursor)
   return useQuery({
     queryKey: ['probe-history', qs.toString()],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/trace/history?${qs.toString()}`, ProbeHistoryResponseSchema),
   })
 }

@@ -76,7 +76,7 @@ export function NodeDetailPage() {
   const site = params.get('site') ?? undefined
   const route = params.get('route') ?? undefined
 
-  const { data, isPending, isError, error } = useNode(nodeID, { tab, process, pool, file, site, route })
+  const { data, isPending, isPlaceholderData, isError, error } = useNode(nodeID, { tab, process, pool, file, site, route })
   const collect = useCollectNode(nodeID)
   const del = useDeleteNode()
   const decide = useDecideHostKey()
@@ -266,13 +266,13 @@ export function NodeDetailPage() {
 
         {tab === 'sites' && <SitesTab data={data} />}
 
-        {tab === 'routes' && <RoutesTab data={data} setParams={setParams} filter={tabQ} />}
+        {tab === 'routes' && <RoutesTab data={data} setParams={setParams} filter={tabQ} pending={isPlaceholderData} />}
 
         {tab === 'upstreams' && <UpstreamsTab data={data} setParams={setParams} filter={tabQ} resolution={resolution} sort={poolSort} />}
 
         {tab === 'certificates' && <CertificatesTab data={data} filter={tabQ} expiry={expiry} />}
 
-        {tab === 'files' && <ConfigFilesTab data={data} setParams={setParams} filter={tabQ} nodeID={nodeID} isAdmin={isAdmin} />}
+        {tab === 'files' && <ConfigFilesTab data={data} setParams={setParams} filter={tabQ} nodeID={nodeID} isAdmin={isAdmin} pending={isPlaceholderData} />}
 
         {tab === 'drift' && (
           <Panel z>
@@ -772,7 +772,7 @@ function CertificatesTab({ data, filter, expiry }: { data: NodeDetailResponse; f
 // their active/inactive row styling are lifted from 5a's literal markup
 // (inline `background:#0077cc` on the selected row — there's no reusable
 // primitive for this list-cascade shape yet, so it's built directly here).
-function RoutesTab({ data, setParams, filter }: { data: NodeDetailResponse; setParams: SetURLSearchParams; filter: string }) {
+function RoutesTab({ data, setParams, filter, pending }: { data: NodeDetailResponse; setParams: SetURLSearchParams; filter: string; pending: boolean }) {
   const sites = data.inst?.sites ?? []
   const selectedSite = sites.find((s) => s.primaryName === data.selectedSiteName)
   const routes = (selectedSite?.routes ?? []).filter((r) => !filter || r.pattern.toLowerCase().includes(filter.toLowerCase()))
@@ -828,7 +828,7 @@ function RoutesTab({ data, setParams, filter }: { data: NodeDetailResponse; setP
           </div>
         </div>
 
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', opacity: pending ? .5 : 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderBottom: '1px solid #edf0f5', background: '#f7f8fc' }}>
             <span className="lbl">Effect</span>
             {data.selectedRoute && <span className="m mus">{data.selectedRoute.pattern}</span>}
@@ -881,12 +881,13 @@ function fmtBytes(n: bigint): string {
 // classes 5b's own `<pre>`-free code block uses), seeded at the snapshot's
 // recorded `line_start` rather than always starting at 1, since the backend
 // already resolves that offset for exactly this view.
-function ConfigFilesTab({ data, setParams, filter, nodeID, isAdmin }: {
+function ConfigFilesTab({ data, setParams, filter, nodeID, isAdmin, pending }: {
   data: NodeDetailResponse
   setParams: SetURLSearchParams
   filter: string
   nodeID: number
   isAdmin: boolean
+  pending: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const byDir = new Map<string, FileRef[]>()
@@ -930,7 +931,7 @@ function ConfigFilesTab({ data, setParams, filter, nodeID, isAdmin }: {
           </div>
         </div>
 
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', opacity: pending ? .5 : 1 }}>
           {data.selectedFile ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderBottom: '1px solid #edf0f5', background: '#f7f8fc' }}>

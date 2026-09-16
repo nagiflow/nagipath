@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { api } from '../client'
 import { CertificateDetailResponseSchema, CertificatesListResponseSchema } from '../pb/nagipath/api/v1/certificates_pb'
 
@@ -10,6 +10,7 @@ export function useCertificates(params: { expires?: string; issuer?: string; clu
   if (params.includeCAs) qs.set('include_cas', '1')
   return useQuery({
     queryKey: ['certificates', params.expires ?? '', params.issuer ?? '', params.cluster ?? '', params.includeCAs ?? false],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/certificates?${qs.toString()}`, CertificatesListResponseSchema),
   })
 }
@@ -18,6 +19,7 @@ export function useCertificate(id: number, tab: string) {
   const qs = tab !== 'overview' ? `?tab=${tab}` : ''
   return useQuery({
     queryKey: ['certificate', id, tab],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/certificates/${id}${qs}`, CertificateDetailResponseSchema),
     enabled: !!id,
   })

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { api } from '../client'
 import { DashboardResponseSchema } from '../pb/nagipath/api/v1/dashboard_pb'
 
@@ -11,6 +11,7 @@ export function useDashboard(params: { cluster?: number; severity?: string; atte
 
   return useQuery({
     queryKey: ['dashboard', params.cluster ?? 0, params.severity ?? 'all', params.attentionCluster ?? 0],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/dashboard${qs ? `?${qs}` : ''}`, DashboardResponseSchema),
   })
 }

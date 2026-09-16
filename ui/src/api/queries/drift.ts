@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../client'
 import { DriftResponseSchema, DriftReviewResponseSchema } from '../pb/nagipath/api/v1/drift_pb'
 
@@ -9,6 +9,7 @@ export function useDrift(params: { cluster: string; baseline?: string; scope?: s
   if (params.scope) qs.set('scope', params.scope)
   return useQuery({
     queryKey: ['drift', params.cluster, params.baseline ?? '', params.scope ?? ''],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/drift?${qs.toString()}`, DriftResponseSchema),
   })
 }

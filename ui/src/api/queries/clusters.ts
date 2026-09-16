@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../client'
 import { ClustersResponseSchema } from '../pb/nagipath/api/v1/clusters_pb'
 
@@ -11,6 +11,7 @@ export function useClusters(params: { q: string; drift: string; sort: string; cl
 
   return useQuery({
     queryKey: ['clusters', params.q, params.drift, params.sort, params.cluster ?? 0],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/clusters?${qs.toString()}`, ClustersResponseSchema),
   })
 }

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../client'
 import {
   ImportNodesResponseSchema,
@@ -15,6 +15,7 @@ export function useNodes(q: string) {
   if (q) qs.set('q', q)
   return useQuery({
     queryKey: ['nodes', q],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/nodes?${qs.toString()}`, NodesListResponseSchema),
   })
 }
@@ -32,6 +33,11 @@ export function useNode(id: number, params: { tab: string; process?: number; poo
     queryKey: ['node', id, params.tab, params.process ?? 0, params.pool ?? 0, params.file ?? 0, params.site ?? '', params.route ?? ''],
     queryFn: () => api.get(`/nodes/${id}${tabPath}${suffix ? `?${suffix}` : ''}`, NodeDetailResponseSchema),
     enabled: !!id,
+    // Selecting a file/route/site changes the query key; without this the
+    // page would fall back to isPending and blank out behind a full-page
+    // spinner on every click. Keep the last response on screen and let the
+    // body swap when the new one lands.
+    placeholderData: keepPreviousData,
     // The running-collection banner self-terminates the same way the old
     // htmx `hx-trigger="every 3s"` poll did (node.html) — refetch while a
     // collection is in flight, stop the moment it isn't.

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { api } from '../client'
 import { SearchResponseSchema } from '../pb/nagipath/api/v1/search_pb'
 
@@ -17,6 +17,7 @@ export function useSearch(params: {
   for (const a of params.age) qs.append('age', a)
   return useQuery({
     queryKey: ['search', params.q, params.match, params.scope, params.page, params.vendor.join(','), params.file.join(','), params.cluster.join(','), params.age.join(',')],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/search?${qs.toString()}`, SearchResponseSchema),
     enabled: !!params.q,
   })

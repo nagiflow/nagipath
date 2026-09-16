@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../client'
 import {
   CredentialsResponseSchema,
@@ -20,6 +20,7 @@ export function useCredentials(typeFilter: string) {
   const qs = typeFilter ? `?type=${encodeURIComponent(typeFilter)}` : ''
   return useQuery({
     queryKey: ['settings-credentials', typeFilter],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/settings/credentials${qs}`, CredentialsResponseSchema),
   })
 }
@@ -52,6 +53,7 @@ export function useHostKeys(state: string, cluster: string) {
   const suffix = qs.toString()
   return useQuery({
     queryKey: ['settings-hostkeys', state, cluster],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/settings/hostkeys${suffix ? `?${suffix}` : ''}`, HostKeysResponseSchema),
   })
 }
@@ -164,6 +166,7 @@ export function useAudit(params: { actor: string; action: string; range: string;
   if (params.perPage) qs.set('per_page', String(params.perPage))
   return useQuery({
     queryKey: ['settings-audit', params.actor, params.action, params.range, params.page, params.perPage],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/settings/audit?${qs.toString()}`, AuditResponseSchema),
   })
 }
@@ -174,6 +177,7 @@ export function useAPIKeys(state: string) {
   const qs = state ? `?state=${encodeURIComponent(state)}` : ''
   return useQuery({
     queryKey: ['settings-apikeys', state],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/settings/api-keys${qs}`, ApiKeysResponseSchema),
   })
 }
@@ -232,6 +236,7 @@ export function useCollections(params: { node: string; status: string; trigger: 
   if (params.cursor) qs.set('cursor', params.cursor)
   return useQuery({
     queryKey: ['collections', params.node, params.status, params.trigger, params.range, params.cursor],
+    placeholderData: keepPreviousData,
     queryFn: () => api.get(`/collections?${qs.toString()}`, CollectionsResponseSchema),
   })
 }
