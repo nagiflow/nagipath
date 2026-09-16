@@ -44,52 +44,75 @@ type SiteVariantRoute struct {
 func (db *DB) SiteListWithVariants(ctx context.Context, selectedSite string) ([]SiteListRow, []SiteVariant, error) {
 	cutoff := time.Now().UTC().Add(30 * 24 * time.Hour).Format("2006-01-02T15:04:05Z")
 
-	// First, get the list
+	// One aggregate per hostname, each computed in its own CTE. This used to be
+	// a single GROUP BY joining aliases x nodes x routes x cert bindings, whose
+	// cartesian product it then de-duplicated with COUNT(DISTINCT ...), plus a
+	// correlated subquery per group for the listener. On a fleet with a few
+	// thousand hostnames that was minutes; aggregating each fact once is ~linear.
 	rows, err := db.R.QueryContext(ctx, `
-		WITH site_aliases AS (
-		  SELECT s.primary_name, sn.name AS alias_name
+		WITH cur AS (
+		  SELECT s.id, s.primary_name, s.raw_text, s.listener_ids, s.snapshot_id, i.node_id
 		  FROM site s
 		  JOIN snapshot snap ON snap.id = s.snapshot_id AND snap.is_current = 1
-		  JOIN site_name sn ON sn.site_id = s.id
-		  WHERE s.primary_name != '' AND sn.name != s.primary_name AND sn.match_kind != 'catch_all'
+		  JOIN instance i ON i.id = s.instance_id AND i.retired_at IS NULL
+		  WHERE s.primary_name != ''
+		),
+		agg AS (
+		  SELECT primary_name, COUNT(DISTINCT node_id) AS nodes, COUNT(DISTINCT raw_text) AS variants
+		  FROM cur GROUP BY primary_name
+		),
+		alias_agg AS (
+		  SELECT c.primary_name, COUNT(DISTINCT sn.name) AS alias_count,
+		         group_concat(DISTINCT sn.name) AS aliases
+		  FROM cur c
+		  JOIN site_name sn ON sn.site_id = c.id
+		  WHERE sn.name != c.primary_name AND sn.match_kind != 'catch_all'
+		  GROUP BY c.primary_name
+		),
+		route_agg AS (
+		  SELECT c.primary_name, COUNT(r.id) AS routes
+		  FROM cur c JOIN route r ON r.site_id = c.id
+		  GROUP BY c.primary_name
+		),
+		cert_agg AS (
+		  SELECT c.primary_name, MIN(ce.subject_cn) AS subject, MIN(ce.not_after) AS not_after
+		  FROM cur c
+		  JOIN certificate_binding cb ON cb.site_id = c.id AND cb.snapshot_id = c.snapshot_id
+		  JOIN certificate ce ON ce.id = cb.certificate_id
+		  GROUP BY c.primary_name
+		),
+		listener_agg AS (
+		  SELECT primary_name, summary FROM (
+		    SELECT c.primary_name AS primary_name,
+		           l.address || ':' || l.port ||
+		             CASE WHEN l.tls = 1 THEN ' ssl' ELSE '' END ||
+		             CASE WHEN l.protocol != '' THEN ' ' || l.protocol ELSE '' END AS summary,
+		           ROW_NUMBER() OVER (PARTITION BY c.primary_name ORDER BY l.port, l.id) AS rn
+		    FROM cur c
+		    JOIN json_each(c.listener_ids) je
+		    JOIN listener l ON l.id = CAST(je.value AS INTEGER)
+		  ) WHERE rn = 1
 		)
-		SELECT s.primary_name,
-		       COUNT(DISTINCT sa.alias_name),
-		       COALESCE(group_concat(DISTINCT sa.alias_name), ''),
-		       COUNT(DISTINCT i.node_id),
-		       -- Correlated on primary_name only. This used to reach through a
-		       -- "JOIN site s2" self-join and match s2.id against MIN(id): in a GROUP BY
-		       -- over several nodes, whichever s2 row the group happened to evaluate
-		       -- against was usually not that one, so the subquery returned NULL and
-		       -- the whole list 500ed the moment two hosts served the same name.
-		       COALESCE((SELECT l.address || ':' || l.port ||
-		          CASE WHEN l.tls = 1 THEN ' ssl' ELSE '' END ||
-		          CASE WHEN l.protocol != '' THEN ' ' || l.protocol ELSE '' END
-		        FROM site sl
-		        JOIN snapshot sp ON sp.id = sl.snapshot_id AND sp.is_current = 1
-		        JOIN json_each(sl.listener_ids) je
-		        JOIN listener l ON l.id = CAST(je.value AS INTEGER)
-		        WHERE sl.primary_name = s.primary_name
-		        ORDER BY l.port LIMIT 1), '') AS listener_summary,
-		       COALESCE(MIN(c.subject_cn), ''),
-		       COUNT(DISTINCT r.id),
-		       COUNT(DISTINCT s.raw_text),
+		SELECT a.primary_name,
+		       COALESCE(al.alias_count, 0),
+		       COALESCE(al.aliases, ''),
+		       a.nodes,
+		       COALESCE(la.summary, ''),
+		       COALESCE(ca.subject, ''),
+		       COALESCE(ra.routes, 0),
+		       a.variants,
 		       CASE
-		         WHEN MIN(c.not_after) <= ? THEN 'CERT ' ||
-		           CAST(CAST((julianday(MIN(c.not_after)) - julianday('now')) AS INTEGER) AS TEXT) || 'd'
+		         WHEN ca.not_after <= ? THEN 'CERT ' ||
+		           CAST(CAST((julianday(ca.not_after) - julianday('now')) AS INTEGER) AS TEXT) || 'd'
 		         ELSE 'OK'
 		       END AS state,
 		       '' AS state_reason
-		FROM site s
-		JOIN snapshot snap ON snap.id = s.snapshot_id AND snap.is_current = 1
-		JOIN instance i ON i.id = s.instance_id AND i.retired_at IS NULL
-		LEFT JOIN site_aliases sa ON sa.primary_name = s.primary_name
-		LEFT JOIN route r ON r.site_id = s.id
-		LEFT JOIN certificate_binding cb ON cb.site_id = s.id AND cb.snapshot_id = snap.id
-		LEFT JOIN certificate c ON c.id = cb.certificate_id
-		WHERE s.primary_name != ''
-		GROUP BY s.primary_name
-		ORDER BY s.primary_name`, cutoff)
+		FROM agg a
+		LEFT JOIN alias_agg al ON al.primary_name = a.primary_name
+		LEFT JOIN route_agg ra ON ra.primary_name = a.primary_name
+		LEFT JOIN cert_agg ca ON ca.primary_name = a.primary_name
+		LEFT JOIN listener_agg la ON la.primary_name = a.primary_name
+		ORDER BY a.primary_name`, cutoff)
 	if err != nil {
 		return nil, nil, err
 	}

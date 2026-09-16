@@ -547,7 +547,7 @@ func TestApacheFallbackWalksFromServerRoot(t *testing.T) {
 	if got := host.lines[sshx.CmdFindConf]; !strings.Contains(got, "/etc/httpd ") && !strings.Contains(got, "'/etc/httpd'") {
 		t.Errorf("fallback walk ran %q, want it rooted at ServerRoot /etc/httpd", got)
 	}
-	sites, err := db.Sites(ctx)
+	sites, _, err := db.SiteListWithVariants(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
