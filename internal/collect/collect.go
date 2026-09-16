@@ -331,9 +331,22 @@ func (c *Collector) captureApache(ctx context.Context, ex sshx.Executor, f Found
 	// Apache has no `-T`. `-D DUMP_INCLUDES` is the closest thing: it names every
 	// file the server actually reads, which is the file set we then read ourselves.
 	var paths []string
-	if res, err := ex.Run(ctx, sshx.HTTPDIncludes(bin, cp.mainConfig)); err == nil {
+	res, err := ex.Run(ctx, sshx.HTTPDIncludes(bin, cp.mainConfig))
+	dumpErr := ""
+	switch {
+	case err != nil:
+		// A dump that could not run at all is the difference between the real
+		// file set and a guess at it, so name it. Left unsaid, a timed-out or
+		// refused `httpd -t` is indistinguishable from a server with nothing
+		// configured — the collection reports success over an empty walk.
+		dumpErr = "httpd -D DUMP_INCLUDES failed: " + err.Error()
+	default:
 		out := merged(res)
 		paths = includedPaths(out, root)
+		if len(paths) == 0 && res.ExitCode != 0 {
+			dumpErr = fmt.Sprintf("httpd -D DUMP_INCLUDES exited %d: %s",
+				res.ExitCode, firstLine(res.Stderr))
+		}
 		cp.files = append(cp.files, store.SnapshotFile{
 			Kind: "vendor_dump", Path: bin + " -D DUMP_INCLUDES", Content: []byte(out),
 		})
@@ -349,10 +362,15 @@ func (c *Collector) captureApache(ctx context.Context, ex sshx.Executor, f Found
 			cp.files = append(cp.files, store.SnapshotFile{
 				Kind: "vendor_dump", Path: bin + " -D " + id.label, Content: []byte(merged(res)),
 			})
+		} else {
+			cp.fail("httpd -D " + id.label + " failed: " + err.Error())
 		}
 	}
 
 	if len(paths) == 0 {
+		if dumpErr != "" {
+			cp.fail(dumpErr)
+		}
 		cp.fail("DUMP_INCLUDES named no files; falling back to reading the config tree")
 		cp.source = "fallback_walk"
 		// From ServerRoot, not from the conf/ directory httpd.conf sits in:
@@ -788,6 +806,11 @@ func rdn(dn, key string) string {
 }
 
 // ------------------------------------------------------------------- helpers
+
+func firstLine(s string) string {
+	line, _, _ := strings.Cut(strings.TrimSpace(s), "\n")
+	return line
+}
 
 func grepLine(out, needle string) string {
 	for _, line := range strings.Split(out, "\n") {

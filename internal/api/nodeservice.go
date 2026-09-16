@@ -275,7 +275,7 @@ func (c *nodeService) CollectNode(ctx context.Context, req *pb.NodeIdRequest) (*
 	s.DB.Audit(ctx, &u.ID, "collection.start", "node", &id, "")
 	actor := u.ID
 	go func() {
-		collectCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		collectCtx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 		defer cancel()
 		if err := s.Collector.Node(collectCtx, id, "manual", &actor); err != nil {
 			s.Log.Warn("collection failed", "node", id, "err", err)

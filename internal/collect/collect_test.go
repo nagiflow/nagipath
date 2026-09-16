@@ -555,3 +555,38 @@ func TestApacheFallbackWalksFromServerRoot(t *testing.T) {
 		t.Fatal("no sites: the vhost in /etc/httpd/conf.d was never captured")
 	}
 }
+
+// A DUMP_INCLUDES that cannot run is the failure mode a large Apache hits: the
+// dump makes the server parse the whole tree, and when that is cut off the
+// collector falls back to walking the file system and can find nothing. The
+// reason has to reach the Snapshot, or the collection reports success over an
+// empty host.
+func TestApacheDumpFailureIsReported(t *testing.T) {
+	h := &fakeHost{
+		out: map[sshx.ID]string{
+			sshx.CmdUname:    "Linux 6.1.0",
+			sshx.CmdProcList: "101\t/usr/sbin/httpd -DFOREGROUND\n",
+			sshx.CmdWhich:    "/usr/sbin/httpd\n",
+			sshx.CmdHTTPDVersion: "Server version: Apache/2.4.57 (Unix)\n" +
+				" -D HTTPD_ROOT=\"/etc/httpd\"\n -D SERVER_CONFIG_FILE=\"conf/httpd.conf\"\n",
+			// CmdHTTPDIncludes deliberately absent: the fake answers it 127.
+		},
+		files: map[string]string{"/etc/httpd/conf/httpd.conf": "Listen 80\n"},
+	}
+	db := testDB(t)
+	c := &Collector{DB: db, Dialer: h}
+	if err := c.Node(context.Background(), seedNode(t, db), "manual", nil); err != nil {
+		t.Fatal(err)
+	}
+	insts, err := db.Instances(context.Background())
+	if err != nil || len(insts) != 1 {
+		t.Fatalf("instances=%d err=%v", len(insts), err)
+	}
+	snap, err := db.CurrentSnapshot(context.Background(), insts[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(snap.DegradedReason, "DUMP_INCLUDES exited 127") {
+		t.Fatalf("degraded reason does not name the failed dump: %q", snap.DegradedReason)
+	}
+}

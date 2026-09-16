@@ -75,9 +75,10 @@ type Command struct {
 	// it: the file body never appears on a command line, so no quoting of it
 	// is needed and no length limit of the remote shell applies.
 	Stdin string
-	// Timeout overrides the client's own when set. Only the restart path needs
-	// it: a web server that drains connections on stop can outlast the timeout
-	// every read-only command is sized for.
+	// Timeout overrides the client's own when set. The restart path needs it —
+	// a web server that drains connections on stop can outlast the timeout every
+	// read-only command is sized for — and so do the config dumps, which make
+	// the server parse the whole tree (see configDump).
 	Timeout time.Duration
 	// SudoRetry says: if this fails as the login user and sudo is available, run
 	// it again with sudo. `nginx -T` is the case that matters — unprivileged it
@@ -194,7 +195,7 @@ func NginxDump(bin, conf string) Command {
 	if conf != "" {
 		line += " -c " + q(conf)
 	}
-	return Command{ID: CmdNginxDump, Line: line, TolerateExit: true, SudoRetry: true}
+	return configDump(CmdNginxDump, line)
 }
 
 func NginxTest(bin, conf string) Command {
@@ -202,7 +203,18 @@ func NginxTest(bin, conf string) Command {
 	if conf != "" {
 		line += " -c " + q(conf)
 	}
-	return Command{ID: CmdNginxTest, Line: line, TolerateExit: true, SudoRetry: true}
+	return configDump(CmdNginxTest, line)
+}
+
+// configDump is every command that makes the server itself read its whole
+// configuration: `nginx -T`, `httpd -t -D DUMP_*`, `haproxy -c`. On an estate
+// with thousands of vhosts that parse is minutes of work — mod_ssl reads every
+// certificate, and httpd resolves a ServerName-less vhost through DNS — so the
+// timeout the read-only commands are sized for cuts the authoritative dump off
+// and the collector silently falls back to guessing at the file tree.
+func configDump(id ID, line string) Command {
+	return Command{ID: id, Line: line, TolerateExit: true, SudoRetry: true,
+		Timeout: 3 * time.Minute}
 }
 
 func HTTPDVersion(bin string) Command {
@@ -214,7 +226,7 @@ func httpdDump(id ID, bin, conf, define string) Command {
 	if conf != "" {
 		line += " -f " + q(conf)
 	}
-	return Command{ID: id, Line: line, TolerateExit: true, SudoRetry: true}
+	return configDump(id, line)
 }
 
 func HTTPDVhosts(bin, conf string) Command {
@@ -232,8 +244,7 @@ func HAProxyVersion(bin string) Command {
 }
 
 func HAProxyCheck(bin, conf string) Command {
-	return Command{ID: CmdHAProxyCheck, Line: q(bin) + " -c -f " + q(conf),
-		TolerateExit: true, SudoRetry: true}
+	return configDump(CmdHAProxyCheck, q(bin)+" -c -f "+q(conf))
 }
 
 // FileRead reads at most max+1 bytes so the caller can tell "exactly at the cap"
