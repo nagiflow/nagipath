@@ -234,6 +234,8 @@ message Site {
   string kind = 3;
   repeated string names = 4;
   repeated Route routes = 5;
+  // "0.0.0.0:443 ssl" — what separates two vhosts that share a ServerName.
+  string listener = 6;
 }
 
 message UpstreamMemberRef {
@@ -319,6 +321,9 @@ message NodeDetailResponse {
   // Display name of node.bastion_node_id's target, resolved the same way
   // credential_name is — empty when the node connects directly.
   string bastion_name = 32;
+
+  // Which vhost the routes tab resolved to. Names are not unique on a node.
+  int64 selected_site_id = 33;
 }
 
 // ImportedNode is one row of what Import inventory actually added — enough

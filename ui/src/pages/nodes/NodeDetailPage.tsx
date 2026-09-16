@@ -36,6 +36,7 @@ import {
   FlexSpacer,
   PanelFooter,
   QueryBar,
+  Resizer,
   Select,
   Table,
   Tabs,
@@ -89,7 +90,6 @@ export function NodeDetailPage() {
   const [resolution, setResolution] = useState('')
   const [poolSort, setPoolSort] = useState('members')
   const [expiry, setExpiry] = useState('')
-  const [testPath, setTestPath] = useState('')
 
   if (isPending) return <Loading label="Loading node…" />
   if (isError) {
@@ -234,18 +234,6 @@ export function NodeDetailPage() {
             <span className="m mus">route</span>
             <span className="m mu">{data.selectedSiteName || 'no site'} ›</span>
             <input value={tabQ} onChange={(e) => setTabQ(e.target.value)} placeholder="paths starting /api/" />
-          </span>
-          <span className="fld">
-            <span className="m mus">test a path</span>
-            <input
-              value={testPath}
-              onChange={(e) => setTestPath(e.target.value)}
-              placeholder="/api/v2/charge"
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter' || !data.selectedSiteName) return
-                navigate(`/trace?url=${encodeURIComponent(`https://${data.selectedSiteName}${testPath.startsWith('/') ? '' : '/'}${testPath}`)}`)
-              }}
-            />
           </span>
         </QueryBar>
       )}
@@ -591,6 +579,7 @@ function SitesTable({ data }: { data: NodeDetailResponse }) {
         rowKey={(s) => s.id.toString()}
         columns={[
           { name: 'Hostname', render: (s) => <a className="m" href={`/sites/${encodeURIComponent(s.primaryName)}`} style={{ fontWeight: 500 }}>{s.primaryName}</a> },
+          { name: 'Listener', width: 130, render: (s) => <span className="m mu">{s.listener || '—'}</span> },
           { name: 'Kind', width: 110, render: (s) => <span className="m mu">{s.kind || '—'}</span> },
           {
             name: 'Aliases', width: 200,
@@ -774,37 +763,41 @@ function CertificatesTab({ data, filter, expiry }: { data: NodeDetailResponse; f
 // primitive for this list-cascade shape yet, so it's built directly here).
 function RoutesTab({ data, setParams, filter, pending }: { data: NodeDetailResponse; setParams: SetURLSearchParams; filter: string; pending: boolean }) {
   const sites = data.inst?.sites ?? []
-  const selectedSite = sites.find((s) => s.primaryName === data.selectedSiteName)
+  const selectedSite = sites.find((s) => s.id === data.selectedSiteId)
   const routes = (selectedSite?.routes ?? []).filter((r) => !filter || r.pattern.toLowerCase().includes(filter.toLowerCase()))
+  const [siteW, setSiteW] = useState(216)
+  const [routeW, setRouteW] = useState(244)
 
   return (
     <div className="pnl z" style={{ flex: 1, overflow: 'hidden' }}>
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        <div style={{ flex: '0 0 216px', minWidth: 0, borderRight: '1px solid #d3dae6', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: `0 0 ${siteW}px`, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderBottom: '1px solid #edf0f5', background: '#f7f8fc' }}>
             <span className="lbl">Site</span><span className="m mus" style={{ marginLeft: 'auto' }}>{sites.length}</span>
           </div>
           <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '4px 5px', display: 'flex', flexDirection: 'column', gap: 1 }}>
             {sites.map((s) => {
-              const active = s.primaryName === data.selectedSiteName
+              const active = s.id === data.selectedSiteId
               return (
                 <div
                   key={s.id.toString()}
-                  onClick={() => setParams((p) => { p.set('site', s.primaryName); p.delete('route'); return p })}
+                  onClick={() => setParams((p) => { p.set('site', s.id.toString()); p.delete('route'); return p })}
                   style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '4px 7px', borderRadius: 3, cursor: 'pointer', background: active ? '#0077cc' : undefined, color: active ? '#fff' : undefined }}
                 >
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                     <span className="m" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.primaryName}</span>
                     {active && <span className="m" style={{ opacity: .8 }}>›</span>}
                   </div>
-                  <span className="m" style={{ opacity: .65, fontSize: 10 }}>{s.routes.length}</span>
+                  <span className="m" style={{ opacity: .65, fontSize: 10 }}>{s.listener} · {s.routes.length} routes</span>
                 </div>
               )
             })}
           </div>
         </div>
 
-        <div style={{ flex: '0 0 244px', minWidth: 0, borderRight: '1px solid #d3dae6', display: 'flex', flexDirection: 'column' }}>
+        <Resizer width={siteW} onChange={setSiteW} />
+
+        <div style={{ flex: `0 0 ${routeW}px`, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderBottom: '1px solid #edf0f5', background: '#f7f8fc' }}>
             <span className="lbl">Route</span><span className="m mus" style={{ marginLeft: 'auto' }}>{routes.length}</span>
           </div>
@@ -828,6 +821,8 @@ function RoutesTab({ data, setParams, filter, pending }: { data: NodeDetailRespo
           </div>
         </div>
 
+        <Resizer width={routeW} onChange={setRouteW} />
+
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', opacity: pending ? .5 : 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderBottom: '1px solid #edf0f5', background: '#f7f8fc' }}>
             <span className="lbl">Effect</span>
@@ -837,7 +832,9 @@ function RoutesTab({ data, setParams, filter, pending }: { data: NodeDetailRespo
             {data.selectedRoute ? (
               <div className="kv" style={{ display: 'grid', gridTemplateColumns: '104px 1fr', gap: '7px 10px', alignItems: 'start' }}>
                 <span className="lbl">Match</span><span className="m">{data.selectedRoute.matchType} {data.selectedRoute.pattern}</span>
-                <span className="lbl">Target</span><span className="m">{data.selectedRoute.targetRaw}</span>
+                <span className="lbl">Target</span>{data.selectedRoute.targetRaw
+                  ? <span className="m">{data.selectedRoute.targetRaw}</span>
+                  : <span className="m mus">none — this section only sets rules</span>}
                 {data.routeEffect ? (
                   <>
                     <span className="lbl">Upstream</span>
@@ -930,6 +927,8 @@ function ConfigFilesTab({ data, setParams, filter, nodeID, isAdmin, pending }: {
             ))}
           </div>
         </div>
+
+        <Resizer width={routeW} onChange={setRouteW} />
 
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', opacity: pending ? .5 : 1 }}>
           {data.selectedFile ? (

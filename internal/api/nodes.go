@@ -71,6 +71,7 @@ type nodeBuild struct {
 	HasDrift      bool
 	NoDriftReason string
 
+	SelectedSiteID   int64
 	SelectedSiteName string
 	SelectedRoute    *trace.Route
 	RouteEffect      *routeEffectBuild
@@ -153,7 +154,8 @@ func toPBInst(inst *trace.Inst) *pb.Inst {
 		ClusterName: inst.ClusterName, Degraded: inst.Degraded,
 	}
 	for _, site := range inst.Sites {
-		s := &pb.Site{Id: site.ID, PrimaryName: site.PrimaryName, Kind: site.Kind}
+		s := &pb.Site{Id: site.ID, PrimaryName: site.PrimaryName, Kind: site.Kind,
+			Listener: listenerSummary(inst, site)}
 		for _, n := range site.Names {
 			s.Names = append(s.Names, n.Name)
 		}
@@ -185,7 +187,7 @@ func (nb *nodeBuild) toProto() *pb.NodeDetailResponse {
 			BytesRaw: nb.Snapshot.BytesRaw, ParseState: nb.Snapshot.ParseState,
 		},
 		HasDrift: nb.HasDrift, NoDriftReason: nb.NoDriftReason,
-		SelectedSiteName: nb.SelectedSiteName, FileBody: nb.FileBody,
+		SelectedSiteName: nb.SelectedSiteName, SelectedSiteId: nb.SelectedSiteID, FileBody: nb.FileBody,
 		ByteStart: int32(nb.ByteStart), LineStart: int32(nb.LineStart),
 	}
 	for _, c := range nb.Credentials {
@@ -436,46 +438,76 @@ func loadRoutesTab(nb *nodeBuild, site, routePattern string) {
 	if nb.Inst == nil {
 		return
 	}
-	nb.SelectedSiteName = site
-
-	if nb.SelectedSiteName == "" && len(nb.Inst.Sites) > 0 {
+	// Selected by site id, not by ServerName: one node can serve the same name
+	// from several vhosts (:80 and :443 is the common pair), and matching on the
+	// name makes every one of them resolve to the first, so the others look like
+	// dead duplicates in the list.
+	var sel *trace.Site
+	for _, s := range nb.Inst.Sites {
+		if strconv.FormatInt(s.ID, 10) == site {
+			sel = s
+			break
+		}
+	}
+	if sel == nil {
 		for _, s := range nb.Inst.Sites {
 			if len(s.Routes) > 0 {
-				nb.SelectedSiteName = s.PrimaryName
+				sel = s
 				break
 			}
 		}
 	}
+	if sel == nil {
+		return
+	}
+	nb.SelectedSiteID = sel.ID
+	nb.SelectedSiteName = sel.PrimaryName
 
-	for _, s := range nb.Inst.Sites {
-		if s.PrimaryName != nb.SelectedSiteName {
+	if routePattern == "" && len(sel.Routes) > 0 {
+		nb.SelectedRoute = sel.Routes[0]
+	} else {
+		for _, route := range sel.Routes {
+			if route.Pattern == routePattern {
+				nb.SelectedRoute = route
+				break
+			}
+		}
+	}
+	if nb.SelectedRoute == nil {
+		return
+	}
+	effect := &routeEffectBuild{}
+	if nb.SelectedRoute.UpstreamID.Valid {
+		if up, ok := nb.Inst.Upstreams[nb.SelectedRoute.UpstreamID.Int64]; ok {
+			effect.UpstreamName = up.Name
+			effect.MemberCount = len(up.Members)
+			effect.BalanceMethod = up.BalanceMethod
+			if effect.BalanceMethod == "" {
+				effect.BalanceMethod = "round robin"
+			}
+			effect.Members = up.Members
+		}
+	}
+	nb.RouteEffect = effect
+}
+
+// listenerSummary is the "0.0.0.0:443 ssl" label that tells two vhosts sharing a
+// ServerName apart. Only the first listener is shown; a vhost bound to several
+// is rare and the list has one line to say it in.
+func listenerSummary(inst *trace.Inst, s *trace.Site) string {
+	for _, id := range s.ListenerIDs {
+		l, ok := inst.Listeners[id]
+		if !ok {
 			continue
 		}
-		if routePattern == "" && len(s.Routes) > 0 {
-			nb.SelectedRoute = s.Routes[0]
-		} else {
-			for _, route := range s.Routes {
-				if route.Pattern == routePattern {
-					nb.SelectedRoute = route
-					break
-				}
-			}
+		out := fmt.Sprintf("%s:%d", l.Address, l.Port)
+		if l.TLS {
+			out += " ssl"
 		}
-		if nb.SelectedRoute != nil {
-			effect := &routeEffectBuild{}
-			if nb.SelectedRoute.UpstreamID.Valid {
-				if up, ok := nb.Inst.Upstreams[nb.SelectedRoute.UpstreamID.Int64]; ok {
-					effect.UpstreamName = up.Name
-					effect.MemberCount = len(up.Members)
-					effect.BalanceMethod = up.BalanceMethod
-					if effect.BalanceMethod == "" {
-						effect.BalanceMethod = "round robin"
-					}
-					effect.Members = up.Members
-				}
-			}
-			nb.RouteEffect = effect
+		if len(s.ListenerIDs) > 1 {
+			out += fmt.Sprintf(" +%d", len(s.ListenerIDs)-1)
 		}
-		break
+		return out
 	}
+	return ""
 }

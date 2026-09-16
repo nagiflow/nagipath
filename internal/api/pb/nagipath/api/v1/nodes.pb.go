@@ -1848,12 +1848,14 @@ func (x *Route) GetChildren() []*Route {
 }
 
 type Site struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	PrimaryName   string                 `protobuf:"bytes,2,opt,name=primary_name,json=primaryName,proto3" json:"primary_name,omitempty"`
-	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
-	Names         []string               `protobuf:"bytes,4,rep,name=names,proto3" json:"names,omitempty"`
-	Routes        []*Route               `protobuf:"bytes,5,rep,name=routes,proto3" json:"routes,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	PrimaryName string                 `protobuf:"bytes,2,opt,name=primary_name,json=primaryName,proto3" json:"primary_name,omitempty"`
+	Kind        string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Names       []string               `protobuf:"bytes,4,rep,name=names,proto3" json:"names,omitempty"`
+	Routes      []*Route               `protobuf:"bytes,5,rep,name=routes,proto3" json:"routes,omitempty"`
+	// "0.0.0.0:443 ssl" — what separates two vhosts that share a ServerName.
+	Listener      string `protobuf:"bytes,6,opt,name=listener,proto3" json:"listener,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1921,6 +1923,13 @@ func (x *Site) GetRoutes() []*Route {
 		return x.Routes
 	}
 	return nil
+}
+
+func (x *Site) GetListener() string {
+	if x != nil {
+		return x.Listener
+	}
+	return ""
 }
 
 type UpstreamMemberRef struct {
@@ -2349,9 +2358,11 @@ type NodeDetailResponse struct {
 	RouteEffect      *RouteEffect           `protobuf:"bytes,31,opt,name=route_effect,json=routeEffect,proto3" json:"route_effect,omitempty"`
 	// Display name of node.bastion_node_id's target, resolved the same way
 	// credential_name is — empty when the node connects directly.
-	BastionName   string `protobuf:"bytes,32,opt,name=bastion_name,json=bastionName,proto3" json:"bastion_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	BastionName string `protobuf:"bytes,32,opt,name=bastion_name,json=bastionName,proto3" json:"bastion_name,omitempty"`
+	// Which vhost the routes tab resolved to. Names are not unique on a node.
+	SelectedSiteId int64 `protobuf:"varint,33,opt,name=selected_site_id,json=selectedSiteId,proto3" json:"selected_site_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *NodeDetailResponse) Reset() {
@@ -2606,6 +2617,13 @@ func (x *NodeDetailResponse) GetBastionName() string {
 		return x.BastionName
 	}
 	return ""
+}
+
+func (x *NodeDetailResponse) GetSelectedSiteId() int64 {
+	if x != nil {
+		return x.SelectedSiteId
+	}
+	return 0
 }
 
 // ImportedNode is one row of what Import inventory actually added — enough
@@ -3946,13 +3964,14 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"upstreamId\x12\x1d\n" +
 	"\n" +
 	"target_raw\x18\a \x01(\tR\ttargetRaw\x122\n" +
-	"\bchildren\x18\b \x03(\v2\x16.nagipath.api.v1.RouteR\bchildren\"\x93\x01\n" +
+	"\bchildren\x18\b \x03(\v2\x16.nagipath.api.v1.RouteR\bchildren\"\xaf\x01\n" +
 	"\x04Site\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12!\n" +
 	"\fprimary_name\x18\x02 \x01(\tR\vprimaryName\x12\x12\n" +
 	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x14\n" +
 	"\x05names\x18\x04 \x03(\tR\x05names\x12.\n" +
-	"\x06routes\x18\x05 \x03(\v2\x16.nagipath.api.v1.RouteR\x06routes\"y\n" +
+	"\x06routes\x18\x05 \x03(\v2\x16.nagipath.api.v1.RouteR\x06routes\x12\x1a\n" +
+	"\blistener\x18\x06 \x01(\tR\blistener\"y\n" +
 	"\x11UpstreamMemberRef\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12\x12\n" +
@@ -3983,7 +4002,7 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\rupstream_name\x18\x01 \x01(\tR\fupstreamName\x12!\n" +
 	"\fmember_count\x18\x02 \x01(\x05R\vmemberCount\x12%\n" +
 	"\x0ebalance_method\x18\x03 \x01(\tR\rbalanceMethod\x12<\n" +
-	"\amembers\x18\x04 \x03(\v2\".nagipath.api.v1.UpstreamMemberRefR\amembers\"\xaf\r\n" +
+	"\amembers\x18\x04 \x03(\v2\".nagipath.api.v1.UpstreamMemberRefR\amembers\"\xd9\r\n" +
 	"\x12NodeDetailResponse\x12)\n" +
 	"\x04node\x18\x01 \x01(\v2\x15.nagipath.api.v1.NodeR\x04node\x12=\n" +
 	"\vcredentials\x18\x02 \x03(\v2\x1b.nagipath.api.v1.CredentialR\vcredentials\x127\n" +
@@ -4020,7 +4039,8 @@ const file_nagipath_api_v1_nodes_proto_rawDesc = "" +
 	"\x12selected_site_name\x18\x1d \x01(\tR\x10selectedSiteName\x12=\n" +
 	"\x0eselected_route\x18\x1e \x01(\v2\x16.nagipath.api.v1.RouteR\rselectedRoute\x12?\n" +
 	"\froute_effect\x18\x1f \x01(\v2\x1c.nagipath.api.v1.RouteEffectR\vrouteEffect\x12!\n" +
-	"\fbastion_name\x18  \x01(\tR\vbastionName\x1a@\n" +
+	"\fbastion_name\x18  \x01(\tR\vbastionName\x12(\n" +
+	"\x10selected_site_id\x18! \x01(\x03R\x0eselectedSiteId\x1a@\n" +
 	"\x12DriftByObjectEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"v\n" +

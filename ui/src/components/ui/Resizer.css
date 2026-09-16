@@ -1,0 +1,2 @@
+.rsz{flex:0 0 5px;margin:0 -2px;cursor:col-resize;background:transparent;border-left:1px solid #d3dae6;touch-action:none;z-index:1}
+.rsz:hover,.rsz:focus-visible{border-left-color:#0077cc;outline:none;background:#0077cc22}
